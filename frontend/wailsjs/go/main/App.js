@@ -94,6 +94,10 @@ export function SearchAnime(arg1) {
   return window['go']['main']['App']['SearchAnime'](arg1);
 }
 
+export function SearchNyaa(arg1) {
+  return window['go']['main']['App']['SearchNyaa'](arg1);
+}
+
 export function StartMagnet(arg1) {
   return window['go']['main']['App']['StartMagnet'](arg1);
 }

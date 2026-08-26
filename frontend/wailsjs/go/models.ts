@@ -124,6 +124,36 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class NyaaResultView {
+	    title: string;
+	    link: string;
+	    magnet: string;
+	    published: string;
+	    size: string;
+	    seeders: number;
+	    leechers: number;
+	    downloads: number;
+	    trusted: boolean;
+	    remake: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new NyaaResultView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.title = source["title"];
+	        this.link = source["link"];
+	        this.magnet = source["magnet"];
+	        this.published = source["published"];
+	        this.size = source["size"];
+	        this.seeders = source["seeders"];
+	        this.leechers = source["leechers"];
+	        this.downloads = source["downloads"];
+	        this.trusted = source["trusted"];
+	        this.remake = source["remake"];
+	    }
+	}
 	export class SettingsView {
 	    mpvPath: string;
 	    downloadDir: string;

@@ -17,6 +17,7 @@ import (
 	"github.com/sunnyegg/miru/internal/anilist"
 	"github.com/sunnyegg/miru/internal/media"
 	"github.com/sunnyegg/miru/internal/mpv"
+	"github.com/sunnyegg/miru/internal/nyaa"
 	"github.com/sunnyegg/miru/internal/paths"
 	"github.com/sunnyegg/miru/internal/secrets"
 	"github.com/sunnyegg/miru/internal/storage"
@@ -300,6 +301,39 @@ func (a *App) ListCurrentlyWatching() ([]WatchingEntryView, error) {
 			CoverImage:    entry.CoverImage,
 			TotalEpisodes: entry.TotalEpisodes,
 			MediaStatus:   entry.MediaStatus,
+		})
+	}
+	return out, nil
+}
+
+func (a *App) SearchNyaa(query string) ([]NyaaResultView, error) {
+	if err := a.ready(); err != nil {
+		return nil, err
+	}
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, errors.New("Nyaa search query is empty")
+	}
+	if len(query) > 200 {
+		return nil, errors.New("Nyaa search query is too long")
+	}
+	results, err := nyaa.New().Search(query)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]NyaaResultView, 0, len(results))
+	for _, result := range results {
+		out = append(out, NyaaResultView{
+			Title:     result.Title,
+			Link:      result.Link,
+			Magnet:    result.Magnet(),
+			Published: result.Published.Format(time.RFC3339),
+			Size:      result.Size,
+			Seeders:   result.Seeders,
+			Leechers:  result.Leechers,
+			Downloads: result.Downloads,
+			Trusted:   result.Trusted,
+			Remake:    result.Remake,
 		})
 	}
 	return out, nil

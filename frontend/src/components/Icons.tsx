@@ -19,6 +19,15 @@ export function IconWatching({className}: IconProps) {
   )
 }
 
+export function IconSearch({className}: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <circle cx="10.5" cy="10.5" r="5.5" />
+      <path strokeLinecap="round" d="m15 15 5 5" />
+    </svg>
+  )
+}
+
 export function IconDownload({className}: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">

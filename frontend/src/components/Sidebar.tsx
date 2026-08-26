@@ -1,9 +1,10 @@
-import {IconCalendar, IconDownload, IconLibrary, IconSettings, IconWatching} from './Icons'
+import {IconCalendar, IconDownload, IconLibrary, IconSearch, IconSettings, IconWatching} from './Icons'
 import type {TabId} from '../lib/types'
 
 const items: {id: TabId; label: string; icon: typeof IconLibrary}[] = [
   {id: 'library', label: 'Library', icon: IconLibrary},
   {id: 'watching', label: 'Watching', icon: IconWatching},
+  {id: 'search', label: 'Search', icon: IconSearch},
   {id: 'downloads', label: 'Downloads', icon: IconDownload},
   {id: 'calendar', label: 'Airing', icon: IconCalendar},
   {id: 'settings', label: 'Settings', icon: IconSettings},

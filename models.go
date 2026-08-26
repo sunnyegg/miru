@@ -62,6 +62,19 @@ type WatchingEntryView struct {
 	MediaStatus   string `json:"mediaStatus"`
 }
 
+type NyaaResultView struct {
+	Title     string `json:"title"`
+	Link      string `json:"link"`
+	Magnet    string `json:"magnet"`
+	Published string `json:"published"`
+	Size      string `json:"size"`
+	Seeders   int    `json:"seeders"`
+	Leechers  int    `json:"leechers"`
+	Downloads int    `json:"downloads"`
+	Trusted   bool   `json:"trusted"`
+	Remake    bool   `json:"remake"`
+}
+
 type PlaybackEvent struct {
 	EpisodeID int64   `json:"episodeId"`
 	Percent   float64 `json:"percent"`

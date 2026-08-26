@@ -4,6 +4,7 @@ import {InitError} from '../wailsjs/go/main/App'
 import {Sidebar} from './components/Sidebar'
 import {LibraryView} from './views/Library'
 import {WatchingView} from './views/Watching'
+import {SearchView} from './views/Search'
 import {DownloadsView} from './views/Downloads'
 import {CalendarView} from './views/Calendar'
 import {SettingsView} from './views/Settings'
@@ -80,6 +81,7 @@ export default function App() {
         <main className="min-h-0 flex-1 overflow-auto p-6">
           {tab === 'library' && <LibraryView notice={showNotice} refreshKey={libraryKey} />}
           {tab === 'watching' && <WatchingView notice={showNotice} refreshKey={authKey} onSettings={() => setTab('settings')} />}
+          {tab === 'search' && <SearchView notice={showNotice} onDownloads={() => setTab('downloads')} />}
           {tab === 'downloads' && <DownloadsView notice={showNotice} jobs={jobs} onJobs={setJobs} />}
           {tab === 'calendar' && <CalendarView notice={showNotice} />}
           {tab === 'settings' && <SettingsView notice={showNotice} refreshKey={authKey} />}

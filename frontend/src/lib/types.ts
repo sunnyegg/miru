@@ -1,4 +1,4 @@
-export type TabId = 'library' | 'watching' | 'downloads' | 'calendar' | 'settings'
+export type TabId = 'library' | 'watching' | 'search' | 'downloads' | 'calendar' | 'settings'
 
 export type SettingsView = {
   mpvPath: string
@@ -60,6 +60,19 @@ export type WatchingEntryView = {
   coverImage: string
   totalEpisodes: number
   mediaStatus: string
+}
+
+export type NyaaResultView = {
+  title: string
+  link: string
+  magnet: string
+  published: string
+  size: string
+  seeders: number
+  leechers: number
+  downloads: number
+  trusted: boolean
+  remake: boolean
 }
 
 export type DownloadView = {
