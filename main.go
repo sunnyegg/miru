@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"os"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -13,6 +14,8 @@ import (
 var assets embed.FS
 
 func main() {
+	applyWaylandNVIDIAWorkaround()
+
 	app := NewApp()
 
 	err := wails.Run(&options.App{
@@ -35,5 +38,17 @@ func main() {
 
 	if err != nil {
 		println("Error:", err.Error())
+	}
+}
+
+func applyWaylandNVIDIAWorkaround() {
+	if os.Getenv("WAYLAND_DISPLAY") == "" {
+		return
+	}
+	if _, err := os.Stat("/sys/module/nvidia"); err != nil {
+		return
+	}
+	if os.Getenv("__NV_DISABLE_EXPLICIT_SYNC") == "" {
+		_ = os.Setenv("__NV_DISABLE_EXPLICIT_SYNC", "1")
 	}
 }

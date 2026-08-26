@@ -8,6 +8,15 @@ Portable Linux desktop app for playing local anime files in MPV, syncing watch p
 - MPV (`mpv` in `PATH`, or pick the binary in Settings)
 - Optional: a Secret Service / GNOME Keyring. If missing, the AniList token is stored in `~/.config/miru/anilist.token` with mode `0600`.
 
+On NVIDIA systems running Wayland, Miru automatically disables NVIDIA explicit
+sync before starting WebKitGTK. This works around a known WebKitGTK protocol
+error while keeping hardware acceleration enabled. If the window still crashes
+or renders incorrectly, try the more conservative fallback:
+
+```bash
+WEBKIT_DISABLE_DMABUF_RENDERER=1 ./build/bin/miru-linux-amd64
+```
+
 Debian/Ubuntu example:
 
 ```bash
