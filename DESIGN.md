@@ -134,6 +134,7 @@ Confirmed visual rejection: a streaming-app card grid with rounded tiles and a P
 - One sans: Source Sans 3 Variable, self-hosted
 - Hairline rules and tonal stacking; no shadows
 - Named left rail; Settings docked at the bottom
+- Lucide icons at 16px, stroke 1.75; Play is the only filled glyph
 
 ## Colors
 
@@ -239,6 +240,10 @@ Hairlines are 1px. Library uses full `border`. Inherited views often use that ha
 - **Hover:** Muted fill, phosphor type.
 - **Current:** Muted fill, phosphor type, left hairline in orange (`border-l` + `accent`).
 - **Collapsed (`< sm`):** 48px wide, labels not visible, wordmark 11px centered. Expanded: 176px, labels visible, wordmark 1.125rem left-aligned.
+
+### Icons
+
+Lucide, 16px (`h-4 w-4`), stroke 1.75, `currentColor`. Rail destinations and ghost actions stay outline: Library is the poster grid, Watching the eye, Search, Downloads, Airing the calendar, Settings the gear, Folder for Open folder. Play is the one filled triangle. Semantic wrappers live in `frontend/src/components/Icons.tsx` — do not import Lucide names from views.
 
 ### Poster Field
 
