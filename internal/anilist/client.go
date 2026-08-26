@@ -39,6 +39,16 @@ type AiringSchedule struct {
 	CoverImage   string `json:"coverImage"`
 }
 
+type CurrentEntry struct {
+	MediaID       int    `json:"mediaId"`
+	Progress      int    `json:"progress"`
+	TitleRomaji   string `json:"titleRomaji"`
+	TitleEnglish  string `json:"titleEnglish"`
+	CoverImage    string `json:"coverImage"`
+	TotalEpisodes int    `json:"totalEpisodes"`
+	MediaStatus   string `json:"mediaStatus"`
+}
+
 type Client struct {
 	HTTP     *http.Client
 	Endpoint string
@@ -139,6 +149,68 @@ func (c *Client) ViewerName() (string, error) {
 		return "", fmt.Errorf("invalid AniList token")
 	}
 	return out.Viewer.Name, nil
+}
+
+func (c *Client) ViewerID() (int, error) {
+	var out struct {
+		Viewer struct {
+			ID int `json:"id"`
+		} `json:"Viewer"`
+	}
+	if err := c.query(`query { Viewer { id } }`, nil, &out); err != nil {
+		return 0, err
+	}
+	if out.Viewer.ID == 0 {
+		return 0, fmt.Errorf("invalid AniList token")
+	}
+	return out.Viewer.ID, nil
+}
+
+func (c *Client) ListCurrent() ([]CurrentEntry, error) {
+	userID, err := c.ViewerID()
+	if err != nil {
+		return nil, err
+	}
+
+	const q = `
+	query ($page: Int, $userId: Int) {
+	  Page(page: $page, perPage: 50) {
+	    pageInfo { hasNextPage }
+	    mediaList(userId: $userId, type: ANIME, status: CURRENT, sort: UPDATED_TIME_DESC) {
+	      progress
+	      media {
+	        id
+	        title { romaji english }
+	        coverImage { large }
+	        episodes
+	        status
+	      }
+	    }
+	  }
+	}`
+	var entries []CurrentEntry
+	for page := 1; ; page++ {
+		var out struct {
+			Page struct {
+				PageInfo struct {
+					HasNextPage bool `json:"hasNextPage"`
+				} `json:"pageInfo"`
+				MediaList []gqlCurrentEntry `json:"mediaList"`
+			} `json:"Page"`
+		}
+		if err := c.query(q, map[string]any{
+			"page":   page,
+			"userId": userID,
+		}, &out); err != nil {
+			return nil, err
+		}
+		for _, entry := range out.Page.MediaList {
+			entries = append(entries, entry.toCurrentEntry())
+		}
+		if !out.Page.PageInfo.HasNextPage {
+			return entries, nil
+		}
+	}
 }
 
 func (c *Client) Search(search string) ([]Anime, error) {
@@ -312,6 +384,34 @@ type gqlAiringSchedule struct {
 			Large string `json:"large"`
 		} `json:"coverImage"`
 	} `json:"media"`
+}
+
+type gqlCurrentEntry struct {
+	Progress int `json:"progress"`
+	Media    struct {
+		ID    int `json:"id"`
+		Title struct {
+			Romaji  string `json:"romaji"`
+			English string `json:"english"`
+		} `json:"title"`
+		CoverImage struct {
+			Large string `json:"large"`
+		} `json:"coverImage"`
+		Episodes int    `json:"episodes"`
+		Status   string `json:"status"`
+	} `json:"media"`
+}
+
+func (e gqlCurrentEntry) toCurrentEntry() CurrentEntry {
+	return CurrentEntry{
+		MediaID:       e.Media.ID,
+		Progress:      e.Progress,
+		TitleRomaji:   e.Media.Title.Romaji,
+		TitleEnglish:  e.Media.Title.English,
+		CoverImage:    e.Media.CoverImage.Large,
+		TotalEpisodes: e.Media.Episodes,
+		MediaStatus:   e.Media.Status,
+	}
 }
 
 func (s gqlAiringSchedule) toAiringSchedule() AiringSchedule {

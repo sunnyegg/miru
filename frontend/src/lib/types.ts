@@ -1,4 +1,4 @@
-export type TabId = 'library' | 'downloads' | 'calendar' | 'settings'
+export type TabId = 'library' | 'watching' | 'downloads' | 'calendar' | 'settings'
 
 export type SettingsView = {
   mpvPath: string
@@ -50,6 +50,16 @@ export type AiringScheduleView = {
   titleRomaji: string
   titleEnglish: string
   coverImage: string
+}
+
+export type WatchingEntryView = {
+  mediaId: number
+  progress: number
+  titleRomaji: string
+  titleEnglish: string
+  coverImage: string
+  totalEpisodes: number
+  mediaStatus: string
 }
 
 export type DownloadView = {

@@ -52,6 +52,16 @@ type AiringScheduleView struct {
 	CoverImage   string `json:"coverImage"`
 }
 
+type WatchingEntryView struct {
+	MediaID       int    `json:"mediaId"`
+	Progress      int    `json:"progress"`
+	TitleRomaji   string `json:"titleRomaji"`
+	TitleEnglish  string `json:"titleEnglish"`
+	CoverImage    string `json:"coverImage"`
+	TotalEpisodes int    `json:"totalEpisodes"`
+	MediaStatus   string `json:"mediaStatus"`
+}
+
 type PlaybackEvent struct {
 	EpisodeID int64   `json:"episodeId"`
 	Percent   float64 `json:"percent"`

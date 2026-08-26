@@ -10,6 +10,15 @@ export function IconLibrary({className}: IconProps) {
   )
 }
 
+export function IconWatching({className}: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 12s2.8-5 8-5 8 5 8 5-2.8 5-8 5-8-5-8-5Z" />
+      <circle cx="12" cy="12" r="2" />
+    </svg>
+  )
+}
+
 export function IconDownload({className}: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">

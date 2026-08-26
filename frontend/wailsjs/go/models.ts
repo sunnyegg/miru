@@ -146,6 +146,30 @@ export namespace main {
 	        this.uploadRateLimit = source["uploadRateLimit"];
 	    }
 	}
+	export class WatchingEntryView {
+	    mediaId: number;
+	    progress: number;
+	    titleRomaji: string;
+	    titleEnglish: string;
+	    coverImage: string;
+	    totalEpisodes: number;
+	    mediaStatus: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new WatchingEntryView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mediaId = source["mediaId"];
+	        this.progress = source["progress"];
+	        this.titleRomaji = source["titleRomaji"];
+	        this.titleEnglish = source["titleEnglish"];
+	        this.coverImage = source["coverImage"];
+	        this.totalEpisodes = source["totalEpisodes"];
+	        this.mediaStatus = source["mediaStatus"];
+	    }
+	}
 
 }
 

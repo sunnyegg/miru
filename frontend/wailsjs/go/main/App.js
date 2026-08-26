@@ -42,6 +42,10 @@ export function ListAiringSchedule(arg1, arg2) {
   return window['go']['main']['App']['ListAiringSchedule'](arg1, arg2);
 }
 
+export function ListCurrentlyWatching() {
+  return window['go']['main']['App']['ListCurrentlyWatching']();
+}
+
 export function ListEpisodes() {
   return window['go']['main']['App']['ListEpisodes']();
 }

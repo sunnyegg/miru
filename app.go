@@ -278,6 +278,33 @@ func (a *App) ListAiringSchedule(start, end int64) ([]AiringScheduleView, error)
 	return out, nil
 }
 
+func (a *App) ListCurrentlyWatching() ([]WatchingEntryView, error) {
+	if err := a.ready(); err != nil {
+		return nil, err
+	}
+	token, err := a.tokens.Get()
+	if err != nil {
+		return nil, errors.New("AniList not connected")
+	}
+	entries, err := anilist.New(token).ListCurrent()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]WatchingEntryView, 0, len(entries))
+	for _, entry := range entries {
+		out = append(out, WatchingEntryView{
+			MediaID:       entry.MediaID,
+			Progress:      entry.Progress,
+			TitleRomaji:   entry.TitleRomaji,
+			TitleEnglish:  entry.TitleEnglish,
+			CoverImage:    entry.CoverImage,
+			TotalEpisodes: entry.TotalEpisodes,
+			MediaStatus:   entry.MediaStatus,
+		})
+	}
+	return out, nil
+}
+
 func (a *App) BindEpisode(episodeID int64, anilistID int) error {
 	if err := a.ready(); err != nil {
 		return err
