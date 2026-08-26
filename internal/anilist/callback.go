@@ -31,7 +31,7 @@ func serveCallback(w http.ResponseWriter, r *http.Request, cfg MuxConfig) {
 	}
 	code := strings.TrimSpace(r.URL.Query().Get("code"))
 	if code == "" {
-		writeHTML(w, http.StatusBadRequest, "Login did not return a code. Try Open login again, or paste a token in Settings.")
+		writeHTML(w, http.StatusBadRequest, "Login did not return a code. Try Open login again.")
 		return
 	}
 	if cfg.ExchangeCode == nil {

@@ -368,7 +368,7 @@ func (a *App) startLoginServer() error {
 
 	ln, err := net.Listen("tcp", anilist.ListenAddr)
 	if err != nil {
-		return fmt.Errorf("login port %s is in use; paste the token in Settings instead: %w", anilist.ListenAddr, err)
+		return fmt.Errorf("login port %s is in use; try again after closing the other process: %w", anilist.ListenAddr, err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)

@@ -7,7 +7,6 @@ import {
   OpenAnilistLogin,
   PickDownloadDir,
   PickMpvPath,
-  SaveAnilistToken,
   SaveSettings,
 } from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
@@ -29,7 +28,6 @@ type Props = {
 
 export function SettingsView({notice, refreshKey}: Props) {
   const [form, setForm] = useState<SettingsView>(empty)
-  const [token, setToken] = useState('')
   const [status, setStatus] = useState<Status>({connected: false, username: ''})
   const [saving, setSaving] = useState(false)
 
@@ -153,18 +151,6 @@ export function SettingsView({notice, refreshKey}: Props) {
           />
         </Field>
 
-        <Field label="AniList client ID" htmlFor="clientId">
-          <input
-            id="clientId"
-            value={form.anilistClientId}
-            onChange={(e) => setForm({...form, anilistClientId: e.target.value})}
-            className="min-h-11 w-full rounded-lg border border-border/40 bg-card px-3 text-sm"
-          />
-          <p className="mt-1 text-xs text-muted-foreground">
-            Redirect URL on the AniList app must be http://127.0.0.1:58496/callback
-          </p>
-        </Field>
-
         <div className="rounded-xl bg-card p-4">
           <h3 className="text-sm font-medium">AniList account</h3>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -188,22 +174,6 @@ export function SettingsView({notice, refreshKey}: Props) {
               </button>
             )}
           </div>
-          <label htmlFor="token" className="mt-4 block text-sm font-medium">Paste access token</label>
-          <textarea
-            id="token"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            rows={2}
-            className="mt-2 w-full rounded-lg border border-border/40 bg-muted px-3 py-2 text-sm"
-          />
-          <button
-            type="button"
-            disabled={!token.trim()}
-            className="mt-2 min-h-11 cursor-pointer rounded-lg bg-accent px-4 text-sm font-medium text-on-accent disabled:opacity-50"
-            onClick={() => SaveAnilistToken(token.trim()).then(() => { setToken(''); return reload() }).then(() => notice('AniList connected')).catch((err) => notice(errorMessage(err), true))}
-          >
-            Save token
-          </button>
         </div>
 
         <button
