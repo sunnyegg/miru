@@ -11,7 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const currentVersion = 1
+const currentVersion = 2
 
 var ErrNotFound = errors.New("not found")
 
@@ -62,6 +62,11 @@ func (s *Store) migrate() error {
 	if _, err := tx.Exec(schemaV1); err != nil {
 		return err
 	}
+	if version == 1 {
+		if _, err := tx.Exec(schemaV2); err != nil {
+			return err
+		}
+	}
 	if _, err := tx.Exec(fmt.Sprintf("PRAGMA user_version = %d", currentVersion)); err != nil {
 		return err
 	}
@@ -107,9 +112,10 @@ CREATE TABLE IF NOT EXISTS torrent_jobs (
     source TEXT NOT NULL,
     dest_dir TEXT NOT NULL,
     name TEXT,
-    status TEXT NOT NULL CHECK(status IN ('DOWNLOADING', 'COMPLETED', 'FAILED', 'CANCELLED')),
+    status TEXT NOT NULL CHECK(status IN ('DOWNLOADING', 'PAUSED', 'SEEDING', 'COMPLETED', 'FAILED', 'CANCELLED')),
     bytes_completed INTEGER DEFAULT 0,
     bytes_total INTEGER DEFAULT 0,
+    bytes_uploaded INTEGER DEFAULT 0,
     error TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -122,6 +128,34 @@ CREATE TABLE IF NOT EXISTS sync_events (
     synced_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(anilist_id, episode_number)
 );
+`
+
+const schemaV2 = `
+ALTER TABLE torrent_jobs RENAME TO torrent_jobs_v1;
+
+CREATE TABLE torrent_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    info_hash TEXT,
+    source TEXT NOT NULL,
+    dest_dir TEXT NOT NULL,
+    name TEXT,
+    status TEXT NOT NULL CHECK(status IN ('DOWNLOADING', 'PAUSED', 'SEEDING', 'COMPLETED', 'FAILED', 'CANCELLED')),
+    bytes_completed INTEGER DEFAULT 0,
+    bytes_total INTEGER DEFAULT 0,
+    bytes_uploaded INTEGER DEFAULT 0,
+    error TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO torrent_jobs(
+    id, info_hash, source, dest_dir, name, status, bytes_completed, bytes_total, bytes_uploaded, error, created_at, updated_at
+)
+SELECT
+    id, info_hash, source, dest_dir, name, status, bytes_completed, bytes_total, 0, error, created_at, updated_at
+FROM torrent_jobs_v1;
+
+DROP TABLE torrent_jobs_v1;
 `
 
 func (s *Store) GetSetting(key string) (string, error) {
@@ -305,15 +339,16 @@ type TorrentJob struct {
 	Status         string
 	BytesCompleted int64
 	BytesTotal     int64
+	BytesUploaded  int64
 	Error          string
 }
 
 func (s *Store) InsertTorrentJob(job TorrentJob) (int64, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	res, err := s.db.Exec(
-		`INSERT INTO torrent_jobs(info_hash, source, dest_dir, name, status, bytes_completed, bytes_total, error, created_at, updated_at)
-		 VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		job.InfoHash, job.Source, job.DestDir, job.Name, job.Status, job.BytesCompleted, job.BytesTotal, job.Error, now, now,
+		`INSERT INTO torrent_jobs(info_hash, source, dest_dir, name, status, bytes_completed, bytes_total, bytes_uploaded, error, created_at, updated_at)
+		 VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		job.InfoHash, job.Source, job.DestDir, job.Name, job.Status, job.BytesCompleted, job.BytesTotal, job.BytesUploaded, job.Error, now, now,
 	)
 	if err != nil {
 		return 0, err
@@ -324,9 +359,9 @@ func (s *Store) InsertTorrentJob(job TorrentJob) (int64, error) {
 func (s *Store) UpdateTorrentJob(job TorrentJob) error {
 	_, err := s.db.Exec(
 		`UPDATE torrent_jobs
-		 SET info_hash = ?, name = ?, status = ?, bytes_completed = ?, bytes_total = ?, error = ?, updated_at = ?
+		 SET info_hash = ?, name = ?, status = ?, bytes_completed = ?, bytes_total = ?, bytes_uploaded = ?, error = ?, updated_at = ?
 		 WHERE id = ?`,
-		job.InfoHash, job.Name, job.Status, job.BytesCompleted, job.BytesTotal, job.Error,
+		job.InfoHash, job.Name, job.Status, job.BytesCompleted, job.BytesTotal, job.BytesUploaded, job.Error,
 		time.Now().UTC().Format(time.RFC3339), job.ID,
 	)
 	return err
@@ -335,7 +370,7 @@ func (s *Store) UpdateTorrentJob(job TorrentJob) error {
 func (s *Store) LatestTorrentJob() (TorrentJob, error) {
 	row := s.db.QueryRow(
 		`SELECT id, COALESCE(info_hash, ''), source, dest_dir, COALESCE(name, ''), status,
-		        bytes_completed, bytes_total, COALESCE(error, '')
+		        bytes_completed, bytes_total, bytes_uploaded, COALESCE(error, '')
 		 FROM torrent_jobs
 		 ORDER BY id DESC
 		 LIMIT 1`,
@@ -343,7 +378,7 @@ func (s *Store) LatestTorrentJob() (TorrentJob, error) {
 	var job TorrentJob
 	err := row.Scan(
 		&job.ID, &job.InfoHash, &job.Source, &job.DestDir, &job.Name, &job.Status,
-		&job.BytesCompleted, &job.BytesTotal, &job.Error,
+		&job.BytesCompleted, &job.BytesTotal, &job.BytesUploaded, &job.Error,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return TorrentJob{}, ErrNotFound
@@ -351,11 +386,40 @@ func (s *Store) LatestTorrentJob() (TorrentJob, error) {
 	return job, err
 }
 
+func (s *Store) ListTorrentJobs() ([]TorrentJob, error) {
+	rows, err := s.db.Query(
+		`SELECT id, COALESCE(info_hash, ''), source, dest_dir, COALESCE(name, ''), status,
+		        bytes_completed, bytes_total, bytes_uploaded, COALESCE(error, '')
+		 FROM torrent_jobs
+		 ORDER BY created_at DESC, id DESC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var jobs []TorrentJob
+	for rows.Next() {
+		var job TorrentJob
+		if err := rows.Scan(
+			&job.ID, &job.InfoHash, &job.Source, &job.DestDir, &job.Name, &job.Status,
+			&job.BytesCompleted, &job.BytesTotal, &job.BytesUploaded, &job.Error,
+		); err != nil {
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+	if jobs == nil {
+		jobs = []TorrentJob{}
+	}
+	return jobs, rows.Err()
+}
+
 func (s *Store) FailInterruptedDownloads() error {
 	_, err := s.db.Exec(
 		`UPDATE torrent_jobs
 		 SET status = 'FAILED', error = 'interrupted by restart', updated_at = ?
-		 WHERE status = 'DOWNLOADING'`,
+		 WHERE status IN ('DOWNLOADING', 'PAUSED', 'SEEDING')`,
 		time.Now().UTC().Format(time.RFC3339),
 	)
 	return err

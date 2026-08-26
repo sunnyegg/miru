@@ -51,6 +51,14 @@ func TestDetectManualPath(t *testing.T) {
 
 func TestDetectMissing(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+
+	saved := commonLinuxPaths
+	commonLinuxPaths = nil
+	t.Cleanup(func() {
+		commonLinuxPaths = saved
+	})
+
 	if _, err := Detect(""); err == nil {
 		t.Fatal("expected error")
 	}

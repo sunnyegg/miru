@@ -11,6 +11,8 @@ export function CancelDownload():Promise<void>;
 
 export function DetectMpv():Promise<string>;
 
+export function DownloadHistory():Promise<Array<torrentx.JobView>>;
+
 export function DownloadStatus():Promise<torrentx.JobView>;
 
 export function GetSettings():Promise<main.SettingsView>;
@@ -27,11 +29,15 @@ export function OpenAnilistLogin():Promise<void>;
 
 export function OpenDownloadFolder():Promise<void>;
 
+export function PauseDownload():Promise<void>;
+
 export function PickDownloadDir():Promise<string>;
 
 export function PickMpvPath():Promise<string>;
 
 export function PlayEpisode(arg1:number):Promise<void>;
+
+export function ResumeDownload():Promise<void>;
 
 export function SaveAnilistToken(arg1:string):Promise<void>;
 

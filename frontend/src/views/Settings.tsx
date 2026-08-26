@@ -18,6 +18,8 @@ const empty: SettingsView = {
   downloadDir: '',
   syncThreshold: 85,
   anilistClientId: '',
+  downloadRateLimit: 0,
+  uploadRateLimit: 0,
 }
 
 type Props = {
@@ -39,6 +41,8 @@ export function SettingsView({notice, refreshKey}: Props) {
         downloadDir: settings?.downloadDir ?? '',
         syncThreshold: settings?.syncThreshold || 85,
         anilistClientId: settings?.anilistClientId ?? '',
+        downloadRateLimit: bytesToKb(settings?.downloadRateLimit ?? 0),
+        uploadRateLimit: bytesToKb(settings?.uploadRateLimit ?? 0),
       })
       setStatus(anilist ?? {connected: false, username: ''})
     } catch (err) {
@@ -53,7 +57,11 @@ export function SettingsView({notice, refreshKey}: Props) {
   async function save() {
     setSaving(true)
     try {
-      await SaveSettings(form)
+      await SaveSettings({
+        ...form,
+        downloadRateLimit: kbToBytes(form.downloadRateLimit),
+        uploadRateLimit: kbToBytes(form.uploadRateLimit),
+      })
       notice('Settings saved')
     } catch (err) {
       notice(errorMessage(err), true)
@@ -105,6 +113,32 @@ export function SettingsView({notice, refreshKey}: Props) {
               Browse
             </button>
           </div>
+        </Field>
+
+        <Field label="Download speed limit (KB/s)" htmlFor="downloadRateLimit">
+          <input
+            id="downloadRateLimit"
+            type="number"
+            min={0}
+            step={1}
+            value={form.downloadRateLimit}
+            onChange={(e) => setForm({...form, downloadRateLimit: Number(e.target.value)})}
+            className="min-h-11 w-32 rounded-lg border border-border/40 bg-card px-3 text-sm"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">0 = unlimited</p>
+        </Field>
+
+        <Field label="Upload speed limit (KB/s)" htmlFor="uploadRateLimit">
+          <input
+            id="uploadRateLimit"
+            type="number"
+            min={0}
+            step={1}
+            value={form.uploadRateLimit}
+            onChange={(e) => setForm({...form, uploadRateLimit: Number(e.target.value)})}
+            className="min-h-11 w-32 rounded-lg border border-border/40 bg-card px-3 text-sm"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">0 = unlimited</p>
         </Field>
 
         <Field label="AniList sync threshold (%)" htmlFor="threshold">
@@ -191,4 +225,12 @@ function Field({label, htmlFor, children}: {label: string; htmlFor: string; chil
       {children}
     </div>
   )
+}
+
+function bytesToKb(bytes: number) {
+  return bytes / 1024
+}
+
+function kbToBytes(kb: number) {
+  return Math.max(0, Math.round(kb * 1024))
 }

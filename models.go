@@ -1,10 +1,12 @@
 package main
 
 type SettingsView struct {
-	MpvPath         string  `json:"mpvPath"`
-	DownloadDir     string  `json:"downloadDir"`
-	SyncThreshold   float64 `json:"syncThreshold"`
-	AnilistClientId string  `json:"anilistClientId"`
+	MpvPath           string  `json:"mpvPath"`
+	DownloadDir       string  `json:"downloadDir"`
+	SyncThreshold     float64 `json:"syncThreshold"`
+	AnilistClientId   string  `json:"anilistClientId"`
+	DownloadRateLimit int64   `json:"downloadRateLimit"`
+	UploadRateLimit   int64   `json:"uploadRateLimit"`
 }
 
 type EpisodeView struct {

@@ -11,7 +11,7 @@ export default function App() {
   const [tab, setTab] = useState<TabId>('library')
   const [notice, setNotice] = useState<{text: string; error: boolean} | null>(null)
   const [initError, setInitError] = useState('')
-  const [job, setJob] = useState<DownloadView | null>(null)
+  const [jobs, setJobs] = useState<DownloadView[]>([])
   const [libraryKey, setLibraryKey] = useState(0)
   const [authKey, setAuthKey] = useState(0)
   const [playing, setPlaying] = useState<PlaybackEvent | null>(null)
@@ -23,7 +23,15 @@ export default function App() {
   useEffect(() => {
     void InitError().then(setInitError)
 
-    EventsOn('torrent:progress', (payload: DownloadView) => setJob(payload))
+    EventsOn('torrent:progress', (payload: DownloadView) => {
+      setJobs((current) => {
+        const exists = current.some((job) => job.id === payload.id)
+        if (!exists) {
+          return [payload, ...current]
+        }
+        return current.map((job) => job.id === payload.id ? payload : job)
+      })
+    })
     EventsOn('library:changed', () => setLibraryKey((n) => n + 1))
     EventsOn('mpv:progress', (payload: PlaybackEvent) => setPlaying(payload))
     EventsOn('mpv:ended', () => setPlaying(null))
@@ -69,7 +77,7 @@ export default function App() {
         )}
         <main className="min-h-0 flex-1 overflow-auto p-6">
           {tab === 'library' && <LibraryView notice={showNotice} refreshKey={libraryKey} />}
-          {tab === 'downloads' && <DownloadsView notice={showNotice} job={job} onJob={setJob} />}
+          {tab === 'downloads' && <DownloadsView notice={showNotice} jobs={jobs} onJobs={setJobs} />}
           {tab === 'settings' && <SettingsView notice={showNotice} refreshKey={authKey} />}
         </main>
       </div>

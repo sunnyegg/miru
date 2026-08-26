@@ -5,6 +5,8 @@ export type SettingsView = {
   downloadDir: string
   syncThreshold: number
   anilistClientId: string
+  downloadRateLimit: number
+  uploadRateLimit: number
 }
 
 export type EpisodeView = {
@@ -46,7 +48,11 @@ export type DownloadView = {
   status: string
   bytesCompleted: number
   bytesTotal: number
+  bytesUploaded: number
   percent: number
+  uploadRatio: number
+  speedBytesPerSecond: number
+  uploadSpeedBytesPerSecond: number
   error: string
   source: string
 }

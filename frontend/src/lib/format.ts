@@ -12,6 +12,10 @@ export function formatBytes(n: number): string {
   return `${value.toFixed(value >= 10 || i === 0 ? 0 : 1)} ${units[i]}`
 }
 
+export function formatSpeed(bytesPerSecond: number): string {
+  return `${formatBytes(bytesPerSecond)}/s`
+}
+
 export function errorMessage(err: unknown): string {
   if (err instanceof Error) {
     return err.message

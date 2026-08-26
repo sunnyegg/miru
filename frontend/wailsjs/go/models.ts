@@ -105,6 +105,8 @@ export namespace main {
 	    downloadDir: string;
 	    syncThreshold: number;
 	    anilistClientId: string;
+	    downloadRateLimit: number;
+	    uploadRateLimit: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsView(source);
@@ -116,6 +118,8 @@ export namespace main {
 	        this.downloadDir = source["downloadDir"];
 	        this.syncThreshold = source["syncThreshold"];
 	        this.anilistClientId = source["anilistClientId"];
+	        this.downloadRateLimit = source["downloadRateLimit"];
+	        this.uploadRateLimit = source["uploadRateLimit"];
 	    }
 	}
 
@@ -129,7 +133,11 @@ export namespace torrentx {
 	    status: string;
 	    bytesCompleted: number;
 	    bytesTotal: number;
+	    bytesUploaded: number;
 	    percent: number;
+	    uploadRatio: number;
+	    speedBytesPerSecond: number;
+	    uploadSpeedBytesPerSecond: number;
 	    error: string;
 	    source: string;
 	
@@ -144,7 +152,11 @@ export namespace torrentx {
 	        this.status = source["status"];
 	        this.bytesCompleted = source["bytesCompleted"];
 	        this.bytesTotal = source["bytesTotal"];
+	        this.bytesUploaded = source["bytesUploaded"];
 	        this.percent = source["percent"];
+	        this.uploadRatio = source["uploadRatio"];
+	        this.speedBytesPerSecond = source["speedBytesPerSecond"];
+	        this.uploadSpeedBytesPerSecond = source["uploadSpeedBytesPerSecond"];
 	        this.error = source["error"];
 	        this.source = source["source"];
 	    }

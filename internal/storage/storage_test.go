@@ -76,6 +76,38 @@ func TestFailInterruptedDownloads(t *testing.T) {
 	}
 }
 
+func TestListTorrentJobs(t *testing.T) {
+	store := openTestStore(t)
+	first, err := store.InsertTorrentJob(TorrentJob{
+		Source:  "first.torrent",
+		DestDir: t.TempDir(),
+		Status:  "COMPLETED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := store.InsertTorrentJob(TorrentJob{
+		Source:        "second.torrent",
+		DestDir:       t.TempDir(),
+		Status:        "SEEDING",
+		BytesUploaded: 10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	jobs, err := store.ListTorrentJobs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 2 || jobs[0].ID != second || jobs[1].ID != first {
+		t.Fatalf("jobs = %+v", jobs)
+	}
+	if jobs[0].Status != "SEEDING" || jobs[0].BytesUploaded != 10 {
+		t.Fatalf("latest job = %+v", jobs[0])
+	}
+}
+
 func TestEpisodeBind(t *testing.T) {
 	store := openTestStore(t)
 	if err := store.UpsertAnime(Anime{AnilistID: 1, TitleRomaji: "Test"}); err != nil {

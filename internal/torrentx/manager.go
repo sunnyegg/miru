@@ -12,6 +12,7 @@ import (
 
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/metainfo"
+	"golang.org/x/time/rate"
 )
 
 var videoExt = map[string]bool{
@@ -24,26 +25,40 @@ var videoExt = map[string]bool{
 }
 
 type JobView struct {
-	ID             int64   `json:"id"`
-	Name           string  `json:"name"`
-	Status         string  `json:"status"`
-	BytesCompleted int64   `json:"bytesCompleted"`
-	BytesTotal     int64   `json:"bytesTotal"`
-	Percent        float64 `json:"percent"`
-	Error          string  `json:"error"`
-	Source         string  `json:"source"`
+	ID                        int64   `json:"id"`
+	Name                      string  `json:"name"`
+	Status                    string  `json:"status"`
+	BytesCompleted            int64   `json:"bytesCompleted"`
+	BytesTotal                int64   `json:"bytesTotal"`
+	BytesUploaded             int64   `json:"bytesUploaded"`
+	Percent                   float64 `json:"percent"`
+	UploadRatio               float64 `json:"uploadRatio"`
+	SpeedBytesPerSecond       int64   `json:"speedBytesPerSecond"`
+	UploadSpeedBytesPerSecond int64   `json:"uploadSpeedBytesPerSecond"`
+	Error                     string  `json:"error"`
+	Source                    string  `json:"source"`
 }
 
 type Manager struct {
-	store      *storage.Store
-	mu         sync.Mutex
-	client     *torrent.Client
-	dataDir    string
-	current    *torrent.Torrent
-	job        storage.TorrentJob
-	onProgress func(JobView)
-	onComplete func([]string)
+	store        *storage.Store
+	mu           sync.Mutex
+	client       *torrent.Client
+	dataDir      string
+	uploadRate   *rate.Limiter
+	downloadRate *rate.Limiter
+	current      *torrent.Torrent
+	job          storage.TorrentJob
+	pausedFrom   string
+	onProgress   func(JobView)
+	onComplete   func([]string)
 }
+
+type RateLimits struct {
+	Download int64
+	Upload   int64
+}
+
+const rateLimiterBurst = 16 * 1024
 
 func NewManager(store *storage.Store) *Manager {
 	return &Manager{store: store}
@@ -74,10 +89,19 @@ func ToView(job storage.TorrentJob) JobView {
 		Status:         job.Status,
 		BytesCompleted: job.BytesCompleted,
 		BytesTotal:     job.BytesTotal,
+		BytesUploaded:  job.BytesUploaded,
 		Percent:        JobPercent(job.BytesCompleted, job.BytesTotal),
+		UploadRatio:    UploadRatio(job.BytesUploaded, job.BytesTotal),
 		Error:          job.Error,
 		Source:         job.Source,
 	}
+}
+
+func UploadRatio(uploaded, total int64) float64 {
+	if uploaded <= 0 || total <= 0 {
+		return 0
+	}
+	return float64(uploaded) / float64(total)
 }
 
 func (m *Manager) Status() (JobView, error) {
@@ -96,13 +120,29 @@ func (m *Manager) Status() (JobView, error) {
 	return ToView(job), nil
 }
 
+func (m *Manager) History() ([]JobView, error) {
+	jobs, err := m.store.ListTorrentJobs()
+	if err != nil {
+		return nil, err
+	}
+	views := make([]JobView, 0, len(jobs))
+	for _, job := range jobs {
+		views = append(views, ToView(job))
+	}
+	return views, nil
+}
+
 func (m *Manager) Busy() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.job.ID != 0 && m.job.Status == "DOWNLOADING"
+	return m.job.ID != 0 && isActiveStatus(m.job.Status)
 }
 
-func (m *Manager) Start(source, destDir string) error {
+func isActiveStatus(status string) bool {
+	return status == "DOWNLOADING" || status == "PAUSED" || status == "SEEDING"
+}
+
+func (m *Manager) Start(source, destDir string, limits RateLimits) error {
 	source = strings.TrimSpace(source)
 	if source == "" {
 		return errors.New("empty torrent source")
@@ -129,7 +169,7 @@ func (m *Manager) Start(source, destDir string) error {
 	}
 	job.ID = id
 
-	client, err := m.ensureClient(destDir)
+	client, err := m.ensureClient(destDir, limits)
 	if err != nil {
 		job.Status = "FAILED"
 		job.Error = err.Error()
@@ -159,7 +199,7 @@ func (m *Manager) Cancel() error {
 	t := m.current
 	job := m.job
 	m.current = nil
-	if job.ID != 0 && job.Status == "DOWNLOADING" {
+	if job.ID != 0 && isActiveStatus(job.Status) {
 		job.Status = "CANCELLED"
 		job.Error = "cancelled"
 		m.job = job
@@ -175,6 +215,67 @@ func (m *Manager) Cancel() error {
 	return nil
 }
 
+func (m *Manager) Pause() error {
+	m.mu.Lock()
+	t := m.current
+	job := m.job
+	if t == nil || job.ID == 0 || (job.Status != "DOWNLOADING" && job.Status != "SEEDING") {
+		m.mu.Unlock()
+		return errors.New("no active download to pause")
+	}
+	previous := job.Status
+	m.pausedFrom = previous
+	job.Status = "PAUSED"
+	m.job = job
+	m.mu.Unlock()
+
+	if previous == "SEEDING" {
+		t.DisallowDataUpload()
+	} else if t.Info() != nil {
+		t.CancelPieces(0, t.NumPieces())
+	}
+	return m.persistAndEmit(job.ID)
+}
+
+func (m *Manager) Resume() error {
+	m.mu.Lock()
+	t := m.current
+	job := m.job
+	previous := m.pausedFrom
+	if t == nil || job.ID == 0 || job.Status != "PAUSED" {
+		m.mu.Unlock()
+		return errors.New("no paused download to resume")
+	}
+	if previous == "" {
+		previous = "DOWNLOADING"
+	}
+	job.Status = previous
+	m.job = job
+	m.pausedFrom = ""
+	m.mu.Unlock()
+
+	if previous == "SEEDING" {
+		t.AllowDataUpload()
+	} else if t.Info() != nil {
+		t.DownloadAll()
+	}
+	return m.persistAndEmit(job.ID)
+}
+
+func (m *Manager) persistAndEmit(jobID int64) error {
+	job := m.snapshot(jobID)
+	if err := m.store.UpdateTorrentJob(job); err != nil {
+		return err
+	}
+	m.mu.Lock()
+	cb := m.onProgress
+	m.mu.Unlock()
+	if cb != nil {
+		cb(ToView(job))
+	}
+	return nil
+}
+
 func (m *Manager) Close() {
 	_ = m.Cancel()
 	m.mu.Lock()
@@ -186,10 +287,11 @@ func (m *Manager) Close() {
 	}
 }
 
-func (m *Manager) ensureClient(dataDir string) (*torrent.Client, error) {
+func (m *Manager) ensureClient(dataDir string, limits RateLimits) (*torrent.Client, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.client != nil && m.dataDir == dataDir {
+		m.applyRateLimitsLocked(limits)
 		return m.client, nil
 	}
 	if m.client != nil {
@@ -201,13 +303,51 @@ func (m *Manager) ensureClient(dataDir string) (*torrent.Client, error) {
 	cfg.ListenPort = 0
 	cfg.Seed = true
 	cfg.NoUpload = false
+	uploadRate, downloadRate := newRateLimiters(limits)
+	cfg.UploadRateLimiter = uploadRate
+	cfg.DownloadRateLimiter = downloadRate
 	client, err := torrent.NewClient(cfg)
 	if err != nil {
 		return nil, err
 	}
 	m.client = client
 	m.dataDir = dataDir
+	m.uploadRate = uploadRate
+	m.downloadRate = downloadRate
 	return client, nil
+}
+
+func newRateLimiters(limits RateLimits) (*rate.Limiter, *rate.Limiter) {
+	return newRateLimiter(limits.Upload), newRateLimiter(limits.Download)
+}
+
+func newRateLimiter(bytesPerSecond int64) *rate.Limiter {
+	if bytesPerSecond <= 0 {
+		return rate.NewLimiter(rate.Inf, rateLimiterBurst)
+	}
+	return rate.NewLimiter(rate.Limit(bytesPerSecond), rateLimiterBurst)
+}
+
+func (m *Manager) ApplyRateLimits(limits RateLimits) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.applyRateLimitsLocked(limits)
+}
+
+func (m *Manager) applyRateLimitsLocked(limits RateLimits) {
+	if m.uploadRate != nil {
+		m.uploadRate.SetLimit(rateLimit(limits.Upload))
+	}
+	if m.downloadRate != nil {
+		m.downloadRate.SetLimit(rateLimit(limits.Download))
+	}
+}
+
+func rateLimit(bytesPerSecond int64) rate.Limit {
+	if bytesPerSecond <= 0 {
+		return rate.Inf
+	}
+	return rate.Limit(bytesPerSecond)
 }
 
 func (m *Manager) run(t *torrent.Torrent, jobID int64) {
@@ -222,7 +362,12 @@ func (m *Manager) run(t *torrent.Torrent, jobID int64) {
 	name := t.Name()
 	total := t.Length()
 	hash := t.InfoHash().HexString()
-	t.DownloadAll()
+	m.mu.Lock()
+	status := m.job.Status
+	m.mu.Unlock()
+	if status == "DOWNLOADING" {
+		t.DownloadAll()
+	}
 
 	m.update(jobID, func(job *storage.TorrentJob) {
 		job.Name = name
@@ -232,36 +377,84 @@ func (m *Manager) run(t *torrent.Torrent, jobID int64) {
 
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
+	lastBytes := t.BytesCompleted()
+	lastUploaded := uploadedBytes(t)
+	lastAt := time.Now()
 
 	for {
 		select {
 		case <-ticker.C:
 			m.mu.Lock()
-			if m.current != t || m.job.ID != jobID || m.job.Status != "DOWNLOADING" {
+			if m.current != t || m.job.ID != jobID || !isActiveStatus(m.job.Status) {
 				m.mu.Unlock()
 				return
 			}
 			completed := t.BytesCompleted()
+			uploaded := uploadedBytes(t)
+			now := time.Now()
+			speed := bytesPerSecond(completed-lastBytes, now.Sub(lastAt))
+			uploadSpeed := bytesPerSecond(uploaded-lastUploaded, now.Sub(lastAt))
+			lastBytes = completed
+			lastUploaded = uploaded
+			lastAt = now
 			m.job.BytesCompleted = completed
 			m.job.BytesTotal = total
+			m.job.BytesUploaded = uploaded
 			if info != nil && m.job.Name == "" {
 				m.job.Name = name
 			}
 			view := ToView(m.job)
+			view.SpeedBytesPerSecond = speed
+			view.UploadSpeedBytesPerSecond = uploadSpeed
 			cb := m.onProgress
-			done := completed >= total && total > 0
+			downloadDone := m.job.Status == "DOWNLOADING" && completed >= total && total > 0
+			seedingDone := m.job.Status == "SEEDING" && seedingComplete(uploaded, total)
 			m.mu.Unlock()
 
 			_ = m.store.UpdateTorrentJob(m.snapshot(jobID))
 			if cb != nil {
 				cb(view)
 			}
-			if done {
+			if downloadDone {
+				m.startSeeding(jobID)
+				continue
+			}
+			if seedingDone {
 				m.finish(t, jobID)
 				return
 			}
 		}
 	}
+}
+
+func seedingComplete(uploaded, total int64) bool {
+	return total > 0 && uploaded >= (total+1)/2
+}
+
+func (m *Manager) startSeeding(jobID int64) {
+	m.mu.Lock()
+	if m.job.ID == jobID && m.job.Status == "DOWNLOADING" {
+		m.job.Status = "SEEDING"
+	}
+	job := m.job
+	cb := m.onProgress
+	m.mu.Unlock()
+	_ = m.store.UpdateTorrentJob(job)
+	if cb != nil {
+		cb(ToView(job))
+	}
+}
+
+func bytesPerSecond(bytes int64, elapsed time.Duration) int64 {
+	if bytes <= 0 || elapsed <= 0 {
+		return 0
+	}
+	return int64(float64(bytes) / elapsed.Seconds())
+}
+
+func uploadedBytes(t *torrent.Torrent) int64 {
+	stats := t.Stats()
+	return stats.BytesWrittenData.Int64()
 }
 
 func (m *Manager) finish(t *torrent.Torrent, jobID int64) {
@@ -272,6 +465,7 @@ func (m *Manager) finish(t *torrent.Torrent, jobID int64) {
 	if m.job.ID == jobID {
 		m.job.Status = "COMPLETED"
 		m.job.BytesCompleted = t.BytesCompleted()
+		m.job.BytesUploaded = uploadedBytes(t)
 		m.job.Error = ""
 		m.current = nil
 	}

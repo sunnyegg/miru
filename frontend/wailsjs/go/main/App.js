@@ -18,6 +18,10 @@ export function DetectMpv() {
   return window['go']['main']['App']['DetectMpv']();
 }
 
+export function DownloadHistory() {
+  return window['go']['main']['App']['DownloadHistory']();
+}
+
 export function DownloadStatus() {
   return window['go']['main']['App']['DownloadStatus']();
 }
@@ -50,6 +54,10 @@ export function OpenDownloadFolder() {
   return window['go']['main']['App']['OpenDownloadFolder']();
 }
 
+export function PauseDownload() {
+  return window['go']['main']['App']['PauseDownload']();
+}
+
 export function PickDownloadDir() {
   return window['go']['main']['App']['PickDownloadDir']();
 }
@@ -60,6 +68,10 @@ export function PickMpvPath() {
 
 export function PlayEpisode(arg1) {
   return window['go']['main']['App']['PlayEpisode'](arg1);
+}
+
+export function ResumeDownload() {
+  return window['go']['main']['App']['ResumeDownload']();
 }
 
 export function SaveAnilistToken(arg1) {

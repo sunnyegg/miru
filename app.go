@@ -154,16 +154,26 @@ func (a *App) SaveSettings(view SettingsView) error {
 	if threshold <= 0 || threshold > 100 {
 		threshold = 85
 	}
+	view.DownloadRateLimit = normalizeRateLimit(view.DownloadRateLimit)
+	view.UploadRateLimit = normalizeRateLimit(view.UploadRateLimit)
 	pairs := map[string]string{
-		"mpv_path":          strings.TrimSpace(view.MpvPath),
-		"download_dir":      strings.TrimSpace(view.DownloadDir),
-		"sync_threshold":    formatFloat(threshold),
-		"anilist_client_id": strings.TrimSpace(view.AnilistClientId),
+		"mpv_path":            strings.TrimSpace(view.MpvPath),
+		"download_dir":        strings.TrimSpace(view.DownloadDir),
+		"sync_threshold":      formatFloat(threshold),
+		"anilist_client_id":   strings.TrimSpace(view.AnilistClientId),
+		"download_rate_limit": formatInt64(view.DownloadRateLimit),
+		"upload_rate_limit":   formatInt64(view.UploadRateLimit),
 	}
 	for key, value := range pairs {
 		if err := a.store.SetSetting(key, value); err != nil {
 			return err
 		}
+	}
+	if a.torrents != nil {
+		a.torrents.ApplyRateLimits(torrentx.RateLimits{
+			Download: normalizeRateLimit(view.DownloadRateLimit),
+			Upload:   normalizeRateLimit(view.UploadRateLimit),
+		})
 	}
 	return nil
 }
@@ -448,7 +458,7 @@ func (a *App) StartMagnet(magnet string) error {
 	if err != nil {
 		return err
 	}
-	return a.torrents.Start(magnet, settings.DownloadDir)
+	return a.torrents.Start(magnet, settings.DownloadDir, torrentRateLimits(settings))
 }
 
 func (a *App) StartTorrentFile() error {
@@ -469,7 +479,7 @@ func (a *App) StartTorrentFile() error {
 	if err != nil {
 		return err
 	}
-	return a.torrents.Start(path, settings.DownloadDir)
+	return a.torrents.Start(path, settings.DownloadDir, torrentRateLimits(settings))
 }
 
 func (a *App) DownloadStatus() (*torrentx.JobView, error) {
@@ -491,6 +501,27 @@ func (a *App) CancelDownload() error {
 		return err
 	}
 	return a.torrents.Cancel()
+}
+
+func (a *App) PauseDownload() error {
+	if err := a.ready(); err != nil {
+		return err
+	}
+	return a.torrents.Pause()
+}
+
+func (a *App) ResumeDownload() error {
+	if err := a.ready(); err != nil {
+		return err
+	}
+	return a.torrents.Resume()
+}
+
+func (a *App) DownloadHistory() ([]torrentx.JobView, error) {
+	if err := a.ready(); err != nil {
+		return nil, err
+	}
+	return a.torrents.History()
 }
 
 func (a *App) OpenDownloadFolder() error {
@@ -521,6 +552,8 @@ func (a *App) loadSettings() (SettingsView, error) {
 			view.SyncThreshold = n
 		}
 	}
+	view.DownloadRateLimit = settingInt64(a.store, "download_rate_limit")
+	view.UploadRateLimit = settingInt64(a.store, "upload_rate_limit")
 	return view, nil
 }
 
@@ -718,4 +751,34 @@ func toStoredAnime(a anilist.Anime) storage.Anime {
 
 func formatFloat(v float64) string {
 	return strconv.FormatFloat(v, 'f', -1, 64)
+}
+
+func formatInt64(v int64) string {
+	return strconv.FormatInt(normalizeRateLimit(v), 10)
+}
+
+func settingInt64(store *storage.Store, key string) int64 {
+	raw, err := store.GetSetting(key)
+	if err != nil {
+		return 0
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return normalizeRateLimit(value)
+}
+
+func normalizeRateLimit(value int64) int64 {
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
+func torrentRateLimits(settings SettingsView) torrentx.RateLimits {
+	return torrentx.RateLimits{
+		Download: normalizeRateLimit(settings.DownloadRateLimit),
+		Upload:   normalizeRateLimit(settings.UploadRateLimit),
+	}
 }
