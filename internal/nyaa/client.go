@@ -43,6 +43,14 @@ func New() *Client {
 	}
 }
 
+func NewWithHTTP(httpClient *http.Client) *Client {
+	client := New()
+	if httpClient != nil {
+		client.HTTP = httpClient
+	}
+	return client
+}
+
 func (c *Client) Search(query string) ([]Result, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {

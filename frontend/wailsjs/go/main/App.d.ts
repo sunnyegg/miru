@@ -54,3 +54,7 @@ export function SearchNyaa(arg1:string):Promise<Array<main.NyaaResultView>>;
 export function StartMagnet(arg1:string):Promise<void>;
 
 export function StartTorrentFile():Promise<void>;
+
+export function StartTorrentURL(arg1:string):Promise<void>;
+
+export function TestNetworkConnection(arg1:string,arg2:string):Promise<void>;

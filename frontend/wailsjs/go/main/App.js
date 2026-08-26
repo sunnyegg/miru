@@ -105,3 +105,11 @@ export function StartMagnet(arg1) {
 export function StartTorrentFile() {
   return window['go']['main']['App']['StartTorrentFile']();
 }
+
+export function StartTorrentURL(arg1) {
+  return window['go']['main']['App']['StartTorrentURL'](arg1);
+}
+
+export function TestNetworkConnection(arg1, arg2) {
+  return window['go']['main']['App']['TestNetworkConnection'](arg1, arg2);
+}

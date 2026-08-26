@@ -63,6 +63,14 @@ func New(token string) *Client {
 	}
 }
 
+func NewWithHTTP(token string, httpClient *http.Client) *Client {
+	client := New(token)
+	if httpClient != nil {
+		client.HTTP = httpClient
+	}
+	return client
+}
+
 func LoginURL(clientID string) (string, error) {
 	clientID = strings.TrimSpace(clientID)
 	if clientID == "" {

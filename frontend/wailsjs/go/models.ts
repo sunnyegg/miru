@@ -161,6 +161,8 @@ export namespace main {
 	    anilistClientId: string;
 	    downloadRateLimit: number;
 	    uploadRateLimit: number;
+	    networkMode: string;
+	    socks5Address: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsView(source);
@@ -174,6 +176,8 @@ export namespace main {
 	        this.anilistClientId = source["anilistClientId"];
 	        this.downloadRateLimit = source["downloadRateLimit"];
 	        this.uploadRateLimit = source["uploadRateLimit"];
+	        this.networkMode = source["networkMode"];
+	        this.socks5Address = source["socks5Address"];
 	    }
 	}
 	export class WatchingEntryView {

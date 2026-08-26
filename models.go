@@ -7,6 +7,8 @@ type SettingsView struct {
 	AnilistClientId   string  `json:"anilistClientId"`
 	DownloadRateLimit int64   `json:"downloadRateLimit"`
 	UploadRateLimit   int64   `json:"uploadRateLimit"`
+	NetworkMode       string  `json:"networkMode"`
+	Socks5Address     string  `json:"socks5Address"`
 }
 
 type EpisodeView struct {

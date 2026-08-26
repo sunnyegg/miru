@@ -1,5 +1,5 @@
 import {useState} from 'react'
-import {SearchNyaa, StartMagnet} from '../../wailsjs/go/main/App'
+import {SearchNyaa, StartTorrentURL} from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
 import type {NyaaResultView} from '../lib/types'
 
@@ -44,7 +44,7 @@ export function SearchView({notice, onDownloads}: Props) {
   async function download(result: NyaaResultView, index: number) {
     setStarting(index)
     try {
-      await StartMagnet(result.magnet)
+      await StartTorrentURL(result.link)
       notice('Download added')
       onDownloads()
     } catch (err) {

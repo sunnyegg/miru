@@ -7,6 +7,8 @@ export type SettingsView = {
   anilistClientId: string
   downloadRateLimit: number
   uploadRateLimit: number
+  networkMode: string
+  socks5Address: string
 }
 
 export type EpisodeView = {
