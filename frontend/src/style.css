@@ -1,23 +1,31 @@
+@import "@fontsource-variable/source-sans-3";
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #1e1b4b;
-  --color-on-primary: #ffffff;
-  --color-secondary: #312e81;
-  --color-on-secondary: #ffffff;
-  --color-accent: #f97316;
-  --color-on-accent: #0f172a;
-  --color-background: #0f0f23;
-  --color-foreground: #f8fafc;
-  --color-card: #1b1b30;
-  --color-card-foreground: #f8fafc;
-  --color-muted: #27273b;
-  --color-muted-foreground: #94a3b8;
-  --color-border: #4338ca;
+  --color-primary: #161616;
+  --color-on-primary: #f2f2f2;
+  --color-secondary: #1c1c1c;
+  --color-on-secondary: #f2f2f2;
+  --color-accent: #ff5f1f;
+  --color-on-accent: #111111;
+  --color-background: #111111;
+  --color-foreground: #f2f2f2;
+  --color-card: #181818;
+  --color-card-foreground: #f2f2f2;
+  --color-muted: #1c1c1c;
+  --color-muted-foreground: #c2c2c2;
+  --color-border: #2a2a2a;
   --color-destructive: #ef4444;
-  --color-on-destructive: #ffffff;
-  --color-ring: #ffffff;
-  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --color-on-destructive: #111111;
+  --color-ring: #ff5f1f;
+  --color-bezel: #0a0a0a;
+  --font-sans: "Source Sans 3 Variable", "Source Sans 3", sans-serif;
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
 }
 
 html,
@@ -31,6 +39,37 @@ body {
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
+  caret-color: var(--color-accent);
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+* {
+  scrollbar-color: var(--color-accent) var(--color-bezel);
+  scrollbar-width: thin;
+}
+
+.osc-drop {
+  animation: osc-drop 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes osc-drop {
+  from {
+    transform: translateY(12px);
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    transform: translateY(0);
+    clip-path: inset(0 0 0 0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

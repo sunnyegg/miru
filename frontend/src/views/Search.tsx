@@ -62,7 +62,7 @@ export function SearchView({notice, onDownloads}: Props) {
       </header>
 
       <form
-        className="flex flex-wrap gap-2 rounded-xl bg-card p-4"
+        className="flex flex-wrap gap-2 bg-card p-4"
         onSubmit={(event) => {
           event.preventDefault()
           void search()
@@ -74,42 +74,42 @@ export function SearchView({notice, onDownloads}: Props) {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search anime title"
-          className="min-h-11 min-w-0 flex-1 rounded-lg border border-border/40 bg-muted px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          className="min-h-11 min-w-0 flex-1 border border-border/40 bg-muted px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-ring"
         />
         <button
           type="submit"
           disabled={loading}
-          className="min-h-11 cursor-pointer rounded-lg bg-accent px-4 text-sm font-medium text-on-accent disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-h-11 cursor-pointer bg-accent px-4 text-sm font-medium text-on-accent disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? 'Searching…' : 'Search'}
         </button>
       </form>
 
       {loading ? (
-        <p className="rounded-xl border border-border/40 bg-card p-8 text-sm text-muted-foreground" role="status">
+        <p className="border border-border/40 bg-card p-8 text-sm text-muted-foreground" role="status">
           Loading Nyaa results…
         </p>
       ) : error ? (
-        <div className="rounded-xl border border-destructive/60 bg-card p-8" role="alert">
+        <div className="border border-destructive/60 bg-card p-8" role="alert">
           <p className="text-sm text-destructive">{error}</p>
           {submittedQuery && (
             <button
               type="button"
               onClick={() => void search(submittedQuery)}
-              className="mt-4 min-h-11 cursor-pointer rounded-lg bg-secondary px-4 text-sm text-on-secondary"
+              className="mt-4 min-h-11 cursor-pointer bg-secondary px-4 text-sm text-on-secondary"
             >
               Try again
             </button>
           )}
         </div>
       ) : results.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border/40 p-8 text-sm text-muted-foreground">
+        <p className="border border-dashed border-border/40 p-8 text-sm text-muted-foreground">
           Search for an anime to see available torrents.
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
           {results.map((result, index) => (
-            <li key={`${result.magnet}-${index}`} className="rounded-xl bg-card p-4">
+            <li key={`${result.magnet}-${index}`} className="bg-card p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <p className="break-words font-medium">{result.title}</p>
@@ -129,7 +129,7 @@ export function SearchView({notice, onDownloads}: Props) {
                   type="button"
                   onClick={() => void download(result, index)}
                   disabled={starting !== null}
-                  className="min-h-11 shrink-0 cursor-pointer rounded-lg bg-secondary px-4 text-sm text-on-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-11 shrink-0 cursor-pointer bg-secondary px-4 text-sm text-on-secondary disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {starting === index ? 'Adding…' : 'Download'}
                 </button>

@@ -88,7 +88,7 @@ export function SettingsView({notice, refreshKey}: Props) {
           void save()
         }}
       >
-        <div className="rounded-xl bg-card p-4">
+        <div className="bg-card p-4">
           <h3 className="text-sm font-medium">Networking</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Choose how Miru connects to AniList, Nyaa, and downloads.
@@ -98,7 +98,7 @@ export function SettingsView({notice, refreshKey}: Props) {
             id="networkMode"
             value={form.networkMode}
             onChange={(e) => setForm({...form, networkMode: e.target.value})}
-            className="min-h-11 w-full rounded-lg border border-border/40 bg-card px-3 text-sm"
+            className="min-h-11 w-full border border-border/40 bg-card px-3 text-sm"
           >
             <option value="system">System proxy / VPN</option>
             <option value="direct">Direct connection</option>
@@ -112,7 +112,7 @@ export function SettingsView({notice, refreshKey}: Props) {
                 value={form.socks5Address}
                 onChange={(e) => setForm({...form, socks5Address: e.target.value})}
                 placeholder="127.0.0.1:1080"
-                className="min-h-11 w-full rounded-lg border border-border/40 bg-card px-3 text-sm"
+                className="min-h-11 w-full border border-border/40 bg-card px-3 text-sm"
               />
               <p className="mt-1 text-xs text-muted-foreground">
                 Torrent traffic uses TCP through this proxy. UDP, DHT, and inbound peers are disabled.
@@ -122,7 +122,7 @@ export function SettingsView({notice, refreshKey}: Props) {
           <button
             type="button"
             disabled={testingNetwork}
-            className="mt-4 min-h-11 cursor-pointer rounded-lg bg-muted px-3 text-sm disabled:opacity-50"
+            className="mt-4 min-h-11 cursor-pointer bg-muted px-3 text-sm disabled:opacity-50"
             onClick={() => {
               setTestingNetwork(true)
               void TestNetworkConnection(form.networkMode, form.socks5Address)
@@ -141,12 +141,12 @@ export function SettingsView({notice, refreshKey}: Props) {
               id="mpvPath"
               value={form.mpvPath}
               onChange={(e) => setForm({...form, mpvPath: e.target.value})}
-              className="min-h-11 min-w-0 flex-1 rounded-lg border border-border/40 bg-card px-3 text-sm"
+              className="min-h-11 min-w-0 flex-1 border border-border/40 bg-card px-3 text-sm"
             />
-            <button type="button" className="min-h-11 cursor-pointer rounded-lg bg-muted px-3 text-sm" onClick={() => DetectMpv().then((p) => setForm({...form, mpvPath: p})).catch((err) => notice(errorMessage(err), true))}>
+            <button type="button" className="min-h-11 cursor-pointer bg-muted px-3 text-sm" onClick={() => DetectMpv().then((p) => setForm({...form, mpvPath: p})).catch((err) => notice(errorMessage(err), true))}>
               Detect
             </button>
-            <button type="button" className="min-h-11 cursor-pointer rounded-lg bg-muted px-3 text-sm" onClick={() => PickMpvPath().then((p) => p && setForm({...form, mpvPath: p}))}>
+            <button type="button" className="min-h-11 cursor-pointer bg-muted px-3 text-sm" onClick={() => PickMpvPath().then((p) => p && setForm({...form, mpvPath: p}))}>
               Browse
             </button>
           </div>
@@ -158,9 +158,9 @@ export function SettingsView({notice, refreshKey}: Props) {
               id="downloadDir"
               value={form.downloadDir}
               onChange={(e) => setForm({...form, downloadDir: e.target.value})}
-              className="min-h-11 min-w-0 flex-1 rounded-lg border border-border/40 bg-card px-3 text-sm"
+              className="min-h-11 min-w-0 flex-1 border border-border/40 bg-card px-3 text-sm"
             />
-            <button type="button" className="min-h-11 cursor-pointer rounded-lg bg-muted px-3 text-sm" onClick={() => PickDownloadDir().then((p) => p && setForm({...form, downloadDir: p}))}>
+            <button type="button" className="min-h-11 cursor-pointer bg-muted px-3 text-sm" onClick={() => PickDownloadDir().then((p) => p && setForm({...form, downloadDir: p}))}>
               Browse
             </button>
           </div>
@@ -174,7 +174,7 @@ export function SettingsView({notice, refreshKey}: Props) {
             step={1}
             value={form.downloadRateLimit}
             onChange={(e) => setForm({...form, downloadRateLimit: Number(e.target.value)})}
-            className="min-h-11 w-32 rounded-lg border border-border/40 bg-card px-3 text-sm"
+            className="min-h-11 w-32 border border-border/40 bg-card px-3 text-sm"
           />
           <p className="mt-1 text-xs text-muted-foreground">0 = unlimited</p>
         </Field>
@@ -187,7 +187,7 @@ export function SettingsView({notice, refreshKey}: Props) {
             step={1}
             value={form.uploadRateLimit}
             onChange={(e) => setForm({...form, uploadRateLimit: Number(e.target.value)})}
-            className="min-h-11 w-32 rounded-lg border border-border/40 bg-card px-3 text-sm"
+            className="min-h-11 w-32 border border-border/40 bg-card px-3 text-sm"
           />
           <p className="mt-1 text-xs text-muted-foreground">0 = unlimited</p>
         </Field>
@@ -200,11 +200,11 @@ export function SettingsView({notice, refreshKey}: Props) {
             max={100}
             value={form.syncThreshold}
             onChange={(e) => setForm({...form, syncThreshold: Number(e.target.value)})}
-            className="min-h-11 w-32 rounded-lg border border-border/40 bg-card px-3 text-sm"
+            className="min-h-11 w-32 border border-border/40 bg-card px-3 text-sm"
           />
         </Field>
 
-        <div className="rounded-xl bg-card p-4">
+        <div className="bg-card p-4">
           <h3 className="text-sm font-medium">AniList account</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             {status.connected ? `Connected as ${status.username}` : 'Not connected. Open login, then authorize in the browser.'}
@@ -212,7 +212,7 @@ export function SettingsView({notice, refreshKey}: Props) {
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
-              className="min-h-11 cursor-pointer rounded-lg bg-secondary px-4 text-sm text-on-secondary"
+              className="min-h-11 cursor-pointer bg-secondary px-4 text-sm text-on-secondary"
               onClick={() => OpenAnilistLogin().catch((err) => notice(errorMessage(err), true))}
             >
               Open login
@@ -220,7 +220,7 @@ export function SettingsView({notice, refreshKey}: Props) {
             {status.connected && (
               <button
                 type="button"
-                className="min-h-11 cursor-pointer rounded-lg px-4 text-sm text-destructive"
+                className="min-h-11 cursor-pointer px-4 text-sm text-destructive"
                 onClick={() => LogoutAnilist().then(() => reload()).catch((err) => notice(errorMessage(err), true))}
               >
                 Log out
@@ -232,7 +232,7 @@ export function SettingsView({notice, refreshKey}: Props) {
         <button
           type="submit"
           disabled={saving}
-          className="min-h-11 w-fit cursor-pointer rounded-lg bg-accent px-5 text-sm font-medium text-on-accent disabled:opacity-50"
+          className="min-h-11 w-fit cursor-pointer bg-accent px-5 text-sm font-medium text-on-accent disabled:opacity-50"
         >
           {saving ? 'Saving…' : 'Save settings'}
         </button>

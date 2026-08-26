@@ -109,7 +109,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
       </header>
 
       <form
-        className="flex flex-col gap-3 rounded-xl bg-card p-4"
+        className="flex flex-col gap-3 bg-card p-4"
         onSubmit={(e) => {
           e.preventDefault()
           void startMagnet()
@@ -121,14 +121,14 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
           value={magnet}
           onChange={(e) => setMagnet(e.target.value)}
           rows={3}
-          className="rounded-lg border border-border/40 bg-muted px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          className="border border-border/40 bg-muted px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-ring"
           placeholder="magnet:?xt=urn:btih:..."
         />
         <div className="flex flex-wrap gap-2">
           <button
             type="submit"
             disabled={busy || !magnet.trim() || Boolean(activeJob)}
-            className="min-h-11 cursor-pointer rounded-lg bg-accent px-4 text-sm font-medium text-on-accent disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 cursor-pointer bg-accent px-4 text-sm font-medium text-on-accent disabled:cursor-not-allowed disabled:opacity-50"
           >
             Add magnet
           </button>
@@ -136,14 +136,14 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
             type="button"
             onClick={() => void startFile()}
             disabled={busy || Boolean(activeJob)}
-            className="min-h-11 cursor-pointer rounded-lg bg-secondary px-4 text-sm text-on-secondary disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 cursor-pointer bg-secondary px-4 text-sm text-on-secondary disabled:cursor-not-allowed disabled:opacity-50"
           >
             Open .torrent
           </button>
           <button
             type="button"
             onClick={() => void OpenDownloadFolder()}
-            className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-4 text-sm text-muted-foreground hover:text-foreground"
+            className="inline-flex min-h-11 cursor-pointer items-center gap-2 px-4 text-sm text-muted-foreground hover:text-foreground"
           >
             <IconFolder className="h-4 w-4" />
             Open folder
@@ -159,7 +159,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
             const isSeeding = item.status === 'SEEDING'
             const isActive = isDownloading || isPaused || isSeeding
             return (
-              <div key={item.id} className="rounded-xl bg-card p-4">
+              <div key={item.id} className="bg-card p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="font-medium">{item.name || 'Torrent'}</p>
@@ -176,7 +176,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
                           type="button"
                           onClick={() => void resume()}
                           disabled={busy}
-                          className="min-h-11 cursor-pointer rounded-lg bg-accent px-4 text-sm font-medium text-on-accent disabled:opacity-50"
+                          className="min-h-11 cursor-pointer bg-accent px-4 text-sm font-medium text-on-accent disabled:opacity-50"
                         >
                           Resume
                         </button>
@@ -185,7 +185,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
                           type="button"
                           onClick={() => void pause()}
                           disabled={busy}
-                          className="min-h-11 cursor-pointer rounded-lg bg-secondary px-4 text-sm text-on-secondary disabled:opacity-50"
+                          className="min-h-11 cursor-pointer bg-secondary px-4 text-sm text-on-secondary disabled:opacity-50"
                         >
                           Pause
                         </button>
@@ -194,7 +194,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
                         type="button"
                         onClick={() => void cancel()}
                         disabled={busy}
-                        className="min-h-11 cursor-pointer rounded-lg bg-destructive px-4 text-sm text-on-destructive disabled:opacity-50"
+                        className="min-h-11 cursor-pointer bg-destructive px-4 text-sm text-on-destructive disabled:opacity-50"
                       >
                         Cancel
                       </button>
@@ -202,7 +202,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
                   )}
                 </div>
                 <div
-                  className="mt-3 h-2 overflow-hidden rounded-full bg-muted"
+                  className="mt-3 h-2 overflow-hidden bg-muted"
                   role="progressbar"
                   aria-valuemin={0}
                   aria-valuemax={100}

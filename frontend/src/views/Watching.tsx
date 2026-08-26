@@ -47,11 +47,11 @@ export function WatchingView({notice, refreshKey, onSettings}: Props) {
       </header>
 
       {loading ? (
-        <p className="rounded-xl border border-border/40 bg-card p-8 text-sm text-muted-foreground" role="status">
+        <p className="border border-border/40 bg-card p-8 text-sm text-muted-foreground" role="status">
           Loading your list…
         </p>
       ) : notConnected ? (
-        <div className="rounded-xl bg-card p-4">
+        <div className="bg-card p-4">
           <h3 className="font-medium">Connect AniList to see your list</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Sign in with AniList from Settings, then return here to load your currently watching anime.
@@ -59,24 +59,24 @@ export function WatchingView({notice, refreshKey, onSettings}: Props) {
           <button
             type="button"
             onClick={onSettings}
-            className="mt-4 min-h-11 cursor-pointer rounded-lg bg-secondary px-4 text-sm text-on-secondary"
+            className="mt-4 min-h-11 cursor-pointer bg-secondary px-4 text-sm text-on-secondary"
           >
             Open Settings
           </button>
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-destructive/60 bg-card p-8" role="alert">
+        <div className="border border-destructive/60 bg-card p-8" role="alert">
           <p className="text-sm text-destructive">{error}</p>
           <button
             type="button"
             onClick={() => void load()}
-            className="mt-4 min-h-11 cursor-pointer rounded-lg bg-secondary px-4 text-sm text-on-secondary"
+            className="mt-4 min-h-11 cursor-pointer bg-secondary px-4 text-sm text-on-secondary"
           >
             Try again
           </button>
         </div>
       ) : entries.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border/40 p-8 text-sm text-muted-foreground">
+        <p className="border border-dashed border-border/40 p-8 text-sm text-muted-foreground">
           Nothing on your Currently Watching list.
         </p>
       ) : (
@@ -85,11 +85,11 @@ export function WatchingView({notice, refreshKey, onSettings}: Props) {
             const title = entry.titleEnglish || entry.titleRomaji
             const total = entry.totalEpisodes > 0 ? entry.totalEpisodes : '?'
             return (
-              <li key={entry.mediaId} className="flex items-center gap-4 rounded-xl bg-card p-3">
+              <li key={entry.mediaId} className="flex items-center gap-4 bg-card p-3">
                 {entry.coverImage ? (
-                  <img src={entry.coverImage} alt="" width={48} height={64} className="h-16 w-12 rounded object-cover" />
+                  <img src={entry.coverImage} alt="" width={48} height={64} className="h-16 w-12 object-cover" />
                 ) : (
-                  <span className="h-16 w-12 rounded bg-muted" aria-hidden="true" />
+                  <span className="h-16 w-12 bg-muted" aria-hidden="true" />
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{title}</p>

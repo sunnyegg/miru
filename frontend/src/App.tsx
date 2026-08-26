@@ -67,19 +67,19 @@ export default function App() {
   return (
     <div className="flex h-full bg-background text-foreground">
       <Sidebar current={tab} onChange={setTab} />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col bg-background">
         {initError && (
           <div className="bg-destructive px-4 py-2 text-sm text-on-destructive" role="alert">
             {initError}
           </div>
         )}
-        {playing && (
-          <div className="bg-secondary px-4 py-2 text-sm text-on-secondary" role="status">
+        {playing && tab !== 'library' && (
+          <div className="border-b border-border bg-bezel px-4 py-2 text-sm" role="status">
             Playing · {Math.round(playing.percent)}%
           </div>
         )}
-        <main className="min-h-0 flex-1 overflow-auto p-6">
-          {tab === 'library' && <LibraryView notice={showNotice} refreshKey={libraryKey} />}
+        <main className={`min-h-0 flex-1 ${tab === 'library' ? 'overflow-hidden' : 'overflow-auto p-6'}`}>
+          {tab === 'library' && <LibraryView notice={showNotice} refreshKey={libraryKey} playing={playing} />}
           {tab === 'watching' && <WatchingView notice={showNotice} refreshKey={authKey} onSettings={() => setTab('settings')} />}
           {tab === 'search' && <SearchView notice={showNotice} onDownloads={() => setTab('downloads')} />}
           {tab === 'downloads' && <DownloadsView notice={showNotice} jobs={jobs} onJobs={setJobs} />}
@@ -90,7 +90,7 @@ export default function App() {
       {notice && (
         <div
           role="status"
-          className={`fixed bottom-4 right-4 z-50 max-w-sm rounded-lg px-4 py-3 text-sm shadow-lg ${
+          className={`fixed right-4 bottom-4 z-50 max-w-sm px-4 py-3 text-sm ${
             notice.error ? 'bg-destructive text-on-destructive' : 'bg-secondary text-on-secondary'
           }`}
         >

@@ -101,7 +101,7 @@ export function CalendarView({notice}: Props) {
           <button
             type="button"
             onClick={() => setWeekOffset((offset) => offset - 1)}
-            className="min-h-11 cursor-pointer rounded-lg bg-muted px-3 text-sm text-foreground hover:bg-secondary"
+            className="min-h-11 cursor-pointer bg-muted px-3 text-sm text-foreground hover:bg-secondary"
           >
             Previous
           </button>
@@ -109,14 +109,14 @@ export function CalendarView({notice}: Props) {
             type="button"
             onClick={resetToToday}
             disabled={weekOffset === 0}
-            className="min-h-11 cursor-pointer rounded-lg bg-secondary px-3 text-sm text-on-secondary disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 cursor-pointer bg-secondary px-3 text-sm text-on-secondary disabled:cursor-not-allowed disabled:opacity-50"
           >
             Today
           </button>
           <button
             type="button"
             onClick={() => setWeekOffset((offset) => offset + 1)}
-            className="min-h-11 cursor-pointer rounded-lg bg-muted px-3 text-sm text-foreground hover:bg-secondary"
+            className="min-h-11 cursor-pointer bg-muted px-3 text-sm text-foreground hover:bg-secondary"
           >
             Next
           </button>
@@ -130,16 +130,16 @@ export function CalendarView({notice}: Props) {
       </p>
 
       {loading ? (
-        <p className="rounded-xl border border-border/40 bg-card p-8 text-sm text-muted-foreground" role="status">
+        <p className="border border-border/40 bg-card p-8 text-sm text-muted-foreground" role="status">
           Loading airing schedule…
         </p>
       ) : error ? (
-        <div className="rounded-xl border border-destructive/60 bg-card p-8" role="alert">
+        <div className="border border-destructive/60 bg-card p-8" role="alert">
           <p className="text-sm text-destructive">{error}</p>
           <button
             type="button"
             onClick={() => void loadSchedules()}
-            className="mt-4 min-h-11 cursor-pointer rounded-lg bg-secondary px-4 text-sm text-on-secondary"
+            className="mt-4 min-h-11 cursor-pointer bg-secondary px-4 text-sm text-on-secondary"
           >
             Try again
           </button>
@@ -149,7 +149,7 @@ export function CalendarView({notice}: Props) {
           {days.map((day) => {
             const entries = schedulesByDay.get(dateKey(day)) ?? []
             return (
-              <section key={dateKey(day)} className="rounded-xl bg-card p-4">
+              <section key={dateKey(day)} className="bg-card p-4">
                 <h3 className="font-medium">{dayFormatter.format(day)}</h3>
                 {entries.length === 0 ? (
                   <p className="mt-4 text-sm text-muted-foreground">No episodes scheduled.</p>
@@ -158,9 +158,9 @@ export function CalendarView({notice}: Props) {
                     {entries.map((schedule) => (
                       <li key={schedule.id} className="flex items-center gap-3">
                         {schedule.coverImage ? (
-                          <img src={schedule.coverImage} alt="" width={40} height={56} className="h-14 w-10 rounded object-cover" />
+                          <img src={schedule.coverImage} alt="" width={40} height={56} className="h-14 w-10 object-cover" />
                         ) : (
-                          <span className="h-14 w-10 rounded bg-muted" aria-hidden="true" />
+                          <span className="h-14 w-10 bg-muted" aria-hidden="true" />
                         )}
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">{schedule.titleEnglish || schedule.titleRomaji}</p>
