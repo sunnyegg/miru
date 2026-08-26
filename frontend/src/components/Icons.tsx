@@ -10,10 +10,38 @@ export function IconLibrary({className}: IconProps) {
   )
 }
 
+export function IconWatching({className}: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 12s2.8-5 8-5 8 5 8 5-2.8 5-8 5-8-5-8-5Z" />
+      <circle cx="12" cy="12" r="2" />
+    </svg>
+  )
+}
+
+export function IconSearch({className}: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <circle cx="10.5" cy="10.5" r="5.5" />
+      <path strokeLinecap="round" d="m15 15 5 5" />
+    </svg>
+  )
+}
+
 export function IconDownload({className}: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v12m0 0 4-4m-4 4-4-4M5 20h14" />
+    </svg>
+  )
+}
+
+export function IconCalendar({className}: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path strokeLinecap="round" d="M8 3v4M16 3v4M4 10h16" />
+      <path strokeLinecap="round" d="M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01" />
     </svg>
   )
 }

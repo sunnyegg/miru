@@ -7,6 +7,7 @@ require (
 	github.com/nssteinbrenner/anitogo v1.0.0
 	github.com/wailsapp/wails/v2 v2.15.0
 	github.com/zalando/go-keyring v0.2.8
+	golang.org/x/net v0.56.0
 	golang.org/x/time v0.14.0
 	modernc.org/sqlite v1.57.0
 )
@@ -106,7 +107,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/exp v0.0.0-20251113190631-e25ba8c21ef6 // indirect
-	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.39.0 // indirect

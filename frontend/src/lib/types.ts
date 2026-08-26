@@ -1,4 +1,4 @@
-export type TabId = 'library' | 'downloads' | 'settings'
+export type TabId = 'library' | 'watching' | 'search' | 'downloads' | 'calendar' | 'settings'
 
 export type SettingsView = {
   mpvPath: string
@@ -7,6 +7,8 @@ export type SettingsView = {
   anilistClientId: string
   downloadRateLimit: number
   uploadRateLimit: number
+  networkMode: string
+  socks5Address: string
 }
 
 export type EpisodeView = {
@@ -40,6 +42,39 @@ export type ImportResult = {
 export type AnilistStatus = {
   connected: boolean
   username: string
+}
+
+export type AiringScheduleView = {
+  id: number
+  airingAt: number
+  episode: number
+  mediaId: number
+  titleRomaji: string
+  titleEnglish: string
+  coverImage: string
+}
+
+export type WatchingEntryView = {
+  mediaId: number
+  progress: number
+  titleRomaji: string
+  titleEnglish: string
+  coverImage: string
+  totalEpisodes: number
+  mediaStatus: string
+}
+
+export type NyaaResultView = {
+  title: string
+  link: string
+  magnet: string
+  published: string
+  size: string
+  seeders: number
+  leechers: number
+  downloads: number
+  trusted: boolean
+  remake: boolean
 }
 
 export type DownloadView = {

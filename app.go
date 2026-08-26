@@ -17,6 +17,8 @@ import (
 	"github.com/sunnyegg/miru/internal/anilist"
 	"github.com/sunnyegg/miru/internal/media"
 	"github.com/sunnyegg/miru/internal/mpv"
+	"github.com/sunnyegg/miru/internal/networking"
+	"github.com/sunnyegg/miru/internal/nyaa"
 	"github.com/sunnyegg/miru/internal/paths"
 	"github.com/sunnyegg/miru/internal/secrets"
 	"github.com/sunnyegg/miru/internal/storage"
@@ -156,6 +158,23 @@ func (a *App) SaveSettings(view SettingsView) error {
 	}
 	view.DownloadRateLimit = normalizeRateLimit(view.DownloadRateLimit)
 	view.UploadRateLimit = normalizeRateLimit(view.UploadRateLimit)
+	networkConfig := networking.Config{
+		Mode:    view.NetworkMode,
+		Address: view.Socks5Address,
+	}
+	normalizedNetwork, err := networkConfig.Normalized()
+	if err != nil {
+		return err
+	}
+	if a.torrents != nil && a.torrents.Busy() {
+		current, _ := a.loadSettings()
+		if normalizeNetworkMode(current.NetworkMode) != normalizedNetwork.Mode ||
+			strings.TrimSpace(current.Socks5Address) != normalizedNetwork.Address {
+			return errors.New("stop the active download before changing networking")
+		}
+	}
+	view.NetworkMode = normalizedNetwork.Mode
+	view.Socks5Address = normalizedNetwork.Address
 	pairs := map[string]string{
 		"mpv_path":            strings.TrimSpace(view.MpvPath),
 		"download_dir":        strings.TrimSpace(view.DownloadDir),
@@ -163,6 +182,8 @@ func (a *App) SaveSettings(view SettingsView) error {
 		"anilist_client_id":   strings.TrimSpace(view.AnilistClientId),
 		"download_rate_limit": formatInt64(view.DownloadRateLimit),
 		"upload_rate_limit":   formatInt64(view.UploadRateLimit),
+		"network_mode":        normalizeNetworkMode(view.NetworkMode),
+		"socks5_address":      strings.TrimSpace(view.Socks5Address),
 	}
 	for key, value := range pairs {
 		if err := a.store.SetSetting(key, value); err != nil {
@@ -174,6 +195,28 @@ func (a *App) SaveSettings(view SettingsView) error {
 			Download: normalizeRateLimit(view.DownloadRateLimit),
 			Upload:   normalizeRateLimit(view.UploadRateLimit),
 		})
+	}
+	return nil
+}
+
+func (a *App) TestNetworkConnection(mode, socks5Address string) error {
+	if err := a.ready(); err != nil {
+		return err
+	}
+	client, err := (networking.Config{
+		Mode:    mode,
+		Address: socks5Address,
+	}).HTTPClient()
+	if err != nil {
+		return err
+	}
+	response, err := client.Get(nyaa.DefaultEndpoint)
+	if err != nil {
+		return fmt.Errorf("network connection failed: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("network connection returned HTTP %d", response.StatusCode)
 	}
 	return nil
 }
@@ -244,12 +287,113 @@ func (a *App) SearchAnime(query string) ([]AnimeView, error) {
 	if err := a.ready(); err != nil {
 		return nil, err
 	}
-	client := anilist.New("")
+	client, err := a.newAnilist("")
+	if err != nil {
+		return nil, err
+	}
 	results, err := client.Search(query)
 	if err != nil {
 		return nil, err
 	}
 	return toAnimeViews(results), nil
+}
+
+func (a *App) ListAiringSchedule(start, end int64) ([]AiringScheduleView, error) {
+	if err := a.ready(); err != nil {
+		return nil, err
+	}
+	if start < 0 || end <= start || end-start > 8*24*60*60 {
+		return nil, errors.New("invalid airing schedule range")
+	}
+	client, err := a.newAnilist("")
+	if err != nil {
+		return nil, err
+	}
+	schedules, err := client.AiringSchedules(start, end)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]AiringScheduleView, 0, len(schedules))
+	for _, schedule := range schedules {
+		out = append(out, AiringScheduleView{
+			ID:           int64(schedule.ID),
+			AiringAt:     schedule.AiringAt,
+			Episode:      schedule.Episode,
+			MediaID:      schedule.MediaID,
+			TitleRomaji:  schedule.TitleRomaji,
+			TitleEnglish: schedule.TitleEnglish,
+			CoverImage:   schedule.CoverImage,
+		})
+	}
+	return out, nil
+}
+
+func (a *App) ListCurrentlyWatching() ([]WatchingEntryView, error) {
+	if err := a.ready(); err != nil {
+		return nil, err
+	}
+	token, err := a.tokens.Get()
+	if err != nil {
+		return nil, errors.New("AniList not connected")
+	}
+	client, err := a.newAnilist(token)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := client.ListCurrent()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]WatchingEntryView, 0, len(entries))
+	for _, entry := range entries {
+		out = append(out, WatchingEntryView{
+			MediaID:       entry.MediaID,
+			Progress:      entry.Progress,
+			TitleRomaji:   entry.TitleRomaji,
+			TitleEnglish:  entry.TitleEnglish,
+			CoverImage:    entry.CoverImage,
+			TotalEpisodes: entry.TotalEpisodes,
+			MediaStatus:   entry.MediaStatus,
+		})
+	}
+	return out, nil
+}
+
+func (a *App) SearchNyaa(query string) ([]NyaaResultView, error) {
+	if err := a.ready(); err != nil {
+		return nil, err
+	}
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, errors.New("Nyaa search query is empty")
+	}
+	if len(query) > 200 {
+		return nil, errors.New("Nyaa search query is too long")
+	}
+	httpClient, err := a.networkHTTPClient()
+	if err != nil {
+		return nil, err
+	}
+	results, err := nyaa.NewWithHTTP(httpClient).Search(query)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]NyaaResultView, 0, len(results))
+	for _, result := range results {
+		out = append(out, NyaaResultView{
+			Title:     result.Title,
+			Link:      result.Link,
+			Magnet:    result.Magnet(),
+			Published: result.Published.Format(time.RFC3339),
+			Size:      result.Size,
+			Seeders:   result.Seeders,
+			Leechers:  result.Leechers,
+			Downloads: result.Downloads,
+			Trusted:   result.Trusted,
+			Remake:    result.Remake,
+		})
+	}
+	return out, nil
 }
 
 func (a *App) BindEpisode(episodeID int64, anilistID int) error {
@@ -260,7 +404,10 @@ func (a *App) BindEpisode(episodeID int64, anilistID int) error {
 	if err != nil {
 		return err
 	}
-	client := a.anilistClient()
+	client, err := a.anilistClient()
+	if err != nil {
+		return err
+	}
 	anime, err := client.GetAnime(anilistID)
 	if err != nil {
 		return err
@@ -333,7 +480,11 @@ func (a *App) AnilistStatus() (AnilistStatus, error) {
 	if err != nil {
 		return AnilistStatus{Connected: false}, nil
 	}
-	name, err := anilist.New(token).ViewerName()
+	client, err := a.newAnilist(token)
+	if err != nil {
+		return AnilistStatus{Connected: false}, nil
+	}
+	name, err := client.ViewerName()
 	if err != nil {
 		return AnilistStatus{Connected: false}, nil
 	}
@@ -384,7 +535,11 @@ func (a *App) startLoginServer() error {
 	clientID := settings.AnilistClientId
 	mux := anilist.NewMux(anilist.MuxConfig{
 		ExchangeCode: func(code string) (string, error) {
-			return anilist.ExchangeCode(nil, anilist.TokenURL, clientID, secret, code)
+			httpClient, err := a.networkHTTPClient()
+			if err != nil {
+				return "", err
+			}
+			return anilist.ExchangeCode(httpClient, anilist.TokenURL, clientID, secret, code)
 		},
 		OnToken: func(token string) error {
 			if err := a.SaveAnilistToken(token); err != nil {
@@ -432,7 +587,11 @@ func (a *App) SaveAnilistToken(token string) error {
 		return err
 	}
 	token = strings.TrimSpace(token)
-	name, err := anilist.New(token).ViewerName()
+	client, err := a.newAnilist(token)
+	if err != nil {
+		return err
+	}
+	name, err := client.ViewerName()
 	if err != nil {
 		return err
 	}
@@ -451,6 +610,14 @@ func (a *App) LogoutAnilist() error {
 }
 
 func (a *App) StartMagnet(magnet string) error {
+	return a.startTorrent(magnet)
+}
+
+func (a *App) StartTorrentURL(source string) error {
+	return a.startTorrent(source)
+}
+
+func (a *App) startTorrent(source string) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
@@ -458,7 +625,7 @@ func (a *App) StartMagnet(magnet string) error {
 	if err != nil {
 		return err
 	}
-	return a.torrents.Start(magnet, settings.DownloadDir, torrentRateLimits(settings))
+	return a.torrents.Start(source, settings.DownloadDir, torrentRateLimits(settings), networkConfig(settings))
 }
 
 func (a *App) StartTorrentFile() error {
@@ -479,7 +646,7 @@ func (a *App) StartTorrentFile() error {
 	if err != nil {
 		return err
 	}
-	return a.torrents.Start(path, settings.DownloadDir, torrentRateLimits(settings))
+	return a.torrents.Start(path, settings.DownloadDir, torrentRateLimits(settings), networkConfig(settings))
 }
 
 func (a *App) DownloadStatus() (*torrentx.JobView, error) {
@@ -554,7 +721,41 @@ func (a *App) loadSettings() (SettingsView, error) {
 	}
 	view.DownloadRateLimit = settingInt64(a.store, "download_rate_limit")
 	view.UploadRateLimit = settingInt64(a.store, "upload_rate_limit")
+	view.NetworkMode, _ = a.store.GetSetting("network_mode")
+	if view.NetworkMode == "" {
+		view.NetworkMode = networking.ModeSystem
+	}
+	view.Socks5Address, _ = a.store.GetSetting("socks5_address")
+	if view.Socks5Address == "" {
+		view.Socks5Address = "127.0.0.1:1080"
+	}
 	return view, nil
+}
+
+func (a *App) networkHTTPClient() (*http.Client, error) {
+	settings, err := a.loadSettings()
+	if err != nil {
+		return nil, err
+	}
+	return (networking.Config{
+		Mode:    settings.NetworkMode,
+		Address: settings.Socks5Address,
+	}).HTTPClient()
+}
+
+func normalizeNetworkMode(mode string) string {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "" {
+		return networking.ModeSystem
+	}
+	return mode
+}
+
+func networkConfig(settings SettingsView) networking.Config {
+	return networking.Config{
+		Mode:    settings.NetworkMode,
+		Address: settings.Socks5Address,
+	}
 }
 
 func (a *App) importPath(path string) (ImportResult, error) {
@@ -575,7 +776,12 @@ func (a *App) importPath(path string) (ImportResult, error) {
 	candidates := []AnimeView{}
 	autoBound := false
 	if parsed.Title != "" {
-		found, err := anilist.New("").Search(parsed.Title)
+		client, clientErr := a.newAnilist("")
+		if clientErr != nil {
+			runtime.LogError(a.ctx, clientErr.Error())
+			return ImportResult{}, clientErr
+		}
+		found, err := client.Search(parsed.Title)
 		if err != nil {
 			runtime.LogError(a.ctx, err.Error())
 		} else {
@@ -644,7 +850,10 @@ func (a *App) maybeSync(session *playSession, percent, threshold float64) {
 	if err != nil {
 		return
 	}
-	client := anilist.New(token)
+	client, clientErr := a.newAnilist(token)
+	if clientErr != nil {
+		return
+	}
 	current, err := client.ListProgress(session.anilistID)
 	if err != nil {
 		runtime.EventsEmit(a.ctx, "sync:result", SyncEvent{
@@ -688,9 +897,21 @@ func (a *App) maybeSync(session *playSession, percent, threshold float64) {
 	})
 }
 
-func (a *App) anilistClient() *anilist.Client {
+func (a *App) anilistClient() (*anilist.Client, error) {
 	token, _ := a.tokens.Get()
-	return anilist.New(token)
+	httpClient, err := a.networkHTTPClient()
+	if err != nil {
+		return nil, err
+	}
+	return anilist.NewWithHTTP(token, httpClient), nil
+}
+
+func (a *App) newAnilist(token string) (*anilist.Client, error) {
+	httpClient, err := a.networkHTTPClient()
+	if err != nil {
+		return nil, err
+	}
+	return anilist.NewWithHTTP(token, httpClient), nil
 }
 
 func toEpisodeView(e storage.Episode) EpisodeView {

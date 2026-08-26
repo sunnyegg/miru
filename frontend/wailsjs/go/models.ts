@@ -1,5 +1,29 @@
 export namespace main {
 	
+	export class AiringScheduleView {
+	    id: number;
+	    airingAt: number;
+	    episode: number;
+	    mediaId: number;
+	    titleRomaji: string;
+	    titleEnglish: string;
+	    coverImage: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AiringScheduleView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.airingAt = source["airingAt"];
+	        this.episode = source["episode"];
+	        this.mediaId = source["mediaId"];
+	        this.titleRomaji = source["titleRomaji"];
+	        this.titleEnglish = source["titleEnglish"];
+	        this.coverImage = source["coverImage"];
+	    }
+	}
 	export class AnilistStatus {
 	    connected: boolean;
 	    username: string;
@@ -100,6 +124,36 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class NyaaResultView {
+	    title: string;
+	    link: string;
+	    magnet: string;
+	    published: string;
+	    size: string;
+	    seeders: number;
+	    leechers: number;
+	    downloads: number;
+	    trusted: boolean;
+	    remake: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new NyaaResultView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.title = source["title"];
+	        this.link = source["link"];
+	        this.magnet = source["magnet"];
+	        this.published = source["published"];
+	        this.size = source["size"];
+	        this.seeders = source["seeders"];
+	        this.leechers = source["leechers"];
+	        this.downloads = source["downloads"];
+	        this.trusted = source["trusted"];
+	        this.remake = source["remake"];
+	    }
+	}
 	export class SettingsView {
 	    mpvPath: string;
 	    downloadDir: string;
@@ -107,6 +161,8 @@ export namespace main {
 	    anilistClientId: string;
 	    downloadRateLimit: number;
 	    uploadRateLimit: number;
+	    networkMode: string;
+	    socks5Address: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsView(source);
@@ -120,6 +176,32 @@ export namespace main {
 	        this.anilistClientId = source["anilistClientId"];
 	        this.downloadRateLimit = source["downloadRateLimit"];
 	        this.uploadRateLimit = source["uploadRateLimit"];
+	        this.networkMode = source["networkMode"];
+	        this.socks5Address = source["socks5Address"];
+	    }
+	}
+	export class WatchingEntryView {
+	    mediaId: number;
+	    progress: number;
+	    titleRomaji: string;
+	    titleEnglish: string;
+	    coverImage: string;
+	    totalEpisodes: number;
+	    mediaStatus: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new WatchingEntryView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mediaId = source["mediaId"];
+	        this.progress = source["progress"];
+	        this.titleRomaji = source["titleRomaji"];
+	        this.titleEnglish = source["titleEnglish"];
+	        this.coverImage = source["coverImage"];
+	        this.totalEpisodes = source["totalEpisodes"];
+	        this.mediaStatus = source["mediaStatus"];
 	    }
 	}
 

@@ -38,6 +38,14 @@ export function InitError() {
   return window['go']['main']['App']['InitError']();
 }
 
+export function ListAiringSchedule(arg1, arg2) {
+  return window['go']['main']['App']['ListAiringSchedule'](arg1, arg2);
+}
+
+export function ListCurrentlyWatching() {
+  return window['go']['main']['App']['ListCurrentlyWatching']();
+}
+
 export function ListEpisodes() {
   return window['go']['main']['App']['ListEpisodes']();
 }
@@ -86,10 +94,22 @@ export function SearchAnime(arg1) {
   return window['go']['main']['App']['SearchAnime'](arg1);
 }
 
+export function SearchNyaa(arg1) {
+  return window['go']['main']['App']['SearchNyaa'](arg1);
+}
+
 export function StartMagnet(arg1) {
   return window['go']['main']['App']['StartMagnet'](arg1);
 }
 
 export function StartTorrentFile() {
   return window['go']['main']['App']['StartTorrentFile']();
+}
+
+export function StartTorrentURL(arg1) {
+  return window['go']['main']['App']['StartTorrentURL'](arg1);
+}
+
+export function TestNetworkConnection(arg1, arg2) {
+  return window['go']['main']['App']['TestNetworkConnection'](arg1, arg2);
 }

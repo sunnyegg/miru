@@ -1,7 +1,12 @@
 package torrentx
 
 import (
+	"bytes"
 	"errors"
+	"io"
+	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +17,7 @@ import (
 
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/metainfo"
+	"github.com/sunnyegg/miru/internal/networking"
 	"golang.org/x/time/rate"
 )
 
@@ -44,6 +50,7 @@ type Manager struct {
 	mu           sync.Mutex
 	client       *torrent.Client
 	dataDir      string
+	networkKey   string
 	uploadRate   *rate.Limiter
 	downloadRate *rate.Limiter
 	current      *torrent.Torrent
@@ -142,7 +149,7 @@ func isActiveStatus(status string) bool {
 	return status == "DOWNLOADING" || status == "PAUSED" || status == "SEEDING"
 }
 
-func (m *Manager) Start(source, destDir string, limits RateLimits) error {
+func (m *Manager) Start(source, destDir string, limits RateLimits, networkConfig networking.Config) error {
 	source = strings.TrimSpace(source)
 	if source == "" {
 		return errors.New("empty torrent source")
@@ -169,7 +176,7 @@ func (m *Manager) Start(source, destDir string, limits RateLimits) error {
 	}
 	job.ID = id
 
-	client, err := m.ensureClient(destDir, limits)
+	client, err := m.ensureClient(destDir, limits, networkConfig)
 	if err != nil {
 		job.Status = "FAILED"
 		job.Error = err.Error()
@@ -177,7 +184,11 @@ func (m *Manager) Start(source, destDir string, limits RateLimits) error {
 		return err
 	}
 
-	t, err := addSource(client, source)
+	sourceHTTP, err := networkConfig.HTTPClient()
+	if err != nil {
+		return err
+	}
+	t, err := addSource(client, source, sourceHTTP)
 	if err != nil {
 		job.Status = "FAILED"
 		job.Error = err.Error()
@@ -287,10 +298,15 @@ func (m *Manager) Close() {
 	}
 }
 
-func (m *Manager) ensureClient(dataDir string, limits RateLimits) (*torrent.Client, error) {
+func (m *Manager) ensureClient(dataDir string, limits RateLimits, networkConfig networking.Config) (*torrent.Client, error) {
+	normalizedNetwork, err := networkConfig.Normalized()
+	if err != nil {
+		return nil, err
+	}
+	networkKey := normalizedNetwork.Mode + ":" + normalizedNetwork.Address
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.client != nil && m.dataDir == dataDir {
+	if m.client != nil && m.dataDir == dataDir && m.networkKey == networkKey {
 		m.applyRateLimitsLocked(limits)
 		return m.client, nil
 	}
@@ -306,12 +322,46 @@ func (m *Manager) ensureClient(dataDir string, limits RateLimits) (*torrent.Clie
 	uploadRate, downloadRate := newRateLimiters(limits)
 	cfg.UploadRateLimiter = uploadRate
 	cfg.DownloadRateLimiter = downloadRate
+	if normalizedNetwork.Mode == networking.ModeSystem {
+		cfg.HTTPProxy = http.ProxyFromEnvironment
+	} else if normalizedNetwork.Mode == networking.ModeSOCKS5 {
+		cfg.HTTPDialContext = normalizedNetwork.DialContext
+		cfg.TrackerDialContext = normalizedNetwork.DialContext
+	}
+	if normalizedNetwork.Mode == networking.ModeSOCKS5 {
+		cfg.DialForPeerConns = false
+		cfg.DisableUTP = true
+		cfg.NoDHT = true
+		cfg.NoDefaultPortForwarding = true
+		cfg.DisablePEX = true
+		cfg.DisableWebtorrent = true
+		cfg.DisableIPv6 = true
+		cfg.AcceptPeerConnections = false
+		cfg.TrackerListenPacket = func(network, _ string) (net.PacketConn, error) {
+			return nil, errors.New("UDP trackers are disabled when using SOCKS5")
+		}
+		client, err := torrent.NewClient(cfg)
+		if err != nil {
+			return nil, err
+		}
+		client.AddDialer(torrent.NetworkDialer{
+			Network: "tcp4",
+			Dialer:  normalizedNetwork,
+		})
+		m.client = client
+		m.dataDir = dataDir
+		m.networkKey = networkKey
+		m.uploadRate = uploadRate
+		m.downloadRate = downloadRate
+		return client, nil
+	}
 	client, err := torrent.NewClient(cfg)
 	if err != nil {
 		return nil, err
 	}
 	m.client = client
 	m.dataDir = dataDir
+	m.networkKey = networkKey
 	m.uploadRate = uploadRate
 	m.downloadRate = downloadRate
 	return client, nil
@@ -519,9 +569,32 @@ func (m *Manager) snapshot(jobID int64) storage.TorrentJob {
 	return storage.TorrentJob{ID: jobID}
 }
 
-func addSource(client *torrent.Client, source string) (*torrent.Torrent, error) {
+func addSource(client *torrent.Client, source string, httpClient *http.Client) (*torrent.Torrent, error) {
 	if strings.HasPrefix(strings.ToLower(source), "magnet:") {
 		return client.AddMagnet(source)
+	}
+	if parsed, err := url.Parse(source); err == nil &&
+		(parsed.Scheme == "http" || parsed.Scheme == "https") {
+		if httpClient == nil {
+			return nil, errors.New("HTTP client is unavailable")
+		}
+		response, err := httpClient.Get(parsed.String())
+		if err != nil {
+			return nil, err
+		}
+		defer response.Body.Close()
+		if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+			return nil, errors.New("torrent URL returned an HTTP error")
+		}
+		raw, err := io.ReadAll(io.LimitReader(response.Body, 16<<20))
+		if err != nil {
+			return nil, err
+		}
+		mi, err := metainfo.Load(bytes.NewReader(raw))
+		if err != nil {
+			return nil, err
+		}
+		return client.AddTorrent(mi)
 	}
 	mi, err := metainfo.LoadFromFile(source)
 	if err != nil {

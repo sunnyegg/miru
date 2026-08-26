@@ -7,6 +7,8 @@ type SettingsView struct {
 	AnilistClientId   string  `json:"anilistClientId"`
 	DownloadRateLimit int64   `json:"downloadRateLimit"`
 	UploadRateLimit   int64   `json:"uploadRateLimit"`
+	NetworkMode       string  `json:"networkMode"`
+	Socks5Address     string  `json:"socks5Address"`
 }
 
 type EpisodeView struct {
@@ -40,6 +42,39 @@ type ImportResult struct {
 type AnilistStatus struct {
 	Connected bool   `json:"connected"`
 	Username  string `json:"username"`
+}
+
+type AiringScheduleView struct {
+	ID           int64  `json:"id"`
+	AiringAt     int64  `json:"airingAt"`
+	Episode      int    `json:"episode"`
+	MediaID      int    `json:"mediaId"`
+	TitleRomaji  string `json:"titleRomaji"`
+	TitleEnglish string `json:"titleEnglish"`
+	CoverImage   string `json:"coverImage"`
+}
+
+type WatchingEntryView struct {
+	MediaID       int    `json:"mediaId"`
+	Progress      int    `json:"progress"`
+	TitleRomaji   string `json:"titleRomaji"`
+	TitleEnglish  string `json:"titleEnglish"`
+	CoverImage    string `json:"coverImage"`
+	TotalEpisodes int    `json:"totalEpisodes"`
+	MediaStatus   string `json:"mediaStatus"`
+}
+
+type NyaaResultView struct {
+	Title     string `json:"title"`
+	Link      string `json:"link"`
+	Magnet    string `json:"magnet"`
+	Published string `json:"published"`
+	Size      string `json:"size"`
+	Seeders   int    `json:"seeders"`
+	Leechers  int    `json:"leechers"`
+	Downloads int    `json:"downloads"`
+	Trusted   bool   `json:"trusted"`
+	Remake    bool   `json:"remake"`
 }
 
 type PlaybackEvent struct {
