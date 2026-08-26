@@ -21,6 +21,8 @@ export function ImportLocalFile():Promise<main.ImportResult>;
 
 export function InitError():Promise<string>;
 
+export function ListAiringSchedule(arg1:number,arg2:number):Promise<Array<main.AiringScheduleView>>;
+
 export function ListEpisodes():Promise<Array<main.EpisodeView>>;
 
 export function LogoutAnilist():Promise<void>;

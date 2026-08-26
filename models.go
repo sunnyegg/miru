@@ -42,6 +42,16 @@ type AnilistStatus struct {
 	Username  string `json:"username"`
 }
 
+type AiringScheduleView struct {
+	ID           int64  `json:"id"`
+	AiringAt     int64  `json:"airingAt"`
+	Episode      int    `json:"episode"`
+	MediaID      int    `json:"mediaId"`
+	TitleRomaji  string `json:"titleRomaji"`
+	TitleEnglish string `json:"titleEnglish"`
+	CoverImage   string `json:"coverImage"`
+}
+
 type PlaybackEvent struct {
 	EpisodeID int64   `json:"episodeId"`
 	Percent   float64 `json:"percent"`

@@ -38,6 +38,10 @@ export function InitError() {
   return window['go']['main']['App']['InitError']();
 }
 
+export function ListAiringSchedule(arg1, arg2) {
+  return window['go']['main']['App']['ListAiringSchedule'](arg1, arg2);
+}
+
 export function ListEpisodes() {
   return window['go']['main']['App']['ListEpisodes']();
 }

@@ -1,4 +1,4 @@
-export type TabId = 'library' | 'downloads' | 'settings'
+export type TabId = 'library' | 'downloads' | 'calendar' | 'settings'
 
 export type SettingsView = {
   mpvPath: string
@@ -40,6 +40,16 @@ export type ImportResult = {
 export type AnilistStatus = {
   connected: boolean
   username: string
+}
+
+export type AiringScheduleView = {
+  id: number
+  airingAt: number
+  episode: number
+  mediaId: number
+  titleRomaji: string
+  titleEnglish: string
+  coverImage: string
 }
 
 export type DownloadView = {

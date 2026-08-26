@@ -252,6 +252,32 @@ func (a *App) SearchAnime(query string) ([]AnimeView, error) {
 	return toAnimeViews(results), nil
 }
 
+func (a *App) ListAiringSchedule(start, end int64) ([]AiringScheduleView, error) {
+	if err := a.ready(); err != nil {
+		return nil, err
+	}
+	if start < 0 || end <= start || end-start > 8*24*60*60 {
+		return nil, errors.New("invalid airing schedule range")
+	}
+	schedules, err := anilist.New("").AiringSchedules(start, end)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]AiringScheduleView, 0, len(schedules))
+	for _, schedule := range schedules {
+		out = append(out, AiringScheduleView{
+			ID:           int64(schedule.ID),
+			AiringAt:     schedule.AiringAt,
+			Episode:      schedule.Episode,
+			MediaID:      schedule.MediaID,
+			TitleRomaji:  schedule.TitleRomaji,
+			TitleEnglish: schedule.TitleEnglish,
+			CoverImage:   schedule.CoverImage,
+		})
+	}
+	return out, nil
+}
+
 func (a *App) BindEpisode(episodeID int64, anilistID int) error {
 	if err := a.ready(); err != nil {
 		return err

@@ -1,5 +1,29 @@
 export namespace main {
 	
+	export class AiringScheduleView {
+	    id: number;
+	    airingAt: number;
+	    episode: number;
+	    mediaId: number;
+	    titleRomaji: string;
+	    titleEnglish: string;
+	    coverImage: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AiringScheduleView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.airingAt = source["airingAt"];
+	        this.episode = source["episode"];
+	        this.mediaId = source["mediaId"];
+	        this.titleRomaji = source["titleRomaji"];
+	        this.titleEnglish = source["titleEnglish"];
+	        this.coverImage = source["coverImage"];
+	    }
+	}
 	export class AnilistStatus {
 	    connected: boolean;
 	    username: string;

@@ -18,6 +18,16 @@ export function IconDownload({className}: IconProps) {
   )
 }
 
+export function IconCalendar({className}: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path strokeLinecap="round" d="M8 3v4M16 3v4M4 10h16" />
+      <path strokeLinecap="round" d="M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01" />
+    </svg>
+  )
+}
+
 export function IconSettings({className}: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
