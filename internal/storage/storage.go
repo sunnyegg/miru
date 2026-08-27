@@ -11,7 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const currentVersion = 3
+const currentVersion = 4
 
 var ErrNotFound = errors.New("not found")
 
@@ -69,6 +69,11 @@ func (s *Store) migrate() error {
 	}
 	if version < 3 {
 		if _, err := tx.Exec(schemaV3); err != nil {
+			return err
+		}
+	}
+	if version < 4 {
+		if _, err := tx.Exec(schemaV4); err != nil {
 			return err
 		}
 	}
@@ -171,6 +176,10 @@ CREATE TABLE IF NOT EXISTS api_cache (
 );
 `
 
+const schemaV4 = `
+ALTER TABLE episode_downloads ADD COLUMN resume_position REAL NOT NULL DEFAULT 0;
+`
+
 func (s *Store) GetSetting(key string) (string, error) {
 	var value string
 	err := s.db.QueryRow(`SELECT value FROM settings WHERE key = ?`, key).Scan(&value)
@@ -264,6 +273,7 @@ type Episode struct {
 	TitleRomaji     string
 	TitleEnglish    string
 	CoverImage      string
+	ResumePosition  float64
 }
 
 func (s *Store) InsertEpisode(e Episode) (int64, error) {
@@ -283,7 +293,8 @@ func (s *Store) GetEpisode(id int64) (Episode, error) {
 	row := s.db.QueryRow(
 		`SELECT e.id, e.anilist_id, e.episode_number, e.file_path, e.display_title,
 		        e.downloaded_bytes, e.status,
-		        COALESCE(a.title_romaji, ''), COALESCE(a.title_english, ''), COALESCE(a.cover_image, '')
+		        COALESCE(a.title_romaji, ''), COALESCE(a.title_english, ''), COALESCE(a.cover_image, ''),
+		        e.resume_position
 		 FROM episode_downloads e
 		 LEFT JOIN anime_cache a ON a.anilist_id = e.anilist_id
 		 WHERE e.id = ?`,
@@ -293,6 +304,7 @@ func (s *Store) GetEpisode(id int64) (Episode, error) {
 	err := row.Scan(
 		&e.ID, &e.AnilistID, &e.EpisodeNumber, &e.FilePath, &e.DisplayTitle,
 		&e.DownloadedBytes, &e.Status, &e.TitleRomaji, &e.TitleEnglish, &e.CoverImage,
+		&e.ResumePosition,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Episode{}, ErrNotFound
@@ -356,6 +368,14 @@ func (s *Store) BindEpisode(id int64, anilistID int, episodeNumber int) error {
 	_, err := s.db.Exec(
 		`UPDATE episode_downloads SET anilist_id = ?, episode_number = ? WHERE id = ?`,
 		anilistID, episodeNumber, id,
+	)
+	return err
+}
+
+func (s *Store) SetResumePosition(id int64, seconds float64) error {
+	_, err := s.db.Exec(
+		`UPDATE episode_downloads SET resume_position = ? WHERE id = ?`,
+		seconds, id,
 	)
 	return err
 }

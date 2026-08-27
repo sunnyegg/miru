@@ -18,6 +18,30 @@ func TestPercent(t *testing.T) {
 	}
 }
 
+func TestResumePosition(t *testing.T) {
+	cases := []struct {
+		name      string
+		position  float64
+		duration  float64
+		percent   float64
+		threshold float64
+		want      float64
+	}{
+		{name: "mid episode", position: 600, duration: 1440, percent: 41.6, threshold: 85, want: 600},
+		{name: "past sync threshold", position: 1300, duration: 1440, percent: 90, threshold: 85, want: 0},
+		{name: "opening skip", position: 3, duration: 1440, percent: 0.2, threshold: 85, want: 0},
+		{name: "credits remaining", position: 1435, duration: 1440, percent: 80, threshold: 85, want: 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ResumePosition(tc.position, tc.duration, tc.percent, tc.threshold)
+			if got != tc.want {
+				t.Fatalf("got %v want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestDetectFindsPATH(t *testing.T) {
 	dir := t.TempDir()
 	fake := filepath.Join(dir, "mpv")

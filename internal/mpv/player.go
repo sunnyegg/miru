@@ -40,6 +40,24 @@ func Percent(position, duration float64) float64 {
 	return p
 }
 
+const minResumeSeconds = 5
+const endRemainingSeconds = 10
+
+// ResumePosition is the start offset for the next play. Finished (or nearly
+// finished) watches start over so AniList-synced episodes do not reopen on credits.
+func ResumePosition(position, duration, percent, threshold float64) float64 {
+	if percent >= threshold {
+		return 0
+	}
+	if position < minResumeSeconds {
+		return 0
+	}
+	if duration > 0 && duration-position <= endRemainingSeconds {
+		return 0
+	}
+	return position
+}
+
 func (p *Player) Playing() bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -68,7 +86,7 @@ func (p *Player) Stop() {
 	}
 }
 
-func (p *Player) Play(mpvPath, mediaPath string, onProgress func(Progress), onExit func(error)) error {
+func (p *Player) Play(mpvPath, mediaPath string, startSeconds float64, onProgress func(Progress), onExit func(error)) error {
 	if mpvPath == "" {
 		return fmt.Errorf("mpv path is empty")
 	}
@@ -81,14 +99,18 @@ func (p *Player) Play(mpvPath, mediaPath string, onProgress func(Progress), onEx
 	socket := filepath.Join(os.TempDir(), fmt.Sprintf("miru-mpv-%d.sock", time.Now().UnixNano()))
 	_ = os.Remove(socket)
 
-	cmd := exec.Command(
-		mpvPath,
-		"--input-ipc-server="+socket,
+	args := []string{
+		"--input-ipc-server=" + socket,
 		"--force-window=yes",
 		"--no-terminal",
 		"--keep-open=yes",
-		mediaPath,
-	)
+	}
+	if startSeconds > 0 {
+		args = append(args, fmt.Sprintf("--start=%.3f", startSeconds))
+	}
+	args = append(args, mediaPath)
+
+	cmd := exec.Command(mpvPath, args...)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start mpv: %w", err)
 	}

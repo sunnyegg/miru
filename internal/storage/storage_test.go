@@ -136,6 +136,16 @@ func TestEpisodeBind(t *testing.T) {
 	if ep.TitleRomaji != "Test" {
 		t.Fatalf("title = %s", ep.TitleRomaji)
 	}
+	if err := store.SetResumePosition(id, 123.5); err != nil {
+		t.Fatal(err)
+	}
+	ep, err = store.GetEpisode(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ep.ResumePosition != 123.5 {
+		t.Fatalf("resume = %v", ep.ResumePosition)
+	}
 	_ = sql.NullInt64{}
 }
 

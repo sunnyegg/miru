@@ -218,6 +218,9 @@ func (a *App) BindEpisode(episodeID int64, anilistID int) error {
 			episodeNum = parsed.Episode
 		}
 	}
+	if mapped, mapErr := client.MapSeasonEpisode(anilistID, episodeNum); mapErr == nil {
+		episodeNum = mapped
+	}
 	return a.store.BindEpisode(episodeID, anilistID, episodeNum)
 }
 
@@ -254,6 +257,11 @@ func (a *App) importPath(path string) (ImportResult, error) {
 					return ImportResult{}, err
 				}
 				ep.AnilistID = sql.NullInt64{Int64: int64(found[0].ID), Valid: true}
+				if parsed.HasEpisode {
+					if mapped, mapErr := client.MapSeasonEpisode(found[0].ID, parsed.Episode); mapErr == nil {
+						ep.EpisodeNumber = sql.NullInt64{Int64: int64(mapped), Valid: true}
+					}
+				}
 				autoBound = true
 			}
 		}

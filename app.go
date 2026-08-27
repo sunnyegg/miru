@@ -42,10 +42,13 @@ type App struct {
 }
 
 type playSession struct {
-	episodeID  int64
-	anilistID  int
-	episodeNum int
-	synced     bool
+	episodeID     int64
+	anilistID     int
+	episodeNum    int
+	synced        bool
+	episodeMapped bool
+	mapFailed     bool
+	lastProgress  mpv.Progress
 }
 
 func NewApp() *App {

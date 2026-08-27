@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sunnyegg/miru/internal/anilist"
 	"github.com/sunnyegg/miru/internal/mpv"
 	syncprogress "github.com/sunnyegg/miru/internal/syncprogress"
 
@@ -44,19 +45,44 @@ func (a *App) PlayEpisode(episodeID int64) error {
 	a.play = session
 	a.playMu.Unlock()
 
-	return a.player.Play(mpvPath, ep.FilePath, func(p mpv.Progress) {
+	return a.player.Play(mpvPath, ep.FilePath, ep.ResumePosition, func(p mpv.Progress) {
+		a.playMu.Lock()
+		session.lastProgress = p
+		needsMap := !session.episodeMapped && !session.mapFailed
+		a.playMu.Unlock()
+
 		runtime.EventsEmit(a.ctx, "mpv:progress", PlaybackEvent{
 			EpisodeID: episodeID,
 			Percent:   p.Percent,
 		})
-		a.maybeSync(session, p.Percent, settings.SyncThreshold)
-	}, func(exitErr error) {
-		msg := ""
-		if exitErr != nil && !strings.Contains(exitErr.Error(), "signal: killed") {
-			msg = exitErr.Error()
+		if needsMap {
+			client, err := a.playbackAnilist()
+			if err != nil {
+				return
+			}
+			_ = a.ensureSeasonEpisode(session, client)
 		}
-		runtime.EventsEmit(a.ctx, "mpv:ended", SyncEvent{EpisodeID: episodeID, OK: true, Message: msg})
+	}, func(exitErr error) {
+		a.onMpvClosed(session, settings.SyncThreshold, exitErr)
 	})
+}
+
+func (a *App) onMpvClosed(session *playSession, threshold float64, exitErr error) {
+	a.playMu.Lock()
+	progress := session.lastProgress
+	a.playMu.Unlock()
+
+	if progress.Duration > 0 || progress.Position > 0 {
+		resume := mpv.ResumePosition(progress.Position, progress.Duration, progress.Percent, threshold)
+		_ = a.store.SetResumePosition(session.episodeID, resume)
+	}
+	a.maybeSync(session, progress.Percent, threshold)
+
+	msg := ""
+	if exitErr != nil && !strings.Contains(exitErr.Error(), "signal: killed") {
+		msg = exitErr.Error()
+	}
+	runtime.EventsEmit(a.ctx, "mpv:ended", SyncEvent{EpisodeID: session.episodeID, OK: true, Message: msg})
 }
 
 func (a *App) maybeSync(session *playSession, percent, threshold float64) {
@@ -65,23 +91,34 @@ func (a *App) maybeSync(session *playSession, percent, threshold float64) {
 	}
 
 	a.playMu.Lock()
-	if session.synced {
+	if session.synced || session.mapFailed {
 		a.playMu.Unlock()
 		return
 	}
+	needsMap := !session.episodeMapped
 	a.playMu.Unlock()
+
+	if needsMap {
+		client, err := a.playbackAnilist()
+		if err != nil {
+			return
+		}
+		if err := a.ensureSeasonEpisode(session, client); err != nil {
+			return
+		}
+	}
+
+	if percent < threshold {
+		return
+	}
 
 	synced, err := a.store.HasSynced(session.anilistID, session.episodeNum)
 	if err != nil || synced {
 		return
 	}
 
-	token, err := a.tokens.Get()
+	client, err := a.playbackAnilist()
 	if err != nil {
-		return
-	}
-	client, clientErr := a.newAnilist(token)
-	if clientErr != nil {
 		return
 	}
 	current, err := client.ListProgress(session.anilistID)
@@ -126,4 +163,49 @@ func (a *App) maybeSync(session *playSession, percent, threshold float64) {
 		OK:        true,
 		Message:   "AniList updated to episode " + strconv.Itoa(session.episodeNum),
 	})
+}
+
+func (a *App) playbackAnilist() (*anilist.Client, error) {
+	token, err := a.tokens.Get()
+	if err != nil {
+		return nil, err
+	}
+	return a.newAnilist(token)
+}
+
+func (a *App) ensureSeasonEpisode(session *playSession, client *anilist.Client) error {
+	a.playMu.Lock()
+	if session.episodeMapped {
+		a.playMu.Unlock()
+		return nil
+	}
+	parsed := session.episodeNum
+	anilistID := session.anilistID
+	episodeID := session.episodeID
+	a.playMu.Unlock()
+
+	mapped, err := client.MapSeasonEpisode(anilistID, parsed)
+	if err != nil {
+		a.playMu.Lock()
+		session.mapFailed = true
+		a.playMu.Unlock()
+		runtime.EventsEmit(a.ctx, "sync:result", SyncEvent{
+			EpisodeID: episodeID,
+			OK:        false,
+			Message:   err.Error(),
+		})
+		return err
+	}
+
+	a.playMu.Lock()
+	session.episodeNum = mapped
+	session.episodeMapped = true
+	a.playMu.Unlock()
+
+	if mapped != parsed {
+		_ = a.store.BindEpisode(episodeID, anilistID, mapped)
+		runtime.EventsEmit(a.ctx, "library:changed", true)
+		runtime.LogInfo(a.ctx, fmt.Sprintf("mapped episode %d to season episode %d", parsed, mapped))
+	}
+	return nil
 }
