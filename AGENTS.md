@@ -8,6 +8,12 @@ After `make dev`, inspect the running app at **http://127.0.0.1:34115**.
 
 That port is the Wails dev server with Go bindings. Do not use Vite `5173` or preview `4173` — those pages have no `window.go` / `window.runtime`, so React will not mount.
 
+## Backend
+
+Wails binds `App` in `package main`. Keep methods on `App`; split by concern into `app_*.go` (settings, library, anilist, playback, torrents). Do not add `internal/app` — that only relocates Wails glue and changes frontend imports (`wailsjs/go/main/App`).
+
+Domain code lives in `internal/` (`storage`, `anilist`, `torrentx`, `mpv`, …). Split a file when it mixes responsibilities or passes ~700 lines. ~300–400 is comfortable; ~500 is fine for one type/flow.
+
 ## Frontend
 
 - App lives in `frontend/`. UI primitives are shadcn in `frontend/src/components/ui/`.
