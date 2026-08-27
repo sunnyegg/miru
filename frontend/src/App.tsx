@@ -86,10 +86,10 @@ export default function App() {
         )}
         <main className={`min-h-0 flex-1 ${tab === 'library' ? 'overflow-hidden' : 'overflow-auto p-6'}`}>
           {tab === 'library' && <LibraryView notice={showNotice} refreshKey={libraryKey} playing={playing} />}
-          {tab === 'watching' && <WatchingView notice={showNotice} refreshKey={authKey} onSettings={() => setTab('settings')} />}
+          {tab === 'watching' && <WatchingView refreshKey={authKey} onSettings={() => setTab('settings')} />}
           {tab === 'search' && <SearchView notice={showNotice} onDownloads={() => setTab('downloads')} />}
           {tab === 'downloads' && <DownloadsView notice={showNotice} jobs={jobs} onJobs={setJobs} />}
-          {tab === 'calendar' && <CalendarView notice={showNotice} />}
+          {tab === 'calendar' && <CalendarView />}
           {tab === 'settings' && <SettingsView notice={showNotice} refreshKey={authKey} />}
         </main>
       </div>

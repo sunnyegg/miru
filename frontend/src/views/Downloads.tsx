@@ -14,6 +14,7 @@ import {
 import {errorMessage, formatBytes, formatSpeed} from '../lib/format'
 import type {DownloadView} from '../lib/types'
 import {IconFolder} from '../components/Icons'
+import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
 import {Label} from '@/components/ui/label'
@@ -30,16 +31,18 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
   const [magnet, setMagnet] = useState('')
   const [busy, setBusy] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     void refreshHistory()
   }, [])
 
   async function refreshHistory() {
+    setLoadError('')
     try {
       onJobs((await DownloadHistory()) ?? [])
     } catch (err) {
-      notice(errorMessage(err), true)
+      setLoadError(errorMessage(err))
     }
   }
 
@@ -185,7 +188,16 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
         </div>
       </form>
 
-      {jobs.length > 0 ? (
+      {loadError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{loadError}</AlertDescription>
+          <AlertAction>
+            <Button type="button" variant="secondary" onClick={() => void refreshHistory()}>
+              Try again
+            </Button>
+          </AlertAction>
+        </Alert>
+      ) : jobs.length > 0 ? (
         <div className="flex flex-col gap-3">
           {jobs.map((item) => {
             const isDownloading = item.status === 'DOWNLOADING'

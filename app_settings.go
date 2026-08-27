@@ -94,7 +94,7 @@ func (a *App) SaveAnilistSettings(syncThreshold float64) error {
 		syncThreshold = 85
 	}
 	return a.setSettings(map[string]string{
-		"sync_threshold": formatFloat(syncThreshold),
+		"sync_threshold": strconv.FormatFloat(syncThreshold, 'f', -1, 64),
 	})
 }
 
@@ -179,10 +179,6 @@ func (a *App) setSettings(pairs map[string]string) error {
 		}
 	}
 	return nil
-}
-
-func formatFloat(v float64) string {
-	return strconv.FormatFloat(v, 'f', -1, 64)
 }
 
 func formatInt64(v int64) string {

@@ -6,10 +6,6 @@ import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
 
-type Props = {
-  notice: (msg: string, isError?: boolean) => void
-}
-
 const dayFormatter = new Intl.DateTimeFormat(undefined, {
   weekday: 'long',
   month: 'long',
@@ -37,7 +33,7 @@ function dateKey(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
-export function CalendarView({notice}: Props) {
+export function CalendarView() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [schedules, setSchedules] = useState<AiringScheduleView[]>([])
   const [loading, setLoading] = useState(true)
@@ -77,9 +73,7 @@ export function CalendarView({notice}: Props) {
       const result = await ListAiringSchedule(Math.max(0, start - 1), end)
       setSchedules(result ?? [])
     } catch (err) {
-      const message = errorMessage(err)
-      setError(message)
-      notice(message, true)
+      setError(errorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -88,10 +82,6 @@ export function CalendarView({notice}: Props) {
   useEffect(() => {
     void loadSchedules()
   }, [weekStart, days])
-
-  function resetToToday() {
-    setWeekOffset(0)
-  }
 
   return (
     <section className="flex h-full flex-col gap-6">
@@ -104,7 +94,7 @@ export function CalendarView({notice}: Props) {
           <Button type="button" variant="muted" onClick={() => setWeekOffset((offset) => offset - 1)}>
             Previous
           </Button>
-          <Button type="button" variant="secondary" onClick={resetToToday} disabled={weekOffset === 0}>
+          <Button type="button" variant="secondary" onClick={() => setWeekOffset(0)} disabled={weekOffset === 0}>
             Today
           </Button>
           <Button type="button" variant="muted" onClick={() => setWeekOffset((offset) => offset + 1)}>

@@ -7,12 +7,11 @@ import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
 
 type Props = {
-  notice: (msg: string, isError?: boolean) => void
   refreshKey: number
   onSettings: () => void
 }
 
-export function WatchingView({notice, refreshKey, onSettings}: Props) {
+export function WatchingView({refreshKey, onSettings}: Props) {
   const [entries, setEntries] = useState<WatchingEntryView[]>([])
   const [loading, setLoading] = useState(true)
   const [notConnected, setNotConnected] = useState(false)
@@ -31,7 +30,6 @@ export function WatchingView({notice, refreshKey, onSettings}: Props) {
         setNotConnected(true)
       } else {
         setError(message)
-        notice(message, true)
       }
     } finally {
       setLoading(false)

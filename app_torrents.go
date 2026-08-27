@@ -3,8 +3,11 @@ package main
 import (
 	"errors"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/sunnyegg/miru/internal/networking"
+	"github.com/sunnyegg/miru/internal/nyaa"
 	"github.com/sunnyegg/miru/internal/storage"
 	"github.com/sunnyegg/miru/internal/torrentx"
 
@@ -17,6 +20,43 @@ func (a *App) StartMagnet(magnet string) error {
 
 func (a *App) StartTorrentURL(source string) error {
 	return a.startTorrent(source)
+}
+
+func (a *App) SearchNyaa(query string) ([]NyaaResultView, error) {
+	if err := a.ready(); err != nil {
+		return nil, err
+	}
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, errors.New("nyaa search query is empty")
+	}
+	if len(query) > 200 {
+		return nil, errors.New("nyaa search query is too long")
+	}
+	httpClient, err := a.networkHTTPClient()
+	if err != nil {
+		return nil, err
+	}
+	results, err := nyaa.NewWithHTTP(httpClient).Search(query)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]NyaaResultView, 0, len(results))
+	for _, result := range results {
+		out = append(out, NyaaResultView{
+			Title:     result.Title,
+			Link:      result.Link,
+			Magnet:    result.Magnet(),
+			Published: result.Published.Format(time.RFC3339),
+			Size:      result.Size,
+			Seeders:   result.Seeders,
+			Leechers:  result.Leechers,
+			Downloads: result.Downloads,
+			Trusted:   result.Trusted,
+			Remake:    result.Remake,
+		})
+	}
+	return out, nil
 }
 
 func (a *App) startTorrent(source string) error {

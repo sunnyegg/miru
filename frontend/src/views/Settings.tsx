@@ -15,6 +15,7 @@ import {
 } from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
 import type {AnilistStatus as Status, SettingsView} from '../lib/types'
+import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
 import {Input} from '@/components/ui/input'
@@ -43,8 +44,10 @@ export function SettingsView({notice, refreshKey}: Props) {
   const [status, setStatus] = useState<Status>({connected: false, username: ''})
   const [saving, setSaving] = useState<SettingsSection | null>(null)
   const [testingNetwork, setTestingNetwork] = useState(false)
+  const [loadError, setLoadError] = useState('')
 
   async function reload() {
+    setLoadError('')
     try {
       const [settings, anilist] = await Promise.all([GetSettings(), AnilistStatus()])
       setForm({
@@ -58,7 +61,7 @@ export function SettingsView({notice, refreshKey}: Props) {
       })
       setStatus(anilist ?? {connected: false, username: ''})
     } catch (err) {
-      notice(errorMessage(err), true)
+      setLoadError(errorMessage(err))
     }
   }
 
@@ -147,7 +150,17 @@ export function SettingsView({notice, refreshKey}: Props) {
         <p className="mt-1 text-sm text-muted-foreground">Playback, downloads, networking, and AniList.</p>
       </header>
 
-      <div className="flex max-w-3xl flex-col gap-5">
+      {loadError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{loadError}</AlertDescription>
+          <AlertAction>
+            <Button type="button" variant="secondary" onClick={() => void reload()}>
+              Try again
+            </Button>
+          </AlertAction>
+        </Alert>
+      ) : (
+        <div className="flex max-w-3xl flex-col gap-5">
         <form
           onSubmit={(e) => {
             e.preventDefault()
@@ -328,7 +341,8 @@ export function SettingsView({notice, refreshKey}: Props) {
             </Button>
           </Card>
         </form>
-      </div>
+        </div>
+      )}
     </section>
   )
 }

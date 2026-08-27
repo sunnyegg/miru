@@ -14,10 +14,6 @@ import {LibraryOsc} from '../components/LibraryOsc'
 import {LibraryPosterGrid} from '../components/LibraryPosterGrid'
 import {Button} from '@/components/ui/button'
 
-function anilistSearchQuery(title: string): string {
-  return title.replace(/\s+—\s+Episode\s+\d+\s*$/i, '').trim()
-}
-
 type Props = {
   notice: (msg: string, isError?: boolean) => void
   refreshKey: number
@@ -96,7 +92,7 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
   }, [selectedEpisodeId])
 
   async function openMatcher(episode: EpisodeView, candidates: AnimeView[] = []) {
-    const query = anilistSearchQuery(episode.displayTitle || episode.animeTitle)
+    const query = (episode.displayTitle || episode.animeTitle).replace(/\s+—\s+Episode\s+\d+\s*$/i, '').trim()
     setPicker({episode, candidates, query})
     if (!query || candidates.length > 0) {
       return

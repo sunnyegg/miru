@@ -156,15 +156,6 @@ func (a *App) networkHTTPClient() (*http.Client, error) {
 	}).HTTPClient()
 }
 
-func (a *App) anilistClient() (*anilist.Client, error) {
-	token, _ := a.tokens.Get()
-	httpClient, err := a.networkHTTPClient()
-	if err != nil {
-		return nil, err
-	}
-	return anilist.NewWithHTTP(token, httpClient), nil
-}
-
 func (a *App) newAnilist(token string) (*anilist.Client, error) {
 	httpClient, err := a.networkHTTPClient()
 	if err != nil {

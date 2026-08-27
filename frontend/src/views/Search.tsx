@@ -107,47 +107,45 @@ export function SearchView({notice, onDownloads}: Props) {
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
-          {results.map((result, index) => (
-            <li key={`${result.magnet}-${index}`}>
-              <Card>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="break-words font-medium">{result.title}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {formatPublished(result.published)} · {result.size || 'Unknown size'}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {result.seeders} seeders · {result.leechers} leechers · {result.downloads} downloads
-                    </p>
-                    {(result.trusted || result.remake) && (
-                      <p className="mt-2">
-                        {result.trusted && <Badge className="mr-2">Trusted</Badge>}
-                        {result.remake && <Badge>Remake</Badge>}
+          {results.map((result, index) => {
+            const publishedDate = new Date(result.published)
+            const publishedLabel = Number.isNaN(publishedDate.getTime())
+              ? 'Unknown date'
+              : dateFormatter.format(publishedDate)
+            return (
+              <li key={`${result.magnet}-${index}`}>
+                <Card>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="break-words font-medium">{result.title}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {publishedLabel} · {result.size || 'Unknown size'}
                       </p>
-                    )}
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {result.seeders} seeders · {result.leechers} leechers · {result.downloads} downloads
+                      </p>
+                      {(result.trusted || result.remake) && (
+                        <p className="mt-2">
+                          {result.trusted && <Badge className="mr-2">Trusted</Badge>}
+                          {result.remake && <Badge>Remake</Badge>}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => void download(result, index)}
+                      disabled={starting !== null}
+                    >
+                      {starting === index ? 'Adding…' : 'Download'}
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => void download(result, index)}
-                    disabled={starting !== null}
-                  >
-                    {starting === index ? 'Adding…' : 'Download'}
-                  </Button>
-                </div>
-              </Card>
-            </li>
-          ))}
+                </Card>
+              </li>
+            )
+          })}
         </ul>
       )}
     </section>
   )
-}
-
-function formatPublished(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return 'Unknown date'
-  }
-  return dateFormatter.format(date)
 }
