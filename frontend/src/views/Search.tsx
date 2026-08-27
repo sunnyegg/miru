@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import {useRef, useState} from 'react'
 import {SearchNyaa, SearchTokyoToshokan, StartTorrentURL} from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
 import type {NyaaResultView} from '../lib/types'
@@ -16,6 +16,8 @@ type Props = {
 
 type SearchSource = 'nyaa' | 'tokyotosho'
 
+const PAGE_SIZE = 10
+
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: 'medium',
   timeStyle: 'short',
@@ -26,11 +28,17 @@ export function SearchView({notice, onDownloads}: Props) {
   const [source, setSource] = useState<SearchSource>('nyaa')
   const [submittedQuery, setSubmittedQuery] = useState('')
   const [results, setResults] = useState<NyaaResultView[]>([])
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [starting, setStarting] = useState<number | null>(null)
+  const resultsScrollRef = useRef<HTMLDivElement>(null)
 
   const sourceLabel = source === 'tokyotosho' ? 'Tokyo Toshokan' : 'Nyaa'
+  const pageStart = (page - 1) * PAGE_SIZE
+  const pageResults = results.slice(pageStart, pageStart + PAGE_SIZE)
+  const lastPage = Math.max(1, Math.ceil(results.length / PAGE_SIZE))
+  const showPager = results.length > PAGE_SIZE
 
   async function search(searchQuery = query, searchSource = source) {
     const trimmed = searchQuery.trim()
@@ -46,6 +54,8 @@ export function SearchView({notice, onDownloads}: Props) {
         ? await SearchTokyoToshokan(trimmed)
         : await SearchNyaa(trimmed)
       setResults(found ?? [])
+      setPage(1)
+      resultsScrollRef.current?.scrollTo({top: 0})
     } catch (err) {
       const message = errorMessage(err)
       setError(message)
@@ -62,8 +72,8 @@ export function SearchView({notice, onDownloads}: Props) {
     }
   }
 
-  async function download(result: NyaaResultView, index: number) {
-    setStarting(index)
+  async function download(result: NyaaResultView, resultIndex: number) {
+    setStarting(resultIndex)
     try {
       await StartTorrentURL(result.link)
       notice('Download added')
@@ -73,6 +83,11 @@ export function SearchView({notice, onDownloads}: Props) {
     } finally {
       setStarting(null)
     }
+  }
+
+  function goToPage(nextPage: number) {
+    setPage(nextPage)
+    resultsScrollRef.current?.scrollTo({top: 0})
   }
 
   return (
@@ -114,7 +129,7 @@ export function SearchView({notice, onDownloads}: Props) {
         </Button>
       </form>
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div ref={resultsScrollRef} className="min-h-0 flex-1 overflow-auto">
         {loading ? (
           <Card className="border border-border/40 p-8" role="status">
             Loading {sourceLabel} results…
@@ -136,14 +151,15 @@ export function SearchView({notice, onDownloads}: Props) {
           </p>
         ) : (
           <ul className="flex flex-col gap-3">
-            {results.map((result, index) => {
+            {pageResults.map((result, indexOnPage) => {
+              const resultIndex = pageStart + indexOnPage
               const publishedDate = new Date(result.published)
               const publishedLabel = Number.isNaN(publishedDate.getTime())
                 ? 'Unknown date'
                 : dateFormatter.format(publishedDate)
               const hasPeerCounts = result.seeders > 0 || result.leechers > 0 || result.downloads > 0
               return (
-                <li key={`${result.magnet || result.link}-${index}`}>
+                <li key={`${result.magnet || result.link}-${resultIndex}`}>
                   <Card>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
@@ -166,10 +182,10 @@ export function SearchView({notice, onDownloads}: Props) {
                       <Button
                         type="button"
                         variant="secondary"
-                        onClick={() => void download(result, index)}
+                        onClick={() => void download(result, resultIndex)}
                         disabled={starting !== null}
                       >
-                        {starting === index ? 'Adding…' : 'Download'}
+                        {starting === resultIndex ? 'Adding…' : 'Download'}
                       </Button>
                     </div>
                   </Card>
@@ -179,6 +195,30 @@ export function SearchView({notice, onDownloads}: Props) {
           </ul>
         )}
       </div>
+
+      {showPager && !loading && !error && (
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+          <Button
+            type="button"
+            variant="muted"
+            disabled={page <= 1}
+            onClick={() => goToPage(page - 1)}
+          >
+            Previous
+          </Button>
+          <p className="text-sm text-muted-foreground">
+            {pageStart + 1}–{pageStart + pageResults.length} of {results.length}
+          </p>
+          <Button
+            type="button"
+            variant="muted"
+            disabled={page >= lastPage}
+            onClick={() => goToPage(page + 1)}
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </section>
   )
 }
