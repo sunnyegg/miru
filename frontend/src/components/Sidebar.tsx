@@ -1,4 +1,6 @@
 import {IconCalendar, IconDownload, IconLibrary, IconSearch, IconSettings, IconWatching} from './Icons'
+import {Button} from '@/components/ui/button'
+import {cn} from '@/lib/utils'
 import type {TabId} from '../lib/types'
 
 const destinations: {id: TabId; label: string; icon: typeof IconLibrary}[] = [
@@ -29,19 +31,21 @@ function NavButton({
 }) {
   const active = current === id
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
       onClick={() => onChange(id)}
       aria-current={active ? 'page' : undefined}
-      className={`flex min-h-11 w-full cursor-pointer items-center justify-center gap-3 border-l px-0 text-left text-sm transition-colors duration-200 sm:justify-start sm:px-3 ${
+      className={cn(
+        'w-full justify-center gap-3 border-l px-0 sm:justify-start sm:px-3',
         active
-          ? 'border-accent bg-muted text-foreground'
-          : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
-      }`}
+          ? 'border-accent bg-muted text-foreground hover:text-foreground'
+          : 'border-transparent hover:bg-muted hover:text-foreground',
+      )}
     >
       <Icon className="h-4 w-4 shrink-0" />
       <span className="sr-only sm:not-sr-only">{label}</span>
-    </button>
+    </Button>
   )
 }
 

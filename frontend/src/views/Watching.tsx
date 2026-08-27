@@ -2,6 +2,9 @@ import {useEffect, useState} from 'react'
 import {ListCurrentlyWatching} from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
 import type {WatchingEntryView} from '../lib/types'
+import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
+import {Button} from '@/components/ui/button'
+import {Card} from '@/components/ui/card'
 
 type Props = {
   notice: (msg: string, isError?: boolean) => void
@@ -47,34 +50,28 @@ export function WatchingView({notice, refreshKey, onSettings}: Props) {
       </header>
 
       {loading ? (
-        <p className="border border-border/40 bg-card p-8 text-sm text-muted-foreground" role="status">
+        <Card className="border border-border/40 p-8" role="status">
           Loading your list…
-        </p>
+        </Card>
       ) : notConnected ? (
-        <div className="bg-card p-4">
+        <Card>
           <h3 className="font-medium">Connect AniList to see your list</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Sign in with AniList from Settings, then return here to load your currently watching anime.
           </p>
-          <button
-            type="button"
-            onClick={onSettings}
-            className="mt-4 min-h-11 cursor-pointer bg-secondary px-4 text-sm text-on-secondary"
-          >
+          <Button type="button" variant="secondary" className="mt-4" onClick={onSettings}>
             Open Settings
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : error ? (
-        <div className="border border-destructive/60 bg-card p-8" role="alert">
-          <p className="text-sm text-destructive">{error}</p>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="mt-4 min-h-11 cursor-pointer bg-secondary px-4 text-sm text-on-secondary"
-          >
-            Try again
-          </button>
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+          <AlertAction>
+            <Button type="button" variant="secondary" onClick={() => void load()}>
+              Try again
+            </Button>
+          </AlertAction>
+        </Alert>
       ) : entries.length === 0 ? (
         <p className="border border-dashed border-border/40 p-8 text-sm text-muted-foreground">
           Nothing on your Currently Watching list.
@@ -85,21 +82,23 @@ export function WatchingView({notice, refreshKey, onSettings}: Props) {
             const title = entry.titleEnglish || entry.titleRomaji
             const total = entry.totalEpisodes > 0 ? entry.totalEpisodes : '?'
             return (
-              <li key={entry.mediaId} className="flex items-center gap-4 bg-card p-3">
-                {entry.coverImage ? (
-                  <img src={entry.coverImage} alt="" width={48} height={64} className="h-16 w-12 object-cover" />
-                ) : (
-                  <span className="h-16 w-12 bg-muted" aria-hidden="true" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{title}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Episode {entry.progress} / {total}
-                  </p>
-                  {entry.mediaStatus && (
-                    <p className="mt-1 text-xs text-muted-foreground">{entry.mediaStatus}</p>
+              <li key={entry.mediaId}>
+                <Card className="flex-row items-center gap-4 p-3">
+                  {entry.coverImage ? (
+                    <img src={entry.coverImage} alt="" width={48} height={64} className="h-16 w-12 object-cover" />
+                  ) : (
+                    <span className="h-16 w-12 bg-muted" aria-hidden="true" />
                   )}
-                </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{title}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Episode {entry.progress} / {total}
+                    </p>
+                    {entry.mediaStatus && (
+                      <p className="mt-1 text-xs text-muted-foreground">{entry.mediaStatus}</p>
+                    )}
+                  </div>
+                </Card>
               </li>
             )
           })}

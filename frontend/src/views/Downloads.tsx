@@ -1,21 +1,26 @@
 import {useEffect, useState} from 'react'
 import {
   CancelDownload,
-	DownloadHistory,
+  DownloadHistory,
   OpenDownloadFolder,
-	PauseDownload,
-	ResumeDownload,
+  PauseDownload,
+  ResumeDownload,
   StartMagnet,
   StartTorrentFile,
 } from '../../wailsjs/go/main/App'
 import {errorMessage, formatBytes, formatSpeed} from '../lib/format'
 import type {DownloadView} from '../lib/types'
 import {IconFolder} from '../components/Icons'
+import {Button} from '@/components/ui/button'
+import {Card} from '@/components/ui/card'
+import {Label} from '@/components/ui/label'
+import {Progress} from '@/components/ui/progress'
+import {Textarea} from '@/components/ui/textarea'
 
 type Props = {
   notice: (msg: string, isError?: boolean) => void
-	jobs: DownloadView[]
-	onJobs: (jobs: DownloadView[]) => void
+  jobs: DownloadView[]
+  onJobs: (jobs: DownloadView[]) => void
 }
 
 export function DownloadsView({notice, jobs, onJobs}: Props) {
@@ -115,39 +120,25 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
           void startMagnet()
         }}
       >
-        <label htmlFor="magnet" className="text-sm font-medium">Magnet link</label>
-        <textarea
+        <Label htmlFor="magnet">Magnet link</Label>
+        <Textarea
           id="magnet"
           value={magnet}
           onChange={(e) => setMagnet(e.target.value)}
           rows={3}
-          className="border border-border/40 bg-muted px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-ring"
           placeholder="magnet:?xt=urn:btih:..."
         />
         <div className="flex flex-wrap gap-2">
-          <button
-            type="submit"
-            disabled={busy || !magnet.trim() || Boolean(activeJob)}
-            className="min-h-11 cursor-pointer bg-accent px-4 text-sm font-medium text-on-accent disabled:cursor-not-allowed disabled:opacity-50"
-          >
+          <Button type="submit" disabled={busy || !magnet.trim() || Boolean(activeJob)}>
             Add magnet
-          </button>
-          <button
-            type="button"
-            onClick={() => void startFile()}
-            disabled={busy || Boolean(activeJob)}
-            className="min-h-11 cursor-pointer bg-secondary px-4 text-sm text-on-secondary disabled:cursor-not-allowed disabled:opacity-50"
-          >
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => void startFile()} disabled={busy || Boolean(activeJob)}>
             Open .torrent
-          </button>
-          <button
-            type="button"
-            onClick={() => void OpenDownloadFolder()}
-            className="inline-flex min-h-11 cursor-pointer items-center gap-2 px-4 text-sm text-muted-foreground hover:text-foreground"
-          >
+          </Button>
+          <Button type="button" variant="ghost" onClick={() => void OpenDownloadFolder()}>
             <IconFolder className="h-4 w-4" />
             Open folder
-          </button>
+          </Button>
         </div>
       </form>
 
@@ -159,7 +150,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
             const isSeeding = item.status === 'SEEDING'
             const isActive = isDownloading || isPaused || isSeeding
             return (
-              <div key={item.id} className="bg-card p-4">
+              <Card key={item.id}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="font-medium">{item.name || 'Torrent'}</p>
@@ -172,46 +163,23 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
                   {isActive && (
                     <div className="flex flex-wrap gap-2">
                       {isPaused ? (
-                        <button
-                          type="button"
-                          onClick={() => void resume()}
-                          disabled={busy}
-                          className="min-h-11 cursor-pointer bg-accent px-4 text-sm font-medium text-on-accent disabled:opacity-50"
-                        >
+                        <Button type="button" onClick={() => void resume()} disabled={busy}>
                           Resume
-                        </button>
+                        </Button>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => void pause()}
-                          disabled={busy}
-                          className="min-h-11 cursor-pointer bg-secondary px-4 text-sm text-on-secondary disabled:opacity-50"
-                        >
+                        <Button type="button" variant="secondary" onClick={() => void pause()} disabled={busy}>
                           Pause
-                        </button>
+                        </Button>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => void cancel()}
-                        disabled={busy}
-                        className="min-h-11 cursor-pointer bg-destructive px-4 text-sm text-on-destructive disabled:opacity-50"
-                      >
+                      <Button type="button" variant="destructive" onClick={() => void cancel()} disabled={busy}>
                         Cancel
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
-                <div
-                  className="mt-3 h-2 overflow-hidden bg-muted"
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={Math.round(item.percent)}
-                >
-                  <div className="h-full bg-accent" style={{width: `${Math.min(100, Math.max(0, item.percent))}%`}} />
-                </div>
+                <Progress className="mt-3" value={Math.min(100, Math.max(0, item.percent))} />
                 {item.error && <p className="mt-2 text-sm text-destructive">{item.error}</p>}
-              </div>
+              </Card>
             )
           })}
         </div>

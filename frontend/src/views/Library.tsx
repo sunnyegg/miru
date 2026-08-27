@@ -10,6 +10,10 @@ import {errorMessage} from '../lib/format'
 import {groupEpisodes} from '../lib/groupEpisodes'
 import type {AnimeView, EpisodeView, PlaybackEvent} from '../lib/types'
 import {IconPlay} from '../components/Icons'
+import {Button} from '@/components/ui/button'
+import {Card} from '@/components/ui/card'
+import {Input} from '@/components/ui/input'
+import {Skeleton} from '@/components/ui/skeleton'
 
 type Props = {
   notice: (msg: string, isError?: boolean) => void
@@ -152,46 +156,33 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
     <section className="flex h-full min-h-0 flex-col">
       <header className="flex shrink-0 items-center justify-between gap-3 px-5 pt-5 pb-3">
         <h2 className="text-2xl font-semibold tracking-tight">Library</h2>
-        <button
-          type="button"
-          onClick={() => void onImport()}
-          disabled={importing}
-          className="inline-flex min-h-11 cursor-pointer items-center bg-secondary px-4 text-sm text-on-secondary transition-colors duration-200 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-        >
+        <Button type="button" variant="secondary" onClick={() => void onImport()} disabled={importing}>
           {importing ? 'Importing…' : 'Import file'}
-        </button>
+        </Button>
       </header>
 
       {picker && (
-        <div className="mx-5 mb-3 border border-border bg-card p-4" role="region" aria-labelledby="match-title">
+        <Card className="mx-5 mb-3 border border-border" role="region" aria-labelledby="match-title">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h3 id="match-title" className="text-base font-medium">Match AniList title</h3>
               <p className="mt-1 text-sm text-muted-foreground">{picker.episode.displayTitle}</p>
             </div>
-            <button
-              type="button"
-              className="min-h-11 cursor-pointer px-3 text-sm text-muted-foreground hover:text-foreground"
-              onClick={() => setPicker(null)}
-            >
+            <Button type="button" variant="ghost" onClick={() => setPicker(null)}>
               Skip
-            </button>
+            </Button>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             <label className="sr-only" htmlFor="anilist-search">Search AniList</label>
-            <input
+            <Input
               id="anilist-search"
               value={picker.query}
               onChange={(e) => setPicker({...picker, query: e.target.value})}
-              className="min-h-11 min-w-56 flex-1 border border-border bg-muted px-3 text-sm text-foreground"
+              className="min-w-56 flex-1 border-border"
             />
-            <button
-              type="button"
-              onClick={() => void onSearch()}
-              className="min-h-11 cursor-pointer bg-secondary px-4 text-sm text-on-secondary"
-            >
+            <Button type="button" variant="secondary" onClick={() => void onSearch()}>
               Search
-            </button>
+            </Button>
           </div>
           <ul className="mt-3 flex flex-col gap-1">
             {picker.candidates.map((anime) => (
@@ -204,7 +195,7 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
                   {anime.coverImage ? (
                     <img src={anime.coverImage} alt="" width={40} height={56} className="h-14 w-10 object-cover" />
                   ) : (
-                    <span className="h-14 w-10 bg-primary" />
+                    <span className="h-14 w-10 bg-muted" />
                   )}
                   <span>
                     <span className="block text-sm font-medium">{anime.titleEnglish || anime.titleRomaji}</span>
@@ -217,14 +208,16 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
               <li className="text-sm text-muted-foreground">No matches. Search with a cleaner title.</li>
             )}
           </ul>
-        </div>
+        </Card>
       )}
 
       <div className="min-h-0 flex-1 overflow-auto px-5 pb-4">
         {loading ? (
           <ul className="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-3" aria-busy="true" aria-label="Loading library">
             {Array.from({length: 8}, (_, index) => (
-              <li key={index} className="aspect-square bg-muted" />
+              <li key={index}>
+                <Skeleton className="aspect-square w-full" />
+              </li>
             ))}
           </ul>
         ) : shows.length === 0 ? (
@@ -311,29 +304,25 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
                 })}
               </div>
             </div>
-            <button
+            <Button
               type="button"
               onClick={() => void onPlay(selectedEpisode.id)}
               disabled={busyId === selectedEpisode.id}
-              className="inline-flex min-h-11 min-w-24 shrink-0 cursor-pointer items-center justify-center gap-2 bg-accent px-5 text-sm font-medium text-on-accent disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-w-24"
             >
               <IconPlay className="h-4 w-4" />
               {busyId === selectedEpisode.id ? 'Starting…' : 'Play'}
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="flex min-w-0 items-center gap-3">
             <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
               {loading ? 'Loading library…' : 'No local shows yet'}
             </p>
-            <button
-              type="button"
-              disabled
-              className="inline-flex min-h-11 min-w-24 shrink-0 items-center justify-center gap-2 bg-accent px-5 text-sm font-medium text-on-accent disabled:cursor-not-allowed disabled:opacity-50"
-            >
+            <Button type="button" disabled className="min-w-24">
               <IconPlay className="h-4 w-4" />
               Play
-            </button>
+            </Button>
           </div>
         )}
       </div>
