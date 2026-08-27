@@ -3,6 +3,7 @@ package torrentx
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -26,6 +27,7 @@ type JobView struct {
 	UploadSpeedBytesPerSecond int64   `json:"uploadSpeedBytesPerSecond"`
 	Error                     string  `json:"error"`
 	Source                    string  `json:"source"`
+	Live                      bool    `json:"live"`
 }
 
 type Manager struct {
@@ -39,6 +41,7 @@ type Manager struct {
 	current      *torrent.Torrent
 	job          storage.TorrentJob
 	pausedFrom   string
+	uploadOffset int64
 	onProgress   func(JobView)
 	onComplete   func([]string)
 }
@@ -85,6 +88,12 @@ func ToView(job storage.TorrentJob) JobView {
 	}
 }
 
+func liveView(job storage.TorrentJob) JobView {
+	view := ToView(job)
+	view.Live = true
+	return view
+}
+
 func UploadRatio(uploaded, total int64) float64 {
 	if uploaded <= 0 || total <= 0 {
 		return 0
@@ -94,8 +103,8 @@ func UploadRatio(uploaded, total int64) float64 {
 
 func (m *Manager) Status() (JobView, error) {
 	m.mu.Lock()
-	if m.job.ID != 0 {
-		view := ToView(m.job)
+	if m.job.ID != 0 && m.current != nil {
+		view := liveView(m.job)
 		m.mu.Unlock()
 		return view, nil
 	}
@@ -113,9 +122,18 @@ func (m *Manager) History() ([]JobView, error) {
 	if err != nil {
 		return nil, err
 	}
+	m.mu.Lock()
+	liveID := int64(0)
+	if m.current != nil {
+		liveID = m.job.ID
+	}
+	m.mu.Unlock()
+
 	views := make([]JobView, 0, len(jobs))
 	for _, job := range jobs {
-		views = append(views, ToView(job))
+		view := ToView(job)
+		view.Live = job.ID == liveID
+		views = append(views, view)
 	}
 	return views, nil
 }
@@ -180,6 +198,7 @@ func (m *Manager) Start(source, destDir string, limits RateLimits, networkConfig
 	m.mu.Lock()
 	m.current = t
 	m.job = job
+	m.uploadOffset = 0
 	m.mu.Unlock()
 
 	go m.run(t, job.ID)
@@ -205,6 +224,43 @@ func (m *Manager) Cancel() error {
 		return m.store.UpdateTorrentJob(job)
 	}
 	return nil
+}
+
+func (m *Manager) Remove(id int64, deleteFiles bool) error {
+	job, err := m.store.TorrentJobByID(id)
+	if err != nil {
+		return err
+	}
+
+	m.mu.Lock()
+	active := m.current
+	if m.job.ID == id {
+		m.current = nil
+		m.job = storage.TorrentJob{}
+	} else {
+		active = nil
+	}
+	m.mu.Unlock()
+
+	if active != nil {
+		active.Drop()
+	}
+
+	if !deleteFiles {
+		return m.store.DeleteTorrentJob(id)
+	}
+
+	destDir := filepath.Clean(job.DestDir)
+	target := filepath.Clean(filepath.Join(destDir, job.Name))
+	relative, relErr := filepath.Rel(destDir, target)
+	safeName := job.Name != "" && job.Name != "Magnet download"
+	if safeName && relErr == nil && filepath.IsLocal(relative) {
+		if err := os.RemoveAll(target); err != nil {
+			return err
+		}
+	}
+
+	return m.store.DeleteTorrentJob(id)
 }
 
 func (m *Manager) Pause() error {
@@ -263,17 +319,111 @@ func (m *Manager) persistAndEmit(jobID int64) error {
 	cb := m.onProgress
 	m.mu.Unlock()
 	if cb != nil {
-		cb(ToView(job))
+		cb(liveView(job))
+	}
+	return nil
+}
+
+func (m *Manager) ResumeSeeding(id int64, limits RateLimits, networkConfig networking.Config) error {
+	job, err := m.store.TorrentJobByID(id)
+	if err != nil {
+		return err
+	}
+	if job.Status != "SEEDING" {
+		return errors.New("download is not waiting to seed")
+	}
+	if m.Busy() {
+		return errors.New("a download is already running")
+	}
+	if job.DestDir == "" {
+		return errors.New("download folder is empty")
+	}
+	if err := os.MkdirAll(job.DestDir, 0o755); err != nil {
+		return err
+	}
+
+	client, err := m.ensureClient(job.DestDir, limits, networkConfig)
+	if err != nil {
+		return err
+	}
+	sourceHTTP, err := networkConfig.HTTPClient()
+	if err != nil {
+		return err
+	}
+	t, err := addSource(client, job.Source, sourceHTTP)
+	if err != nil {
+		return err
+	}
+
+	m.mu.Lock()
+	m.current = t
+	m.job = job
+	m.uploadOffset = job.BytesUploaded
+	m.mu.Unlock()
+
+	go m.run(t, job.ID)
+	return nil
+}
+
+func (m *Manager) Finish(id int64) error {
+	m.mu.Lock()
+	live := m.job.ID == id && m.current != nil && m.job.Status == "SEEDING"
+	t := m.current
+	m.mu.Unlock()
+	if live {
+		m.finish(t, id)
+		return nil
+	}
+
+	job, err := m.store.TorrentJobByID(id)
+	if err != nil {
+		return err
+	}
+	if job.Status != "SEEDING" {
+		return errors.New("download is not seeding")
+	}
+
+	job.Status = "COMPLETED"
+	job.Error = ""
+	if err := m.store.UpdateTorrentJob(job); err != nil {
+		return err
+	}
+
+	m.mu.Lock()
+	progress := m.onProgress
+	complete := m.onComplete
+	m.mu.Unlock()
+	if progress != nil {
+		progress(ToView(job))
+	}
+	if complete != nil {
+		complete(videoFilesFromDisk(job.DestDir, job.Name))
 	}
 	return nil
 }
 
 func (m *Manager) Close() {
-	_ = m.Cancel()
 	m.mu.Lock()
+	t := m.current
+	job := m.job
 	client := m.client
+	m.current = nil
+	m.job = storage.TorrentJob{}
 	m.client = nil
+	m.pausedFrom = ""
+	m.uploadOffset = 0
+	if job.ID != 0 && isActiveStatus(job.Status) && job.Status != "SEEDING" {
+		job.Status = "CANCELLED"
+		job.Error = "cancelled"
+	}
 	m.mu.Unlock()
+
+	if t != nil {
+		t.Drop()
+	}
+	if job.ID != 0 {
+		_ = m.store.UpdateTorrentJob(job)
+	}
 	if client != nil {
 		client.Close()
 	}

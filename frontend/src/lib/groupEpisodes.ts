@@ -9,6 +9,23 @@ export type ShowGroup = {
   episodes: EpisodeView[]
 }
 
+export function visibleLibraryEpisodes(episodes: EpisodeView[]): EpisodeView[] {
+  const boundTitles = new Set(
+    episodes.filter((episode) => episode.bound).map((episode) => episode.displayTitle),
+  )
+  const seenUnboundTitles = new Set<string>()
+  return episodes.filter((episode) => {
+    if (episode.bound) {
+      return true
+    }
+    if (boundTitles.has(episode.displayTitle) || seenUnboundTitles.has(episode.displayTitle)) {
+      return false
+    }
+    seenUnboundTitles.add(episode.displayTitle)
+    return true
+  })
+}
+
 export function groupEpisodes(episodes: EpisodeView[]): ShowGroup[] {
   const groups = new Map<string, ShowGroup>()
 

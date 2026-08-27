@@ -220,6 +220,7 @@ export namespace torrentx {
 	    uploadSpeedBytesPerSecond: number;
 	    error: string;
 	    source: string;
+	    live: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new JobView(source);
@@ -239,6 +240,7 @@ export namespace torrentx {
 	        this.uploadSpeedBytesPerSecond = source["uploadSpeedBytesPerSecond"];
 	        this.error = source["error"];
 	        this.source = source["source"];
+	        this.live = source["live"];
 	    }
 	}
 

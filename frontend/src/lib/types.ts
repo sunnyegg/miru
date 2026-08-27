@@ -89,6 +89,7 @@ export type DownloadView = {
   uploadSpeedBytesPerSecond: number
   error: string
   source: string
+  live: boolean
 }
 
 export type PlaybackEvent = {

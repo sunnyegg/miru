@@ -43,6 +43,40 @@ func (s *Store) UpdateTorrentJob(job TorrentJob) error {
 	return err
 }
 
+func (s *Store) TorrentJobByID(id int64) (TorrentJob, error) {
+	row := s.db.QueryRow(
+		`SELECT id, COALESCE(info_hash, ''), source, dest_dir, COALESCE(name, ''), status,
+		        bytes_completed, bytes_total, bytes_uploaded, COALESCE(error, '')
+		 FROM torrent_jobs
+		 WHERE id = ?`,
+		id,
+	)
+	var job TorrentJob
+	err := row.Scan(
+		&job.ID, &job.InfoHash, &job.Source, &job.DestDir, &job.Name, &job.Status,
+		&job.BytesCompleted, &job.BytesTotal, &job.BytesUploaded, &job.Error,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return TorrentJob{}, ErrNotFound
+	}
+	return job, err
+}
+
+func (s *Store) DeleteTorrentJob(id int64) error {
+	result, err := s.db.Exec(`DELETE FROM torrent_jobs WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (s *Store) LatestTorrentJob() (TorrentJob, error) {
 	row := s.db.QueryRow(
 		`SELECT id, COALESCE(info_hash, ''), source, dest_dir, COALESCE(name, ''), status,
@@ -95,7 +129,7 @@ func (s *Store) FailInterruptedDownloads() error {
 	_, err := s.db.Exec(
 		`UPDATE torrent_jobs
 		 SET status = 'FAILED', error = 'interrupted by restart', updated_at = ?
-		 WHERE status IN ('DOWNLOADING', 'PAUSED', 'SEEDING')`,
+		 WHERE status IN ('DOWNLOADING', 'PAUSED')`,
 		time.Now().UTC().Format(time.RFC3339),
 	)
 	return err

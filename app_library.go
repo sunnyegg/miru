@@ -233,14 +233,28 @@ func (a *App) BindEpisode(episodeID int64, anilistID int) error {
 }
 
 func (a *App) importPath(path string) (ImportResult, error) {
+	path = filepath.Clean(path)
+	if absolute, err := filepath.Abs(path); err == nil {
+		path = absolute
+		if resolved, err := filepath.EvalSymlinks(path); err == nil {
+			path = resolved
+		}
+	}
 	if existing, err := a.store.EpisodeByPath(path); err == nil {
 		return ImportResult{Episode: toEpisodeView(existing)}, nil
 	}
 
 	parsed := media.ParseFilename(path)
+	displayTitle := media.DisplayTitle(parsed)
+	if displayTitle != "" {
+		if existing, err := a.store.EpisodeByDisplayTitle(displayTitle); err == nil {
+			return ImportResult{Episode: toEpisodeView(existing)}, nil
+		}
+	}
+
 	ep := storage.Episode{
 		FilePath:     path,
-		DisplayTitle: media.DisplayTitle(parsed),
+		DisplayTitle: displayTitle,
 		Status:       "COMPLETED",
 	}
 	if parsed.HasEpisode {

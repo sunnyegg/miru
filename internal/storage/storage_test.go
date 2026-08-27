@@ -58,7 +58,7 @@ func TestSyncEventsUnique(t *testing.T) {
 
 func TestFailInterruptedDownloads(t *testing.T) {
 	store := openTestStore(t)
-	id, err := store.InsertTorrentJob(TorrentJob{
+	downloadingID, err := store.InsertTorrentJob(TorrentJob{
 		Source:  "magnet:?xt=urn:btih:abc",
 		DestDir: t.TempDir(),
 		Status:  "DOWNLOADING",
@@ -66,15 +66,31 @@ func TestFailInterruptedDownloads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := store.FailInterruptedDownloads(); err != nil {
-		t.Fatal(err)
-	}
-	job, err := store.LatestTorrentJob()
+	seedingID, err := store.InsertTorrentJob(TorrentJob{
+		Source:  "magnet:?xt=urn:btih:def",
+		DestDir: t.TempDir(),
+		Name:    "Show",
+		Status:  "SEEDING",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if job.ID != id || job.Status != "FAILED" {
-		t.Fatalf("job = %+v", job)
+	if err := store.FailInterruptedDownloads(); err != nil {
+		t.Fatal(err)
+	}
+	downloading, err := store.TorrentJobByID(downloadingID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if downloading.Status != "FAILED" {
+		t.Fatalf("downloading = %+v", downloading)
+	}
+	seeding, err := store.TorrentJobByID(seedingID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if seeding.Status != "SEEDING" {
+		t.Fatalf("seeding = %+v", seeding)
 	}
 }
 
@@ -107,6 +123,94 @@ func TestListTorrentJobs(t *testing.T) {
 	}
 	if jobs[0].Status != "SEEDING" || jobs[0].BytesUploaded != 10 {
 		t.Fatalf("latest job = %+v", jobs[0])
+	}
+}
+
+func TestDeleteTorrentJob(t *testing.T) {
+	store := openTestStore(t)
+	id, err := store.InsertTorrentJob(TorrentJob{
+		Source:  "done.torrent",
+		DestDir: t.TempDir(),
+		Name:    "Show",
+		Status:  "COMPLETED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err := store.TorrentJobByID(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.Name != "Show" || job.Status != "COMPLETED" {
+		t.Fatalf("job = %+v", job)
+	}
+	if err := store.DeleteTorrentJob(id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.TorrentJobByID(id); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("lookup after delete = %v", err)
+	}
+	jobs, err := store.ListTorrentJobs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 0 {
+		t.Fatalf("jobs = %+v", jobs)
+	}
+	if err := store.DeleteTorrentJob(id); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("second delete = %v", err)
+	}
+}
+
+func TestDeleteEpisodesByFilePrefix(t *testing.T) {
+	store := openTestStore(t)
+	root := filepath.Join(t.TempDir(), "Show")
+	keep, err := store.InsertEpisode(Episode{
+		FilePath:     filepath.Join(t.TempDir(), "Other", "ep.mkv"),
+		DisplayTitle: "Keep",
+		Status:       "COMPLETED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	single, err := store.InsertEpisode(Episode{
+		FilePath:     root,
+		DisplayTitle: "Single",
+		Status:       "COMPLETED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	child, err := store.InsertEpisode(Episode{
+		FilePath:     filepath.Join(root, "ep01.mkv"),
+		DisplayTitle: "Child",
+		Status:       "COMPLETED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	neighbor, err := store.InsertEpisode(Episode{
+		FilePath:     root + "Extra.mkv",
+		DisplayTitle: "Neighbor",
+		Status:       "COMPLETED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.DeleteEpisodesByFilePrefix(root); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.GetEpisode(single); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("single = %v", err)
+	}
+	if _, err := store.GetEpisode(child); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("child = %v", err)
+	}
+	if _, err := store.GetEpisode(keep); err != nil {
+		t.Fatalf("keep = %v", err)
+	}
+	if _, err := store.GetEpisode(neighbor); err != nil {
+		t.Fatalf("neighbor = %v", err)
 	}
 }
 
@@ -147,6 +251,39 @@ func TestEpisodeBind(t *testing.T) {
 		t.Fatalf("resume = %v", ep.ResumePosition)
 	}
 	_ = sql.NullInt64{}
+}
+
+func TestEpisodeByDisplayTitlePrefersBound(t *testing.T) {
+	store := openTestStore(t)
+	title := "Re Zero kara Hajimeru Isekai Seikatsu — Episode 80"
+	if _, err := store.InsertEpisode(Episode{
+		FilePath:     "/tmp/unbound.mkv",
+		DisplayTitle: title,
+		Status:       "COMPLETED",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	boundID, err := store.InsertEpisode(Episode{
+		FilePath:     "/tmp/bound.mkv",
+		DisplayTitle: title,
+		Status:       "COMPLETED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpsertAnime(Anime{AnilistID: 7, TitleRomaji: "Re:Zero"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.BindEpisode(boundID, 7, 80); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.EpisodeByDisplayTitle(title)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != boundID || !got.AnilistID.Valid {
+		t.Fatalf("got = %+v", got)
+	}
 }
 
 func TestAPICacheTTL(t *testing.T) {

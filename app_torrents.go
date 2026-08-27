@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"path/filepath"
 
 	"github.com/sunnyegg/miru/internal/networking"
 	"github.com/sunnyegg/miru/internal/storage"
@@ -85,11 +86,57 @@ func (a *App) ResumeDownload() error {
 	return a.torrents.Resume()
 }
 
+func (a *App) ResumeSeeding(id int64) error {
+	if err := a.ready(); err != nil {
+		return err
+	}
+	settings, err := a.loadSettings()
+	if err != nil {
+		return err
+	}
+	return a.torrents.ResumeSeeding(id, torrentRateLimits(settings), networkConfig(settings))
+}
+
+func (a *App) FinishDownload(id int64) error {
+	if err := a.ready(); err != nil {
+		return err
+	}
+	return a.torrents.Finish(id)
+}
+
 func (a *App) DownloadHistory() ([]torrentx.JobView, error) {
 	if err := a.ready(); err != nil {
 		return nil, err
 	}
 	return a.torrents.History()
+}
+
+func (a *App) RemoveDownload(id int64, deleteFiles bool) error {
+	if err := a.ready(); err != nil {
+		return err
+	}
+	job, err := a.store.TorrentJobByID(id)
+	if err != nil {
+		return err
+	}
+	if err := a.torrents.Remove(id, deleteFiles); err != nil {
+		return err
+	}
+	if !deleteFiles {
+		return nil
+	}
+
+	destDir := filepath.Clean(job.DestDir)
+	prefix := filepath.Clean(filepath.Join(destDir, job.Name))
+	relative, relErr := filepath.Rel(destDir, prefix)
+	if relErr != nil || !filepath.IsLocal(relative) {
+		return nil
+	}
+	if err := a.store.DeleteEpisodesByFilePrefix(prefix); err != nil {
+		return err
+	}
+	runtime.EventsEmit(a.ctx, "library:changed", true)
+	return nil
 }
 
 func (a *App) OpenDownloadFolder() error {

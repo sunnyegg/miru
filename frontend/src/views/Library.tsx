@@ -7,7 +7,7 @@ import {
   SearchAnime,
 } from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
-import {groupEpisodes} from '../lib/groupEpisodes'
+import {groupEpisodes, visibleLibraryEpisodes} from '../lib/groupEpisodes'
 import type {AnimeView, EpisodeView, PlaybackEvent} from '../lib/types'
 import {IconPlay} from '../components/Icons'
 import {Alert} from '@/components/ui/alert'
@@ -40,7 +40,8 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
   const selectedEpisodeButtonRef = useRef<HTMLButtonElement>(null)
   const skippedMatchIds = useRef(new Set<number>())
 
-  const shows = useMemo(() => groupEpisodes(episodes), [episodes])
+  const libraryEpisodes = useMemo(() => visibleLibraryEpisodes(episodes), [episodes])
+  const shows = useMemo(() => groupEpisodes(libraryEpisodes), [libraryEpisodes])
   const selectedShow = shows.find((show) => show.key === selectedKey) ?? null
   const selectedEpisode = selectedShow?.episodes.find((episode) => episode.id === selectedEpisodeId)
     ?? selectedShow?.episodes[0]
@@ -123,14 +124,14 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
     if (loading || picker || importing) {
       return
     }
-    const unbound = episodes.find((episode) => {
+    const unbound = libraryEpisodes.find((episode) => {
       return !episode.bound && !skippedMatchIds.current.has(episode.id)
     })
     if (!unbound) {
       return
     }
     void openMatcher(unbound)
-  }, [loading, picker, importing, episodes])
+  }, [loading, picker, importing, libraryEpisodes])
 
   async function onImport() {
     setImporting(true)

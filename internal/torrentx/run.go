@@ -2,6 +2,7 @@ package torrentx
 
 import (
 	"errors"
+	"io/fs"
 	"path/filepath"
 	"strings"
 	"time"
@@ -67,16 +68,16 @@ func (m *Manager) run(t *torrent.Torrent, jobID int64) {
 		lastAt = now
 		m.job.BytesCompleted = completed
 		m.job.BytesTotal = total
-		m.job.BytesUploaded = uploaded
+		m.job.BytesUploaded = m.uploadOffset + uploaded
 		if info != nil && m.job.Name == "" {
 			m.job.Name = name
 		}
-		view := ToView(m.job)
+		view := liveView(m.job)
 		view.SpeedBytesPerSecond = speed
 		view.UploadSpeedBytesPerSecond = uploadSpeed
 		cb := m.onProgress
 		downloadDone := m.job.Status == "DOWNLOADING" && completed >= total && total > 0
-		seedingDone := m.job.Status == "SEEDING" && seedingComplete(uploaded, total)
+		seedingDone := m.job.Status == "SEEDING" && seedingComplete(m.job.BytesUploaded, total)
 		m.mu.Unlock()
 
 		_ = m.store.UpdateTorrentJob(m.snapshot(jobID))
@@ -108,7 +109,7 @@ func (m *Manager) startSeeding(jobID int64) {
 	m.mu.Unlock()
 	_ = m.store.UpdateTorrentJob(job)
 	if cb != nil {
-		cb(ToView(job))
+		cb(liveView(job))
 	}
 }
 
@@ -132,7 +133,7 @@ func (m *Manager) finish(t *torrent.Torrent, jobID int64) {
 	if m.job.ID == jobID {
 		m.job.Status = "COMPLETED"
 		m.job.BytesCompleted = t.BytesCompleted()
-		m.job.BytesUploaded = uploadedBytes(t)
+		m.job.BytesUploaded = m.uploadOffset + uploadedBytes(t)
 		m.job.Error = ""
 		m.current = nil
 	}
@@ -178,5 +179,29 @@ func videoFiles(t *torrent.Torrent) []string {
 		}
 		out = append(out, f.Path())
 	}
+	return out
+}
+
+func videoFilesFromDisk(destDir, name string) []string {
+	destDir = filepath.Clean(destDir)
+	root := filepath.Clean(filepath.Join(destDir, name))
+	relative, err := filepath.Rel(destDir, root)
+	if name == "" || name == "Magnet download" || err != nil || !filepath.IsLocal(relative) {
+		return nil
+	}
+
+	var out []string
+	_ = filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if videoExt[strings.ToLower(filepath.Ext(path))] {
+			out = append(out, path)
+		}
+		return nil
+	})
 	return out
 }

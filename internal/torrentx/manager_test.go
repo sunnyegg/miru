@@ -1,10 +1,13 @@
 package torrentx
 
 import (
+	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/sunnyegg/miru/internal/networking"
 	"github.com/sunnyegg/miru/internal/storage"
 	"golang.org/x/time/rate"
 )
@@ -98,5 +101,282 @@ func TestSeedingComplete(t *testing.T) {
 	}
 	if seedingComplete(49, 100) {
 		t.Fatal("expected less than 0.5 ratio to keep seeding")
+	}
+}
+
+func openManager(t *testing.T) (*Manager, *storage.Store) {
+	t.Helper()
+	store, err := storage.Open(filepath.Join(t.TempDir(), "app_data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	return NewManager(store), store
+}
+
+func insertJob(t *testing.T, store *storage.Store, destDir, name string) int64 {
+	t.Helper()
+	id, err := store.InsertTorrentJob(storage.TorrentJob{
+		Source:  "magnet:?xt=urn:btih:abc",
+		DestDir: destDir,
+		Name:    name,
+		Status:  "COMPLETED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+func TestRemoveDeletesJobAndFiles(t *testing.T) {
+	manager, store := openManager(t)
+	destDir := t.TempDir()
+	showDir := filepath.Join(destDir, "Show")
+	if err := os.MkdirAll(showDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	payload := filepath.Join(showDir, "ep.mkv")
+	if err := os.WriteFile(payload, []byte("video"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	id := insertJob(t, store, destDir, "Show")
+
+	if err := manager.Remove(id, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(payload); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("payload still present: %v", err)
+	}
+	jobs, err := store.ListTorrentJobs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 0 {
+		t.Fatalf("jobs = %+v", jobs)
+	}
+}
+
+func TestRemoveListOnlyKeepsFiles(t *testing.T) {
+	manager, store := openManager(t)
+	destDir := t.TempDir()
+	showDir := filepath.Join(destDir, "Show")
+	if err := os.MkdirAll(showDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	payload := filepath.Join(showDir, "ep.mkv")
+	if err := os.WriteFile(payload, []byte("video"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	id := insertJob(t, store, destDir, "Show")
+
+	if err := manager.Remove(id, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(payload); err != nil {
+		t.Fatalf("payload missing: %v", err)
+	}
+	jobs, err := store.ListTorrentJobs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 0 {
+		t.Fatalf("jobs = %+v", jobs)
+	}
+}
+
+func TestRemoveSkipsPlaceholderAndEmptyName(t *testing.T) {
+	manager, store := openManager(t)
+	destDir := t.TempDir()
+	placeholderDir := filepath.Join(destDir, "Magnet download")
+	if err := os.MkdirAll(placeholderDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	placeholderFile := filepath.Join(placeholderDir, "x")
+	if err := os.WriteFile(placeholderFile, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(destDir, "marker")
+	if err := os.WriteFile(marker, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	placeholderID := insertJob(t, store, destDir, "Magnet download")
+	if err := manager.Remove(placeholderID, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(placeholderFile); err != nil {
+		t.Fatalf("placeholder files removed: %v", err)
+	}
+
+	emptyID := insertJob(t, store, destDir, "")
+	if err := manager.Remove(emptyID, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("dest dir wiped: %v", err)
+	}
+}
+
+func TestRemoveSkipsPathEscape(t *testing.T) {
+	manager, store := openManager(t)
+	parent := t.TempDir()
+	destDir := filepath.Join(parent, "downloads")
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(parent, "secret")
+	if err := os.WriteFile(outside, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	id := insertJob(t, store, destDir, "..")
+	if err := manager.Remove(id, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(outside); err != nil {
+		t.Fatalf("escaped delete: %v", err)
+	}
+	if _, err := os.Stat(destDir); err != nil {
+		t.Fatalf("dest dir missing: %v", err)
+	}
+}
+
+func TestRemoveMissingFilesStillDeletesJob(t *testing.T) {
+	manager, store := openManager(t)
+	id := insertJob(t, store, t.TempDir(), "Gone")
+	if err := manager.Remove(id, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.TorrentJobByID(id); !errors.Is(err, storage.ErrNotFound) {
+		t.Fatalf("job = %v", err)
+	}
+}
+
+func TestCloseKeepsSeedingJob(t *testing.T) {
+	manager, store := openManager(t)
+	id, err := store.InsertTorrentJob(storage.TorrentJob{
+		Source:        "magnet:?xt=urn:btih:abc",
+		DestDir:       t.TempDir(),
+		Name:          "Show",
+		Status:        "SEEDING",
+		BytesUploaded: 10,
+		BytesTotal:    100,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err := store.TorrentJobByID(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager.mu.Lock()
+	manager.job = job
+	manager.mu.Unlock()
+	manager.Close()
+
+	got, err := store.TorrentJobByID(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != "SEEDING" || got.BytesUploaded != 10 {
+		t.Fatalf("job = %+v", got)
+	}
+}
+
+func TestCloseCancelsDownloadingJob(t *testing.T) {
+	manager, store := openManager(t)
+	id, err := store.InsertTorrentJob(storage.TorrentJob{
+		Source:  "magnet:?xt=urn:btih:abc",
+		DestDir: t.TempDir(),
+		Status:  "DOWNLOADING",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err := store.TorrentJobByID(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager.mu.Lock()
+	manager.job = job
+	manager.mu.Unlock()
+	manager.Close()
+
+	got, err := store.TorrentJobByID(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != "CANCELLED" {
+		t.Fatalf("job = %+v", got)
+	}
+}
+
+func TestFinishStoredSeedingJob(t *testing.T) {
+	manager, store := openManager(t)
+	destDir := t.TempDir()
+	showDir := filepath.Join(destDir, "Show")
+	if err := os.MkdirAll(showDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	payload := filepath.Join(showDir, "ep.mkv")
+	if err := os.WriteFile(payload, []byte("video"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	id, err := store.InsertTorrentJob(storage.TorrentJob{
+		Source:  "magnet:?xt=urn:btih:abc",
+		DestDir: destDir,
+		Name:    "Show",
+		Status:  "SEEDING",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var ingested []string
+	manager.SetCallbacks(nil, func(files []string) {
+		ingested = files
+	})
+	if err := manager.Finish(id); err != nil {
+		t.Fatal(err)
+	}
+	job, err := store.TorrentJobByID(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.Status != "COMPLETED" {
+		t.Fatalf("job = %+v", job)
+	}
+	if len(ingested) != 1 || ingested[0] != payload {
+		t.Fatalf("ingested = %v", ingested)
+	}
+}
+
+func TestResumeSeedingRejectsOtherStatus(t *testing.T) {
+	manager, store := openManager(t)
+	id := insertJob(t, store, t.TempDir(), "Show")
+	err := manager.ResumeSeeding(id, RateLimits{}, networking.Config{})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestVideoFilesFromDisk(t *testing.T) {
+	destDir := t.TempDir()
+	showDir := filepath.Join(destDir, "Show")
+	if err := os.MkdirAll(showDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	payload := filepath.Join(showDir, "ep.mkv")
+	if err := os.WriteFile(payload, []byte("video"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got := videoFilesFromDisk(destDir, "Show")
+	if len(got) != 1 || got[0] != payload {
+		t.Fatalf("got %v", got)
+	}
+	if files := videoFilesFromDisk(destDir, "Magnet download"); len(files) != 0 {
+		t.Fatalf("placeholder = %v", files)
+	}
+	if files := videoFilesFromDisk(destDir, ".."); len(files) != 0 {
+		t.Fatalf("escape = %v", files)
 	}
 }

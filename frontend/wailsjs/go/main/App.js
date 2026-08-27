@@ -26,6 +26,10 @@ export function DownloadStatus() {
   return window['go']['main']['App']['DownloadStatus']();
 }
 
+export function FinishDownload(arg1) {
+  return window['go']['main']['App']['FinishDownload'](arg1);
+}
+
 export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
 }
@@ -78,8 +82,16 @@ export function PlayEpisode(arg1) {
   return window['go']['main']['App']['PlayEpisode'](arg1);
 }
 
+export function RemoveDownload(arg1, arg2) {
+  return window['go']['main']['App']['RemoveDownload'](arg1, arg2);
+}
+
 export function ResumeDownload() {
   return window['go']['main']['App']['ResumeDownload']();
+}
+
+export function ResumeSeeding(arg1) {
+  return window['go']['main']['App']['ResumeSeeding'](arg1);
 }
 
 export function SaveAnilistSettings(arg1) {

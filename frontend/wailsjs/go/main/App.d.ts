@@ -15,6 +15,8 @@ export function DownloadHistory():Promise<Array<torrentx.JobView>>;
 
 export function DownloadStatus():Promise<torrentx.JobView>;
 
+export function FinishDownload(arg1:number):Promise<void>;
+
 export function GetSettings():Promise<main.SettingsView>;
 
 export function ImportLocalFile():Promise<main.ImportResult>;
@@ -41,7 +43,11 @@ export function PickMpvPath():Promise<string>;
 
 export function PlayEpisode(arg1:number):Promise<void>;
 
+export function RemoveDownload(arg1:number,arg2:boolean):Promise<void>;
+
 export function ResumeDownload():Promise<void>;
+
+export function ResumeSeeding(arg1:number):Promise<void>;
 
 export function SaveAnilistSettings(arg1:number):Promise<void>;
 

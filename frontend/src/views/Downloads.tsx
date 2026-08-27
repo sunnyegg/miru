@@ -2,9 +2,12 @@ import {useEffect, useState} from 'react'
 import {
   CancelDownload,
   DownloadHistory,
+  FinishDownload,
   OpenDownloadFolder,
   PauseDownload,
+  RemoveDownload,
   ResumeDownload,
+  ResumeSeeding,
   StartMagnet,
   StartTorrentFile,
 } from '../../wailsjs/go/main/App'
@@ -26,6 +29,7 @@ type Props = {
 export function DownloadsView({notice, jobs, onJobs}: Props) {
   const [magnet, setMagnet] = useState('')
   const [busy, setBusy] = useState(false)
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
 
   useEffect(() => {
     void DownloadHistory()
@@ -100,11 +104,44 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
     }
   }
 
-  const activeJob = jobs.find((item) =>
-    item.status === 'DOWNLOADING' ||
-    item.status === 'PAUSED' ||
-    item.status === 'SEEDING',
-  )
+  async function remove(id: number, deleteFiles: boolean) {
+    setBusy(true)
+    try {
+      await RemoveDownload(id, deleteFiles)
+      setPendingDeleteId(null)
+      await refreshHistory()
+    } catch (err) {
+      notice(errorMessage(err), true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function resumeSeeding(id: number) {
+    setBusy(true)
+    try {
+      await ResumeSeeding(id)
+      await refreshHistory()
+    } catch (err) {
+      notice(errorMessage(err), true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function finish(id: number) {
+    setBusy(true)
+    try {
+      await FinishDownload(id)
+      await refreshHistory()
+    } catch (err) {
+      notice(errorMessage(err), true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const activeJob = jobs.find((item) => item.live)
 
   return (
     <section className="flex h-full flex-col gap-6">
@@ -148,11 +185,74 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
             const isDownloading = item.status === 'DOWNLOADING'
             const isPaused = item.status === 'PAUSED'
             const isSeeding = item.status === 'SEEDING'
-            const isActive = isDownloading || isPaused || isSeeding
+            const isLive = Boolean(item.live)
+            const confirmingDelete = pendingDeleteId === item.id
+
+            let actions = (
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="destructive" onClick={() => setPendingDeleteId(item.id)} disabled={busy}>
+                  Delete
+                </Button>
+              </div>
+            )
+            if (isLive && isPaused) {
+              actions = (
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" onClick={() => void resume()} disabled={busy}>
+                    Resume
+                  </Button>
+                  <Button type="button" variant="destructive" onClick={() => void cancel()} disabled={busy}>
+                    Cancel
+                  </Button>
+                </div>
+              )
+            } else if (isLive) {
+              actions = (
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="secondary" onClick={() => void pause()} disabled={busy}>
+                    Pause
+                  </Button>
+                  {isSeeding && (
+                    <Button type="button" onClick={() => void finish(item.id)} disabled={busy}>
+                      Finish
+                    </Button>
+                  )}
+                  <Button type="button" variant="destructive" onClick={() => void cancel()} disabled={busy}>
+                    Cancel
+                  </Button>
+                </div>
+              )
+            } else if (isSeeding) {
+              actions = (
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" onClick={() => void resumeSeeding(item.id)} disabled={busy || Boolean(activeJob)}>
+                    Resume
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => void finish(item.id)} disabled={busy}>
+                    Finish
+                  </Button>
+                </div>
+              )
+            } else if (confirmingDelete) {
+              actions = (
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="secondary" onClick={() => void remove(item.id, false)} disabled={busy}>
+                    From list
+                  </Button>
+                  <Button type="button" variant="destructive" onClick={() => void remove(item.id, true)} disabled={busy}>
+                    List + files
+                  </Button>
+                  <Button type="button" variant="ghost" onClick={() => setPendingDeleteId(null)} disabled={busy}>
+                    Back
+                  </Button>
+                </div>
+              )
+            }
+
             return (
               <Card key={item.id}>
                 <div className="flex items-center justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium">{item.name || 'Torrent'}</p>
                     <p className="text-sm text-muted-foreground">
                       {item.status} · {formatBytes(item.bytesCompleted)} / {formatBytes(item.bytesTotal)}
@@ -160,22 +260,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
                       {isSeeding && ` · ${formatSpeed(item.uploadSpeedBytesPerSecond)} upload · ${Math.round(item.uploadRatio * 100)}% uploaded`}
                     </p>
                   </div>
-                  {isActive && (
-                    <div className="flex flex-wrap gap-2">
-                      {isPaused ? (
-                        <Button type="button" onClick={() => void resume()} disabled={busy}>
-                          Resume
-                        </Button>
-                      ) : (
-                        <Button type="button" variant="secondary" onClick={() => void pause()} disabled={busy}>
-                          Pause
-                        </Button>
-                      )}
-                      <Button type="button" variant="destructive" onClick={() => void cancel()} disabled={busy}>
-                        Cancel
-                      </Button>
-                    </div>
-                  )}
+                  {actions}
                 </div>
                 <Progress className="mt-3" value={Math.min(100, Math.max(0, item.percent))} />
                 {item.error && <p className="mt-2 text-sm text-destructive">{item.error}</p>}

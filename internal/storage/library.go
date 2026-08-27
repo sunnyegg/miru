@@ -3,6 +3,8 @@ package storage
 import (
 	"database/sql"
 	"errors"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -106,6 +108,32 @@ func (s *Store) EpisodeByPath(path string) (Episode, error) {
 	return e, err
 }
 
+func (s *Store) EpisodeByDisplayTitle(title string) (Episode, error) {
+	if title == "" {
+		return Episode{}, ErrNotFound
+	}
+	row := s.db.QueryRow(
+		`SELECT e.id, e.anilist_id, e.episode_number, e.file_path, e.display_title,
+		        e.downloaded_bytes, e.status,
+		        COALESCE(a.title_romaji, ''), COALESCE(a.title_english, ''), COALESCE(a.cover_image, '')
+		 FROM episode_downloads e
+		 LEFT JOIN anime_cache a ON a.anilist_id = e.anilist_id
+		 WHERE e.display_title = ?
+		 ORDER BY CASE WHEN e.anilist_id IS NULL THEN 1 ELSE 0 END, e.id
+		 LIMIT 1`,
+		title,
+	)
+	var e Episode
+	err := row.Scan(
+		&e.ID, &e.AnilistID, &e.EpisodeNumber, &e.FilePath, &e.DisplayTitle,
+		&e.DownloadedBytes, &e.Status, &e.TitleRomaji, &e.TitleEnglish, &e.CoverImage,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Episode{}, ErrNotFound
+	}
+	return e, err
+}
+
 func (s *Store) ListEpisodes() ([]Episode, error) {
 	rows, err := s.db.Query(
 		`SELECT e.id, e.anilist_id, e.episode_number, e.file_path, e.display_title,
@@ -135,6 +163,22 @@ func (s *Store) ListEpisodes() ([]Episode, error) {
 		out = []Episode{}
 	}
 	return out, rows.Err()
+}
+
+func (s *Store) DeleteEpisodesByFilePrefix(prefix string) error {
+	if prefix == "" {
+		return nil
+	}
+	escaped := strings.ReplaceAll(prefix, `\`, `\\`)
+	escaped = strings.ReplaceAll(escaped, `%`, `\%`)
+	escaped = strings.ReplaceAll(escaped, `_`, `\_`)
+	childPattern := escaped + string(filepath.Separator) + "%"
+	_, err := s.db.Exec(
+		`DELETE FROM episode_downloads WHERE file_path = ? OR file_path LIKE ? ESCAPE '\'`,
+		prefix,
+		childPattern,
+	)
+	return err
 }
 
 func (s *Store) BindEpisode(id int64, anilistID int, episodeNumber int) error {
