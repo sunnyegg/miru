@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -26,6 +27,11 @@ import (
 	"github.com/sunnyegg/miru/internal/torrentx"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+)
+
+const (
+	apiCacheTTL      = 7 * 24 * time.Hour
+	watchingCacheKey = "watching"
 )
 
 type App struct {
@@ -305,27 +311,29 @@ func (a *App) ListAiringSchedule(start, end int64) ([]AiringScheduleView, error)
 	if start < 0 || end <= start || end-start > 8*24*60*60 {
 		return nil, errors.New("invalid airing schedule range")
 	}
-	client, err := a.newAnilist("")
-	if err != nil {
-		return nil, err
-	}
-	schedules, err := client.AiringSchedules(start, end)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]AiringScheduleView, 0, len(schedules))
-	for _, schedule := range schedules {
-		out = append(out, AiringScheduleView{
-			ID:           int64(schedule.ID),
-			AiringAt:     schedule.AiringAt,
-			Episode:      schedule.Episode,
-			MediaID:      schedule.MediaID,
-			TitleRomaji:  schedule.TitleRomaji,
-			TitleEnglish: schedule.TitleEnglish,
-			CoverImage:   schedule.CoverImage,
-		})
-	}
-	return out, nil
+	return loadCachedJSON(a.store, fmt.Sprintf("airing:%d:%d", start, end), apiCacheTTL, func() ([]AiringScheduleView, error) {
+		client, err := a.newAnilist("")
+		if err != nil {
+			return nil, err
+		}
+		schedules, err := client.AiringSchedules(start, end)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]AiringScheduleView, 0, len(schedules))
+		for _, schedule := range schedules {
+			out = append(out, AiringScheduleView{
+				ID:           int64(schedule.ID),
+				AiringAt:     schedule.AiringAt,
+				Episode:      schedule.Episode,
+				MediaID:      schedule.MediaID,
+				TitleRomaji:  schedule.TitleRomaji,
+				TitleEnglish: schedule.TitleEnglish,
+				CoverImage:   schedule.CoverImage,
+			})
+		}
+		return out, nil
+	})
 }
 
 func (a *App) ListCurrentlyWatching() ([]WatchingEntryView, error) {
@@ -336,27 +344,55 @@ func (a *App) ListCurrentlyWatching() ([]WatchingEntryView, error) {
 	if err != nil {
 		return nil, errors.New("AniList not connected")
 	}
-	client, err := a.newAnilist(token)
+	return loadCachedJSON(a.store, watchingCacheKey, apiCacheTTL, func() ([]WatchingEntryView, error) {
+		client, err := a.newAnilist(token)
+		if err != nil {
+			return nil, err
+		}
+		entries, err := client.ListCurrent()
+		if err != nil {
+			return nil, err
+		}
+		out := make([]WatchingEntryView, 0, len(entries))
+		for _, entry := range entries {
+			out = append(out, WatchingEntryView{
+				MediaID:       entry.MediaID,
+				Progress:      entry.Progress,
+				TitleRomaji:   entry.TitleRomaji,
+				TitleEnglish:  entry.TitleEnglish,
+				CoverImage:    entry.CoverImage,
+				TotalEpisodes: entry.TotalEpisodes,
+				MediaStatus:   entry.MediaStatus,
+			})
+		}
+		return out, nil
+	})
+}
+
+func loadCachedJSON[T any](store *storage.Store, key string, ttl time.Duration, fetch func() (T, error)) (T, error) {
+	var zero T
+	if payload, err := store.GetAPICache(key, ttl); err == nil {
+		var cached T
+		if json.Unmarshal([]byte(payload), &cached) == nil {
+			return cached, nil
+		}
+	}
+
+	result, err := fetch()
 	if err != nil {
-		return nil, err
+		if payload, cacheErr := store.GetAPICache(key, 0); cacheErr == nil {
+			var cached T
+			if json.Unmarshal([]byte(payload), &cached) == nil {
+				return cached, nil
+			}
+		}
+		return zero, err
 	}
-	entries, err := client.ListCurrent()
-	if err != nil {
-		return nil, err
+
+	if encoded, encodeErr := json.Marshal(result); encodeErr == nil {
+		_ = store.SetAPICache(key, string(encoded))
 	}
-	out := make([]WatchingEntryView, 0, len(entries))
-	for _, entry := range entries {
-		out = append(out, WatchingEntryView{
-			MediaID:       entry.MediaID,
-			Progress:      entry.Progress,
-			TitleRomaji:   entry.TitleRomaji,
-			TitleEnglish:  entry.TitleEnglish,
-			CoverImage:    entry.CoverImage,
-			TotalEpisodes: entry.TotalEpisodes,
-			MediaStatus:   entry.MediaStatus,
-		})
-	}
-	return out, nil
+	return result, nil
 }
 
 func (a *App) SearchNyaa(query string) ([]NyaaResultView, error) {
@@ -606,6 +642,7 @@ func (a *App) LogoutAnilist() error {
 	if err := a.ready(); err != nil {
 		return err
 	}
+	_ = a.store.DeleteAPICache(watchingCacheKey)
 	return a.tokens.Delete()
 }
 
@@ -887,6 +924,7 @@ func (a *App) maybeSync(session *playSession, percent, threshold float64) {
 		return
 	}
 	_ = a.store.RecordSync(session.anilistID, session.episodeNum)
+	_ = a.store.DeleteAPICache(watchingCacheKey)
 	a.playMu.Lock()
 	session.synced = true
 	a.playMu.Unlock()

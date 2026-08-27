@@ -2,8 +2,10 @@ package storage
 
 import (
 	"database/sql"
+	"errors"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func openTestStore(t *testing.T) *Store {
@@ -135,4 +137,49 @@ func TestEpisodeBind(t *testing.T) {
 		t.Fatalf("title = %s", ep.TitleRomaji)
 	}
 	_ = sql.NullInt64{}
+}
+
+func TestAPICacheTTL(t *testing.T) {
+	store := openTestStore(t)
+	if err := store.SetAPICache("watching", `[{"mediaId":1}]`); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := store.GetAPICache("watching", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != `[{"mediaId":1}]` {
+		t.Fatalf("got %q", got)
+	}
+
+	_, err = store.db.Exec(
+		`UPDATE api_cache SET fetched_at = ? WHERE cache_key = ?`,
+		time.Now().Add(-time.Hour).Unix(),
+		"watching",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = store.GetAPICache("watching", time.Minute)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expired err = %v, want ErrNotFound", err)
+	}
+
+	stale, err := store.GetAPICache("watching", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stale != `[{"mediaId":1}]` {
+		t.Fatalf("stale = %q", stale)
+	}
+
+	if err := store.DeleteAPICache("watching"); err != nil {
+		t.Fatal(err)
+	}
+	_, err = store.GetAPICache("watching", 0)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("deleted err = %v, want ErrNotFound", err)
+	}
 }

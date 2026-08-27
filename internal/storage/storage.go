@@ -11,7 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const currentVersion = 2
+const currentVersion = 3
 
 var ErrNotFound = errors.New("not found")
 
@@ -64,6 +64,11 @@ func (s *Store) migrate() error {
 	}
 	if version == 1 {
 		if _, err := tx.Exec(schemaV2); err != nil {
+			return err
+		}
+	}
+	if version < 3 {
+		if _, err := tx.Exec(schemaV3); err != nil {
 			return err
 		}
 	}
@@ -158,6 +163,14 @@ FROM torrent_jobs_v1;
 DROP TABLE torrent_jobs_v1;
 `
 
+const schemaV3 = `
+CREATE TABLE IF NOT EXISTS api_cache (
+    cache_key TEXT PRIMARY KEY,
+    payload TEXT NOT NULL,
+    fetched_at INTEGER NOT NULL
+);
+`
+
 func (s *Store) GetSetting(key string) (string, error) {
 	var value string
 	err := s.db.QueryRow(`SELECT value FROM settings WHERE key = ?`, key).Scan(&value)
@@ -173,6 +186,41 @@ func (s *Store) SetSetting(key, value string) error {
 		 ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
 		key, value,
 	)
+	return err
+}
+
+func (s *Store) GetAPICache(key string, maxAge time.Duration) (string, error) {
+	var payload string
+	var fetchedAt int64
+	err := s.db.QueryRow(
+		`SELECT payload, fetched_at FROM api_cache WHERE cache_key = ?`,
+		key,
+	).Scan(&payload, &fetchedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", err
+	}
+	if maxAge > 0 && time.Since(time.Unix(fetchedAt, 0)) > maxAge {
+		return "", ErrNotFound
+	}
+	return payload, nil
+}
+
+func (s *Store) SetAPICache(key, payload string) error {
+	_, err := s.db.Exec(
+		`INSERT INTO api_cache(cache_key, payload, fetched_at) VALUES(?, ?, ?)
+		 ON CONFLICT(cache_key) DO UPDATE SET
+		 	payload = excluded.payload,
+		 	fetched_at = excluded.fetched_at`,
+		key, payload, time.Now().Unix(),
+	)
+	return err
+}
+
+func (s *Store) DeleteAPICache(key string) error {
+	_, err := s.db.Exec(`DELETE FROM api_cache WHERE cache_key = ?`, key)
 	return err
 }
 
