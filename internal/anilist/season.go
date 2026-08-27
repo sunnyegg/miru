@@ -36,14 +36,12 @@ func SeasonEpisode(parsed, seasonLength, prequelEpisodes int) (int, bool) {
 	if seasonLength > 0 && parsed <= seasonLength {
 		return parsed, true
 	}
-	if prequelEpisodes > 0 && parsed > prequelEpisodes {
-		relative := parsed - prequelEpisodes
-		if relative > 0 && (seasonLength <= 0 || relative <= seasonLength) {
-			return relative, true
-		}
+	if prequelEpisodes <= 0 || parsed <= prequelEpisodes {
+		return parsed, seasonLength <= 0
 	}
-	if seasonLength <= 0 {
-		return parsed, true
+	relative := parsed - prequelEpisodes
+	if seasonLength <= 0 || relative <= seasonLength {
+		return relative, true
 	}
 	return parsed, false
 }

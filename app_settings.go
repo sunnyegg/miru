@@ -134,10 +134,10 @@ func (a *App) loadSettings() (SettingsView, error) {
 	if strings.TrimSpace(view.AnilistClientId) == "" {
 		view.AnilistClientId = envTrim("ANILIST_CLIENT_ID")
 	}
-	if raw, err := a.store.GetSetting("sync_threshold"); err == nil {
-		if n, err := strconv.ParseFloat(raw, 64); err == nil {
-			view.SyncThreshold = n
-		}
+	raw, err := a.store.GetSetting("sync_threshold")
+	threshold, parseErr := strconv.ParseFloat(raw, 64)
+	if err == nil && parseErr == nil {
+		view.SyncThreshold = threshold
 	}
 	view.DownloadRateLimit = settingInt64(a.store, "download_rate_limit")
 	view.UploadRateLimit = settingInt64(a.store, "upload_rate_limit")

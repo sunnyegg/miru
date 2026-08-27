@@ -14,6 +14,8 @@ Wails binds `App` in `package main`. Keep methods on `App`; split by concern int
 
 Domain code lives in `internal/` (`storage`, `anilist`, `torrentx`, `mpv`, …). Split a file when it mixes responsibilities or passes ~700 lines. ~300–400 is comfortable; ~500 is fine for one type/flow.
 
+Go: guard clauses over nested `if`. Invert the empty/error case and return. Extract a helper only if it is reused, or the nest is 3+ levels in the middle of a function. Do not flatten sequential checks (SQLite migrations, SOCKS5 client setup). Do not add a helper that is only called once.
+
 ## Frontend
 
 - App lives in `frontend/`. UI primitives are shadcn in `frontend/src/components/ui/`.

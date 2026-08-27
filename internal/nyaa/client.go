@@ -164,9 +164,9 @@ func (item rssItem) result() (Result, error) {
 	published, err := time.Parse(time.RFC1123Z, item.Published)
 	if err != nil {
 		published, err = time.Parse(time.RFC1123, item.Published)
-		if err != nil {
-			return Result{}, fmt.Errorf("parse Nyaa publication time %q: %w", item.Published, err)
-		}
+	}
+	if err != nil {
+		return Result{}, fmt.Errorf("parse Nyaa publication time %q: %w", item.Published, err)
 	}
 	hash := strings.ToLower(strings.TrimSpace(item.Fields["infoHash"]))
 	if hash == "" {

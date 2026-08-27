@@ -573,30 +573,33 @@ func addSource(client *torrent.Client, source string, httpClient *http.Client) (
 	if strings.HasPrefix(strings.ToLower(source), "magnet:") {
 		return client.AddMagnet(source)
 	}
-	if parsed, err := url.Parse(source); err == nil &&
-		(parsed.Scheme == "http" || parsed.Scheme == "https") {
-		if httpClient == nil {
-			return nil, errors.New("HTTP client is unavailable")
-		}
-		response, err := httpClient.Get(parsed.String())
-		if err != nil {
-			return nil, err
-		}
-		defer response.Body.Close()
-		if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-			return nil, errors.New("torrent URL returned an HTTP error")
-		}
-		raw, err := io.ReadAll(io.LimitReader(response.Body, 16<<20))
-		if err != nil {
-			return nil, err
-		}
-		mi, err := metainfo.Load(bytes.NewReader(raw))
+
+	parsed, err := url.Parse(source)
+	isHTTP := err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https")
+	if !isHTTP {
+		mi, err := metainfo.LoadFromFile(source)
 		if err != nil {
 			return nil, err
 		}
 		return client.AddTorrent(mi)
 	}
-	mi, err := metainfo.LoadFromFile(source)
+
+	if httpClient == nil {
+		return nil, errors.New("HTTP client is unavailable")
+	}
+	response, err := httpClient.Get(parsed.String())
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return nil, errors.New("torrent URL returned an HTTP error")
+	}
+	raw, err := io.ReadAll(io.LimitReader(response.Body, 16<<20))
+	if err != nil {
+		return nil, err
+	}
+	mi, err := metainfo.Load(bytes.NewReader(raw))
 	if err != nil {
 		return nil, err
 	}

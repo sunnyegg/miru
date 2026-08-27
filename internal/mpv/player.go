@@ -167,14 +167,16 @@ func (p *Player) watch(cmd *exec.Cmd, socket string, onProgress func(Progress), 
 func (p *Player) cleanup(cmd *exec.Cmd, socket string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.cmd == cmd {
-		if p.conn != nil {
-			_ = p.conn.Close()
-			p.conn = nil
-		}
-		p.cmd = nil
-		p.socket = ""
+	if p.cmd != cmd {
+		_ = os.Remove(socket)
+		return
 	}
+	if p.conn != nil {
+		_ = p.conn.Close()
+		p.conn = nil
+	}
+	p.cmd = nil
+	p.socket = ""
 	_ = os.Remove(socket)
 }
 

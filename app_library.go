@@ -130,29 +130,36 @@ func (a *App) ListCurrentlyWatching() ([]WatchingEntryView, error) {
 }
 
 func loadCachedJSON[T any](store *storage.Store, key string, ttl time.Duration, fetch func() (T, error)) (T, error) {
-	var zero T
-	if payload, err := store.GetAPICache(key, ttl); err == nil {
-		var cached T
-		if json.Unmarshal([]byte(payload), &cached) == nil {
-			return cached, nil
-		}
+	if cached, ok := cachedJSON[T](store, key, ttl); ok {
+		return cached, nil
 	}
 
 	result, err := fetch()
 	if err != nil {
-		if payload, cacheErr := store.GetAPICache(key, 0); cacheErr == nil {
-			var cached T
-			if json.Unmarshal([]byte(payload), &cached) == nil {
-				return cached, nil
-			}
+		if stale, ok := cachedJSON[T](store, key, 0); ok {
+			return stale, nil
 		}
+		var zero T
 		return zero, err
 	}
 
-	if encoded, encodeErr := json.Marshal(result); encodeErr == nil {
+	encoded, encodeErr := json.Marshal(result)
+	if encodeErr == nil {
 		_ = store.SetAPICache(key, string(encoded))
 	}
 	return result, nil
+}
+
+func cachedJSON[T any](store *storage.Store, key string, ttl time.Duration) (T, bool) {
+	var cached T
+	payload, err := store.GetAPICache(key, ttl)
+	if err != nil {
+		return cached, false
+	}
+	if json.Unmarshal([]byte(payload), &cached) != nil {
+		return cached, false
+	}
+	return cached, true
 }
 
 func (a *App) SearchNyaa(query string) ([]NyaaResultView, error) {
@@ -218,7 +225,8 @@ func (a *App) BindEpisode(episodeID int64, anilistID int) error {
 			episodeNum = parsed.Episode
 		}
 	}
-	if mapped, mapErr := client.MapSeasonEpisode(anilistID, episodeNum); mapErr == nil {
+	mapped, mapErr := client.MapSeasonEpisode(anilistID, episodeNum)
+	if mapErr == nil {
 		episodeNum = mapped
 	}
 	return a.store.BindEpisode(episodeID, anilistID, episodeNum)
@@ -239,32 +247,9 @@ func (a *App) importPath(path string) (ImportResult, error) {
 		ep.EpisodeNumber = sql.NullInt64{Int64: int64(parsed.Episode), Valid: true}
 	}
 
-	candidates := []AnimeView{}
-	autoBound := false
-	if parsed.Title != "" {
-		client, clientErr := a.newAnilist("")
-		if clientErr != nil {
-			runtime.LogError(a.ctx, clientErr.Error())
-			return ImportResult{}, clientErr
-		}
-		found, err := client.Search(parsed.Title)
-		if err != nil {
-			runtime.LogError(a.ctx, err.Error())
-		} else {
-			candidates = toAnimeViews(found)
-			if len(found) == 1 {
-				if err := a.store.UpsertAnime(toStoredAnime(found[0])); err != nil {
-					return ImportResult{}, err
-				}
-				ep.AnilistID = sql.NullInt64{Int64: int64(found[0].ID), Valid: true}
-				if parsed.HasEpisode {
-					if mapped, mapErr := client.MapSeasonEpisode(found[0].ID, parsed.Episode); mapErr == nil {
-						ep.EpisodeNumber = sql.NullInt64{Int64: int64(mapped), Valid: true}
-					}
-				}
-				autoBound = true
-			}
-		}
+	candidates, autoBound, err := a.resolveImportMatch(parsed, &ep)
+	if err != nil {
+		return ImportResult{}, err
 	}
 
 	id, err := a.store.InsertEpisode(ep)
@@ -280,6 +265,38 @@ func (a *App) importPath(path string) (ImportResult, error) {
 		Candidates: candidates,
 		AutoBound:  autoBound,
 	}, nil
+}
+
+func (a *App) resolveImportMatch(parsed media.Parsed, ep *storage.Episode) ([]AnimeView, bool, error) {
+	if parsed.Title == "" {
+		return nil, false, nil
+	}
+	client, err := a.newAnilist("")
+	if err != nil {
+		runtime.LogError(a.ctx, err.Error())
+		return nil, false, err
+	}
+	found, err := client.Search(parsed.Title)
+	if err != nil {
+		runtime.LogError(a.ctx, err.Error())
+		return nil, false, nil
+	}
+	candidates := toAnimeViews(found)
+	if len(found) != 1 {
+		return candidates, false, nil
+	}
+	if err := a.store.UpsertAnime(toStoredAnime(found[0])); err != nil {
+		return nil, false, err
+	}
+	ep.AnilistID = sql.NullInt64{Int64: int64(found[0].ID), Valid: true}
+	if !parsed.HasEpisode {
+		return candidates, true, nil
+	}
+	mapped, mapErr := client.MapSeasonEpisode(found[0].ID, parsed.Episode)
+	if mapErr == nil {
+		ep.EpisodeNumber = sql.NullInt64{Int64: int64(mapped), Valid: true}
+	}
+	return candidates, true, nil
 }
 
 func toEpisodeView(e storage.Episode) EpisodeView {

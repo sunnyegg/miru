@@ -102,12 +102,12 @@ func (a *App) init() error {
 }
 
 func (a *App) ensureDefaults() error {
-	if _, err := a.store.GetSetting("sync_threshold"); errors.Is(err, storage.ErrNotFound) {
+	if a.settingMissing("sync_threshold") {
 		if err := a.store.SetSetting("sync_threshold", "85"); err != nil {
 			return err
 		}
 	}
-	if _, err := a.store.GetSetting("download_dir"); errors.Is(err, storage.ErrNotFound) {
+	if a.settingMissing("download_dir") {
 		dir, err := paths.DefaultDownloadDir()
 		if err != nil {
 			return err
@@ -116,14 +116,19 @@ func (a *App) ensureDefaults() error {
 			return err
 		}
 	}
-	if _, err := a.store.GetSetting("mpv_path"); errors.Is(err, storage.ErrNotFound) {
-		if detected, err := mpv.Detect(""); err == nil {
-			if err := a.store.SetSetting("mpv_path", detected); err != nil {
-				return err
-			}
-		}
+	if !a.settingMissing("mpv_path") {
+		return nil
 	}
-	return nil
+	detected, err := mpv.Detect("")
+	if err != nil {
+		return nil
+	}
+	return a.store.SetSetting("mpv_path", detected)
+}
+
+func (a *App) settingMissing(key string) bool {
+	_, err := a.store.GetSetting(key)
+	return errors.Is(err, storage.ErrNotFound)
 }
 
 func (a *App) ready() error {

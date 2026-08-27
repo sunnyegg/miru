@@ -27,13 +27,15 @@ func ParseFilename(path string) Parsed {
 	if out.Title == "" {
 		out.Title = strings.TrimSuffix(base, filepath.Ext(base))
 	}
-	if len(el.EpisodeNumber) > 0 {
-		n, err := strconv.Atoi(el.EpisodeNumber[0])
-		if err == nil {
-			out.Episode = n
-			out.HasEpisode = true
-		}
+	if len(el.EpisodeNumber) == 0 {
+		return out
 	}
+	episode, err := strconv.Atoi(el.EpisodeNumber[0])
+	if err != nil {
+		return out
+	}
+	out.Episode = episode
+	out.HasEpisode = true
 	return out
 }
 
