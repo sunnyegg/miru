@@ -19,9 +19,19 @@ Go: guard clauses over nested `if`. Invert the empty/error case and return. Extr
 ## Frontend
 
 - App lives in `frontend/`. UI primitives are shadcn in `frontend/src/components/ui/`.
-- Visual rules are in `DESIGN.md`: zero radius, 44px controls, orange only as the hit (Play, progress, selected mark).
+- Visual rules are in `DESIGN.md`: zero radius, 44px controls, orange only as the hit (Play, progress, selected mark). Use Tailwind tokens (`bg-background`, `text-muted-foreground`, `border-border`). Do not add CSS modules or new hex colors.
 - Library poster grid, OSC strip, and episode ticks stay custom. Do not flatten them into generic shadcn layouts.
 - Views import icons from `frontend/src/components/Icons.tsx`, not Lucide directly.
+
+Folders: `views/` one screen, `components/` app-owned (Sidebar, Icons), `components/ui/` generated shadcn (leave them), `lib/` pure helpers and DTOs. Do not add `hooks/`, `stores/`, or `features/` until something is reused across screens.
+
+State stays local `useState` in the view. Shared tab/jobs/playback/toast live in `App.tsx` and pass as props. Wails `EventsOn` stays in `App`. Do not add Zustand, Redux, or a new Context. Do not edit `frontend/wailsjs/` (generated). Call bindings from `wailsjs/go/main/App`; DTO types from `lib/types.ts` — do not import `models.ts` in views.
+
+Split a `.ts`/`.tsx` file when it mixes responsibilities or passes ~500 lines. Views: ~200–300 is comfortable; ~400 is fine for one screen. Extract a component or hook only if it is reused, or the file mixes distinct UI/logic. Logic with no JSX goes in `lib/`. Do not add a helper that is only called once.
+
+Wails calls: `try/catch` and `errorMessage()`. Load failures: inline Alert. Action failures: `notice(..., true)`. Do not swallow errors.
+
+Event handlers: keep a one-step `onClick`/`onChange` inline (`setState`, or `void namedFn()`). If the handler has a Wails call, `try/catch`, or more than one step, put it in a named function in the same view. Prefer `async`/`await` over `.then()` — including Wails loads in `useEffect` (`void reload()`, not `.then()`). After `await`, update state with `setForm((current) => …)`, not a closed-over `form`. Do not wrap in `useCallback`. Form `onSubmit` may stay inline for `preventDefault` plus a named save.
 
 ## Data location
 

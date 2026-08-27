@@ -78,6 +78,68 @@ export function SettingsView({notice, refreshKey}: Props) {
     }
   }
 
+  async function detectMpv() {
+    try {
+      const path = await DetectMpv()
+      setForm((current) => ({...current, mpvPath: path}))
+    } catch (err) {
+      notice(errorMessage(err), true)
+    }
+  }
+
+  async function pickMpvPath() {
+    try {
+      const path = await PickMpvPath()
+      if (!path) {
+        return
+      }
+      setForm((current) => ({...current, mpvPath: path}))
+    } catch (err) {
+      notice(errorMessage(err), true)
+    }
+  }
+
+  async function pickDownloadDir() {
+    try {
+      const path = await PickDownloadDir()
+      if (!path) {
+        return
+      }
+      setForm((current) => ({...current, downloadDir: path}))
+    } catch (err) {
+      notice(errorMessage(err), true)
+    }
+  }
+
+  async function testNetwork() {
+    setTestingNetwork(true)
+    try {
+      await TestNetworkConnection(form.networkMode, form.socks5Address)
+      notice('Network connection succeeded')
+    } catch (err) {
+      notice(errorMessage(err), true)
+    } finally {
+      setTestingNetwork(false)
+    }
+  }
+
+  async function openAnilistLogin() {
+    try {
+      await OpenAnilistLogin()
+    } catch (err) {
+      notice(errorMessage(err), true)
+    }
+  }
+
+  async function logoutAnilist() {
+    try {
+      await LogoutAnilist()
+      await reload()
+    } catch (err) {
+      notice(errorMessage(err), true)
+    }
+  }
+
   return (
     <section className="flex h-full flex-col gap-6">
       <header>
@@ -103,18 +165,10 @@ export function SettingsView({notice, refreshKey}: Props) {
                   onChange={(e) => setForm({...form, mpvPath: e.target.value})}
                   className="min-w-0 flex-1 border-border/40 bg-card"
                 />
-                <Button
-                  type="button"
-                  variant="muted"
-                  onClick={() => DetectMpv().then((p) => setForm({...form, mpvPath: p})).catch((err) => notice(errorMessage(err), true))}
-                >
+                <Button type="button" variant="muted" onClick={() => void detectMpv()}>
                   Detect
                 </Button>
-                <Button
-                  type="button"
-                  variant="muted"
-                  onClick={() => PickMpvPath().then((p) => p && setForm({...form, mpvPath: p}))}
-                >
+                <Button type="button" variant="muted" onClick={() => void pickMpvPath()}>
                   Browse
                 </Button>
               </div>
@@ -146,11 +200,7 @@ export function SettingsView({notice, refreshKey}: Props) {
                   onChange={(e) => setForm({...form, downloadDir: e.target.value})}
                   className="min-w-0 flex-1 border-border/40 bg-card"
                 />
-                <Button
-                  type="button"
-                  variant="muted"
-                  onClick={() => PickDownloadDir().then((p) => p && setForm({...form, downloadDir: p}))}
-                >
+                <Button type="button" variant="muted" onClick={() => void pickDownloadDir()}>
                   Browse
                 </Button>
               </div>
@@ -229,18 +279,7 @@ export function SettingsView({notice, refreshKey}: Props) {
               <Button type="submit" disabled={saving === 'network'}>
                 {saving === 'network' ? 'Saving…' : 'Save'}
               </Button>
-              <Button
-                type="button"
-                variant="muted"
-                disabled={testingNetwork}
-                onClick={() => {
-                  setTestingNetwork(true)
-                  void TestNetworkConnection(form.networkMode, form.socks5Address)
-                    .then(() => notice('Network connection succeeded'))
-                    .catch((err) => notice(errorMessage(err), true))
-                    .finally(() => setTestingNetwork(false))
-                }}
-              >
+              <Button type="button" variant="muted" disabled={testingNetwork} onClick={() => void testNetwork()}>
                 {testingNetwork ? 'Testing…' : 'Test connection'}
               </Button>
             </div>
@@ -259,11 +298,7 @@ export function SettingsView({notice, refreshKey}: Props) {
               {status.connected ? `Connected as ${status.username}` : 'Not connected. Open login, then authorize in the browser.'}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => OpenAnilistLogin().catch((err) => notice(errorMessage(err), true))}
-              >
+              <Button type="button" variant="secondary" onClick={() => void openAnilistLogin()}>
                 Open login
               </Button>
               {status.connected && (
@@ -271,7 +306,7 @@ export function SettingsView({notice, refreshKey}: Props) {
                   type="button"
                   variant="ghost"
                   className="text-destructive hover:text-destructive"
-                  onClick={() => LogoutAnilist().then(() => reload()).catch((err) => notice(errorMessage(err), true))}
+                  onClick={() => void logoutAnilist()}
                 >
                   Log out
                 </Button>

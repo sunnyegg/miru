@@ -32,9 +32,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
 
   useEffect(() => {
-    void DownloadHistory()
-      .then((current) => onJobs(current ?? []))
-      .catch((err) => notice(errorMessage(err), true))
+    void refreshHistory()
   }, [])
 
   async function refreshHistory() {
@@ -141,6 +139,14 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
     }
   }
 
+  async function openFolder() {
+    try {
+      await OpenDownloadFolder()
+    } catch (err) {
+      notice(errorMessage(err), true)
+    }
+  }
+
   const activeJob = jobs.find((item) => item.live)
 
   return (
@@ -172,7 +178,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
           <Button type="button" variant="secondary" onClick={() => void startFile()} disabled={busy || Boolean(activeJob)}>
             Open .torrent
           </Button>
-          <Button type="button" variant="ghost" onClick={() => void OpenDownloadFolder()}>
+          <Button type="button" variant="ghost" onClick={() => void openFolder()}>
             <IconFolder className="h-4 w-4" />
             Open folder
           </Button>

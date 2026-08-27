@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'react'
 import {EventsOff, EventsOn} from '../wailsjs/runtime/runtime'
 import {InitError} from '../wailsjs/go/main/App'
+import {errorMessage} from './lib/format'
 import {Sidebar} from './components/Sidebar'
 import {LibraryView} from './views/Library'
 import {WatchingView} from './views/Watching'
@@ -28,8 +29,16 @@ export default function App() {
     })
   }
 
+  async function loadInitError() {
+    try {
+      setInitError(await InitError())
+    } catch (err) {
+      setInitError(errorMessage(err))
+    }
+  }
+
   useEffect(() => {
-    void InitError().then(setInitError)
+    void loadInitError()
 
     EventsOn('torrent:progress', (payload: DownloadView) => {
       setJobs((current) => {
