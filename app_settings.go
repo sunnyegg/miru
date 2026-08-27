@@ -23,55 +23,79 @@ func (a *App) GetSettings() (SettingsView, error) {
 	return a.loadSettings()
 }
 
-func (a *App) SaveSettings(view SettingsView) error {
+func (a *App) SavePlaybackSettings(mpvPath string) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
-	threshold := view.SyncThreshold
-	if threshold <= 0 || threshold > 100 {
-		threshold = 85
+	return a.setSettings(map[string]string{
+		"mpv_path": strings.TrimSpace(mpvPath),
+	})
+}
+
+func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, uploadRateLimit int64) error {
+	if err := a.ready(); err != nil {
+		return err
 	}
-	view.DownloadRateLimit = normalizeRateLimit(view.DownloadRateLimit)
-	view.UploadRateLimit = normalizeRateLimit(view.UploadRateLimit)
-	networkConfig := networking.Config{
-		Mode:    view.NetworkMode,
-		Address: view.Socks5Address,
+	downloadRateLimit = normalizeRateLimit(downloadRateLimit)
+	uploadRateLimit = normalizeRateLimit(uploadRateLimit)
+	if err := a.setSettings(map[string]string{
+		"download_dir":        strings.TrimSpace(downloadDir),
+		"download_rate_limit": formatInt64(downloadRateLimit),
+		"upload_rate_limit":   formatInt64(uploadRateLimit),
+	}); err != nil {
+		return err
 	}
-	normalizedNetwork, err := networkConfig.Normalized()
+	if a.torrents != nil {
+		a.torrents.ApplyRateLimits(torrentx.RateLimits{
+			Download: downloadRateLimit,
+			Upload:   uploadRateLimit,
+		})
+	}
+	return nil
+}
+
+func (a *App) SaveNetworkSettings(networkMode, socks5Address string) error {
+	if err := a.ready(); err != nil {
+		return err
+	}
+	normalizedNetwork, err := (networking.Config{
+		Mode:    networkMode,
+		Address: socks5Address,
+	}).Normalized()
 	if err != nil {
 		return err
 	}
 	if a.torrents != nil && a.torrents.Busy() {
-		current, _ := a.loadSettings()
-		if normalizeNetworkMode(current.NetworkMode) != normalizedNetwork.Mode ||
-			strings.TrimSpace(current.Socks5Address) != normalizedNetwork.Address {
+		current, loadErr := a.loadSettings()
+		if loadErr != nil {
+			return loadErr
+		}
+		currentNetwork, currentErr := (networking.Config{
+			Mode:    current.NetworkMode,
+			Address: current.Socks5Address,
+		}).Normalized()
+		if currentErr != nil ||
+			currentNetwork.Mode != normalizedNetwork.Mode ||
+			currentNetwork.Address != normalizedNetwork.Address {
 			return errors.New("stop the active download before changing networking")
 		}
 	}
-	view.NetworkMode = normalizedNetwork.Mode
-	view.Socks5Address = normalizedNetwork.Address
-	pairs := map[string]string{
-		"mpv_path":            strings.TrimSpace(view.MpvPath),
-		"download_dir":        strings.TrimSpace(view.DownloadDir),
-		"sync_threshold":      formatFloat(threshold),
-		"anilist_client_id":   strings.TrimSpace(view.AnilistClientId),
-		"download_rate_limit": formatInt64(view.DownloadRateLimit),
-		"upload_rate_limit":   formatInt64(view.UploadRateLimit),
-		"network_mode":        normalizeNetworkMode(view.NetworkMode),
-		"socks5_address":      strings.TrimSpace(view.Socks5Address),
+	return a.setSettings(map[string]string{
+		"network_mode":   normalizedNetwork.Mode,
+		"socks5_address": normalizedNetwork.Address,
+	})
+}
+
+func (a *App) SaveAnilistSettings(syncThreshold float64) error {
+	if err := a.ready(); err != nil {
+		return err
 	}
-	for key, value := range pairs {
-		if err := a.store.SetSetting(key, value); err != nil {
-			return err
-		}
+	if syncThreshold <= 0 || syncThreshold > 100 {
+		syncThreshold = 85
 	}
-	if a.torrents != nil {
-		a.torrents.ApplyRateLimits(torrentx.RateLimits{
-			Download: normalizeRateLimit(view.DownloadRateLimit),
-			Upload:   normalizeRateLimit(view.UploadRateLimit),
-		})
-	}
-	return nil
+	return a.setSettings(map[string]string{
+		"sync_threshold": formatFloat(syncThreshold),
+	})
 }
 
 func (a *App) TestNetworkConnection(mode, socks5Address string) error {
@@ -130,10 +154,6 @@ func (a *App) loadSettings() (SettingsView, error) {
 	view := SettingsView{SyncThreshold: 85}
 	view.MpvPath, _ = a.store.GetSetting("mpv_path")
 	view.DownloadDir, _ = a.store.GetSetting("download_dir")
-	view.AnilistClientId, _ = a.store.GetSetting("anilist_client_id")
-	if strings.TrimSpace(view.AnilistClientId) == "" {
-		view.AnilistClientId = envTrim("ANILIST_CLIENT_ID")
-	}
 	raw, err := a.store.GetSetting("sync_threshold")
 	threshold, parseErr := strconv.ParseFloat(raw, 64)
 	if err == nil && parseErr == nil {
@@ -152,12 +172,13 @@ func (a *App) loadSettings() (SettingsView, error) {
 	return view, nil
 }
 
-func normalizeNetworkMode(mode string) string {
-	mode = strings.ToLower(strings.TrimSpace(mode))
-	if mode == "" {
-		return networking.ModeSystem
+func (a *App) setSettings(pairs map[string]string) error {
+	for key, value := range pairs {
+		if err := a.store.SetSetting(key, value); err != nil {
+			return err
+		}
 	}
-	return mode
+	return nil
 }
 
 func formatFloat(v float64) string {

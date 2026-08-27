@@ -4,7 +4,6 @@ export type SettingsView = {
   mpvPath: string
   downloadDir: string
   syncThreshold: number
-  anilistClientId: string
   downloadRateLimit: number
   uploadRateLimit: number
   networkMode: string

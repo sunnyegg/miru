@@ -43,9 +43,15 @@ export function PlayEpisode(arg1:number):Promise<void>;
 
 export function ResumeDownload():Promise<void>;
 
+export function SaveAnilistSettings(arg1:number):Promise<void>;
+
 export function SaveAnilistToken(arg1:string):Promise<void>;
 
-export function SaveSettings(arg1:main.SettingsView):Promise<void>;
+export function SaveDownloadSettings(arg1:string,arg2:number,arg3:number):Promise<void>;
+
+export function SaveNetworkSettings(arg1:string,arg2:string):Promise<void>;
+
+export function SavePlaybackSettings(arg1:string):Promise<void>;
 
 export function SearchAnime(arg1:string):Promise<Array<main.AnimeView>>;
 

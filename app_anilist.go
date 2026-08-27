@@ -36,11 +36,7 @@ func (a *App) OpenAnilistLogin() error {
 	if err := a.ready(); err != nil {
 		return err
 	}
-	settings, err := a.loadSettings()
-	if err != nil {
-		return err
-	}
-	loginURL, err := anilist.LoginURL(settings.AnilistClientId)
+	loginURL, err := anilist.LoginURL(a.anilistClientID())
 	if err != nil {
 		return err
 	}
@@ -64,17 +60,11 @@ func (a *App) startLoginServer() error {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
-	settings, err := a.loadSettings()
-	if err != nil {
-		cancel()
-		_ = ln.Close()
-		return err
-	}
 	secret := envTrim("ANILIST_CLIENT_SECRET")
 	if secret == "" {
 		secret, _ = a.store.GetSetting("anilist_client_secret")
 	}
-	clientID := settings.AnilistClientId
+	clientID := a.anilistClientID()
 	mux := anilist.NewMux(anilist.MuxConfig{
 		ExchangeCode: func(code string) (string, error) {
 			httpClient, err := a.networkHTTPClient()
@@ -150,4 +140,13 @@ func (a *App) LogoutAnilist() error {
 	}
 	_ = a.store.DeleteAPICache(watchingCacheKey)
 	return a.tokens.Delete()
+}
+
+func (a *App) anilistClientID() string {
+	id := envTrim("ANILIST_CLIENT_ID")
+	if id != "" {
+		return id
+	}
+	id, _ = a.store.GetSetting("anilist_client_id")
+	return strings.TrimSpace(id)
 }

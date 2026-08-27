@@ -158,7 +158,6 @@ export namespace main {
 	    mpvPath: string;
 	    downloadDir: string;
 	    syncThreshold: number;
-	    anilistClientId: string;
 	    downloadRateLimit: number;
 	    uploadRateLimit: number;
 	    networkMode: string;
@@ -173,7 +172,6 @@ export namespace main {
 	        this.mpvPath = source["mpvPath"];
 	        this.downloadDir = source["downloadDir"];
 	        this.syncThreshold = source["syncThreshold"];
-	        this.anilistClientId = source["anilistClientId"];
 	        this.downloadRateLimit = source["downloadRateLimit"];
 	        this.uploadRateLimit = source["uploadRateLimit"];
 	        this.networkMode = source["networkMode"];

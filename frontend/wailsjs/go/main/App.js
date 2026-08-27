@@ -82,12 +82,24 @@ export function ResumeDownload() {
   return window['go']['main']['App']['ResumeDownload']();
 }
 
+export function SaveAnilistSettings(arg1) {
+  return window['go']['main']['App']['SaveAnilistSettings'](arg1);
+}
+
 export function SaveAnilistToken(arg1) {
   return window['go']['main']['App']['SaveAnilistToken'](arg1);
 }
 
-export function SaveSettings(arg1) {
-  return window['go']['main']['App']['SaveSettings'](arg1);
+export function SaveDownloadSettings(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SaveDownloadSettings'](arg1, arg2, arg3);
+}
+
+export function SaveNetworkSettings(arg1, arg2) {
+  return window['go']['main']['App']['SaveNetworkSettings'](arg1, arg2);
+}
+
+export function SavePlaybackSettings(arg1) {
+  return window['go']['main']['App']['SavePlaybackSettings'](arg1);
 }
 
 export function SearchAnime(arg1) {
