@@ -16,6 +16,10 @@ import {Card} from '@/components/ui/card'
 import {Input} from '@/components/ui/input'
 import {Skeleton} from '@/components/ui/skeleton'
 
+function anilistSearchQuery(title: string): string {
+  return title.replace(/\s+—\s+Episode\s+\d+\s*$/i, '').trim()
+}
+
 type Props = {
   notice: (msg: string, isError?: boolean) => void
   refreshKey: number
@@ -34,6 +38,7 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
   const [selectedEpisodeId, setSelectedEpisodeId] = useState<number | null>(null)
   const [picker, setPicker] = useState<{episode: EpisodeView; candidates: AnimeView[]; query: string} | null>(null)
   const selectedEpisodeButtonRef = useRef<HTMLButtonElement>(null)
+  const skippedMatchIds = useRef(new Set<number>())
 
   const shows = useMemo(() => groupEpisodes(episodes), [episodes])
   const selectedShow = shows.find((show) => show.key === selectedKey) ?? null
@@ -91,6 +96,42 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
     })
   }, [selectedEpisodeId])
 
+  async function openMatcher(episode: EpisodeView, candidates: AnimeView[] = []) {
+    const query = anilistSearchQuery(episode.displayTitle || episode.animeTitle)
+    setPicker({episode, candidates, query})
+    if (!query || candidates.length > 0) {
+      return
+    }
+    const episodeId = episode.id
+    setSearching(true)
+    try {
+      const found = await SearchAnime(query)
+      setPicker((current) => {
+        if (current?.episode.id !== episodeId) {
+          return current
+        }
+        return {...current, candidates: found ?? []}
+      })
+    } catch (err) {
+      notice(errorMessage(err), true)
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  useEffect(() => {
+    if (loading || picker || importing) {
+      return
+    }
+    const unbound = episodes.find((episode) => {
+      return !episode.bound && !skippedMatchIds.current.has(episode.id)
+    })
+    if (!unbound) {
+      return
+    }
+    void openMatcher(unbound)
+  }, [loading, picker, importing, episodes])
+
   async function onImport() {
     setImporting(true)
     try {
@@ -100,11 +141,7 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
       }
       await reload()
       if (!result.autoBound) {
-        setPicker({
-          episode: result.episode,
-          candidates: result.candidates ?? [],
-          query: result.episode.displayTitle,
-        })
+        await openMatcher(result.episode, result.candidates ?? [])
       }
     } catch (err) {
       notice(errorMessage(err), true)
@@ -176,6 +213,13 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
       ? show.episodes.find((episode) => episode.id === playing.episodeId)
       : null
     setSelectedEpisodeId(playingInShow?.id ?? show.episodes[0]?.id ?? null)
+    if (!show.bound) {
+      const episode = show.episodes[0]
+      if (episode) {
+        skippedMatchIds.current.delete(episode.id)
+        void openMatcher(episode)
+      }
+    }
   }
 
   const selectedEpisodeIsPlaying = Boolean(
@@ -205,7 +249,14 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
               <h3 id="match-title" className="text-base font-medium">Match AniList title</h3>
               <p className="mt-1 wrap-break-word text-sm text-muted-foreground">{picker.episode.displayTitle}</p>
             </div>
-            <Button type="button" variant="ghost" onClick={() => setPicker(null)}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                skippedMatchIds.current.add(picker.episode.id)
+                setPicker(null)
+              }}
+            >
               Skip
             </Button>
           </div>
@@ -242,8 +293,7 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
                       alt=""
                       width={40}
                       height={56}
-                      loading="lazy"
-                      decoding="async"
+                      referrerPolicy="no-referrer"
                       className="shrink-0 object-cover"
                       style={{width: 40, height: 56}}
                     />
@@ -268,9 +318,9 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
         </Card>
       )}
 
-      <div className="min-h-0 flex-1 overflow-auto px-5 pb-4">
+      <div className="min-h-0 flex-1 overflow-auto px-5 pt-2 pb-4">
         {loading ? (
-          <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(8.5rem,100%),1fr))] gap-3" aria-busy="true" aria-label="Loading library">
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(8.5rem,100%),1fr))] gap-3 p-1" aria-busy="true" aria-label="Loading library">
             {Array.from({length: 8}, (_, index) => (
               <li key={index}>
                 <Skeleton className="aspect-square w-full" />
@@ -301,7 +351,7 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
             </p>
           </div>
         ) : (
-          <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(8.5rem,100%),1fr))] gap-3">
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(8.5rem,100%),1fr))] gap-3 p-1">
             {shows.map((show) => {
               const active = show.key === selectedKey
               return (
@@ -318,8 +368,7 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
                       <img
                         src={show.coverImage}
                         alt=""
-                        loading="lazy"
-                        decoding="async"
+                        referrerPolicy="no-referrer"
                         className="aspect-square w-full bg-muted object-cover"
                       />
                     ) : (
