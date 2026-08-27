@@ -63,6 +63,8 @@ export function SearchAnime(arg1:string):Promise<Array<main.AnimeView>>;
 
 export function SearchNyaa(arg1:string):Promise<Array<main.NyaaResultView>>;
 
+export function SearchTokyoToshokan(arg1:string):Promise<Array<main.NyaaResultView>>;
+
 export function StartMagnet(arg1:string):Promise<void>;
 
 export function StartTorrentFile():Promise<void>;

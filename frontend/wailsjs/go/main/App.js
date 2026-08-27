@@ -122,6 +122,10 @@ export function SearchNyaa(arg1) {
   return window['go']['main']['App']['SearchNyaa'](arg1);
 }
 
+export function SearchTokyoToshokan(arg1) {
+  return window['go']['main']['App']['SearchTokyoToshokan'](arg1);
+}
+
 export function StartMagnet(arg1) {
   return window['go']['main']['App']['StartMagnet'](arg1);
 }
