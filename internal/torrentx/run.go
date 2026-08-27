@@ -51,48 +51,45 @@ func (m *Manager) run(t *torrent.Torrent, jobID int64) {
 	lastUploaded := uploadedBytes(t)
 	lastAt := time.Now()
 
-	for {
-		select {
-		case <-ticker.C:
-			m.mu.Lock()
-			if m.current != t || m.job.ID != jobID || !isActiveStatus(m.job.Status) {
-				m.mu.Unlock()
-				return
-			}
-			completed := t.BytesCompleted()
-			uploaded := uploadedBytes(t)
-			now := time.Now()
-			speed := bytesPerSecond(completed-lastBytes, now.Sub(lastAt))
-			uploadSpeed := bytesPerSecond(uploaded-lastUploaded, now.Sub(lastAt))
-			lastBytes = completed
-			lastUploaded = uploaded
-			lastAt = now
-			m.job.BytesCompleted = completed
-			m.job.BytesTotal = total
-			m.job.BytesUploaded = uploaded
-			if info != nil && m.job.Name == "" {
-				m.job.Name = name
-			}
-			view := ToView(m.job)
-			view.SpeedBytesPerSecond = speed
-			view.UploadSpeedBytesPerSecond = uploadSpeed
-			cb := m.onProgress
-			downloadDone := m.job.Status == "DOWNLOADING" && completed >= total && total > 0
-			seedingDone := m.job.Status == "SEEDING" && seedingComplete(uploaded, total)
+	for range ticker.C {
+		m.mu.Lock()
+		if m.current != t || m.job.ID != jobID || !isActiveStatus(m.job.Status) {
 			m.mu.Unlock()
+			return
+		}
+		completed := t.BytesCompleted()
+		uploaded := uploadedBytes(t)
+		now := time.Now()
+		speed := bytesPerSecond(completed-lastBytes, now.Sub(lastAt))
+		uploadSpeed := bytesPerSecond(uploaded-lastUploaded, now.Sub(lastAt))
+		lastBytes = completed
+		lastUploaded = uploaded
+		lastAt = now
+		m.job.BytesCompleted = completed
+		m.job.BytesTotal = total
+		m.job.BytesUploaded = uploaded
+		if info != nil && m.job.Name == "" {
+			m.job.Name = name
+		}
+		view := ToView(m.job)
+		view.SpeedBytesPerSecond = speed
+		view.UploadSpeedBytesPerSecond = uploadSpeed
+		cb := m.onProgress
+		downloadDone := m.job.Status == "DOWNLOADING" && completed >= total && total > 0
+		seedingDone := m.job.Status == "SEEDING" && seedingComplete(uploaded, total)
+		m.mu.Unlock()
 
-			_ = m.store.UpdateTorrentJob(m.snapshot(jobID))
-			if cb != nil {
-				cb(view)
-			}
-			if downloadDone {
-				m.startSeeding(jobID)
-				continue
-			}
-			if seedingDone {
-				m.finish(t, jobID)
-				return
-			}
+		_ = m.store.UpdateTorrentJob(m.snapshot(jobID))
+		if cb != nil {
+			cb(view)
+		}
+		if downloadDone {
+			m.startSeeding(jobID)
+			continue
+		}
+		if seedingDone {
+			m.finish(t, jobID)
+			return
 		}
 	}
 }

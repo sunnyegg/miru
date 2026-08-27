@@ -54,7 +54,7 @@ func NewWithHTTP(httpClient *http.Client) *Client {
 func (c *Client) Search(query string) ([]Result, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
-		return nil, errors.New("Nyaa search query is empty")
+		return nil, errors.New("nyaa search query is empty")
 	}
 
 	base := c.Endpoint
@@ -90,7 +90,7 @@ func (c *Client) Search(query string) ([]Result, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("Nyaa RSS http %d", resp.StatusCode)
+		return nil, fmt.Errorf("nyaa RSS http %d", resp.StatusCode)
 	}
 
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxFeedSize+1))
@@ -98,7 +98,7 @@ func (c *Client) Search(query string) ([]Result, error) {
 		return nil, fmt.Errorf("read Nyaa RSS: %w", err)
 	}
 	if len(raw) > maxFeedSize {
-		return nil, errors.New("Nyaa RSS response is too large")
+		return nil, errors.New("nyaa RSS response is too large")
 	}
 
 	var feed rssFeed
@@ -170,7 +170,7 @@ func (item rssItem) result() (Result, error) {
 	}
 	hash := strings.ToLower(strings.TrimSpace(item.Fields["infoHash"]))
 	if hash == "" {
-		return Result{}, errors.New("Nyaa RSS item is missing info hash")
+		return Result{}, errors.New("nyaa RSS item is missing info hash")
 	}
 	return Result{
 		Title:     item.Title,

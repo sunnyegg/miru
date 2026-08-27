@@ -168,10 +168,10 @@ func (a *App) SearchNyaa(query string) ([]NyaaResultView, error) {
 	}
 	query = strings.TrimSpace(query)
 	if query == "" {
-		return nil, errors.New("Nyaa search query is empty")
+		return nil, errors.New("nyaa search query is empty")
 	}
 	if len(query) > 200 {
-		return nil, errors.New("Nyaa search query is too long")
+		return nil, errors.New("nyaa search query is too long")
 	}
 	httpClient, err := a.networkHTTPClient()
 	if err != nil {

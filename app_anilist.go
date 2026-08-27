@@ -66,6 +66,7 @@ func (a *App) startLoginServer() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	settings, err := a.loadSettings()
 	if err != nil {
+		cancel()
 		_ = ln.Close()
 		return err
 	}

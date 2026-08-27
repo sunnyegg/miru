@@ -1,8 +1,9 @@
 GO ?= go
 WAILS ?= wails
 WEBKIT_TAG ?= webkit2_41
+GOLANGCI_LINT_VERSION ?= v2.13.1
 
-.PHONY: help deps build dev test fmt doctor clean
+.PHONY: help deps build dev test fmt lint doctor clean
 
 help:
 	@printf '%s\n' \
@@ -11,6 +12,7 @@ help:
 		'dev     Run the app in development mode' \
 		'test    Run all Go tests' \
 		'fmt     Format Go source files' \
+		'lint    Run golangci-lint (standard + nestif)' \
 		'doctor  Check Wails system dependencies' \
 		'clean   Remove generated build output'
 
@@ -30,6 +32,9 @@ test:
 
 fmt:
 	$(GO) fmt ./...
+
+lint:
+	$(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run
 
 doctor:
 	$(WAILS) doctor
