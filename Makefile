@@ -23,7 +23,7 @@ build:
 	$(WAILS) build -tags "$(WEBKIT_TAG)"
 
 dev:
-	$(WAILS) dev
+	$(WAILS) dev -tags "$(WEBKIT_TAG)"
 
 test:
 	$(GO) test ./...

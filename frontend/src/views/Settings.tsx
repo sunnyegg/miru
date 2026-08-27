@@ -12,6 +12,11 @@ import {
 } from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
 import type {AnilistStatus as Status, SettingsView} from '../lib/types'
+import {Button} from '@/components/ui/button'
+import {Card} from '@/components/ui/card'
+import {Input} from '@/components/ui/input'
+import {Label} from '@/components/ui/label'
+import {NativeSelect, NativeSelectOption} from '@/components/ui/native-select'
 
 const empty: SettingsView = {
   mpvPath: '',
@@ -88,41 +93,41 @@ export function SettingsView({notice, refreshKey}: Props) {
           void save()
         }}
       >
-        <div className="rounded-xl bg-card p-4">
+        <Card>
           <h3 className="text-sm font-medium">Networking</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Choose how Miru connects to AniList, Nyaa, and downloads.
           </p>
-          <label htmlFor="networkMode" className="mt-4 mb-2 block text-sm font-medium">Connection mode</label>
-          <select
+          <Label htmlFor="networkMode" className="mt-4 mb-2">Connection mode</Label>
+          <NativeSelect
             id="networkMode"
             value={form.networkMode}
             onChange={(e) => setForm({...form, networkMode: e.target.value})}
-            className="min-h-11 w-full rounded-lg border border-border/40 bg-card px-3 text-sm"
           >
-            <option value="system">System proxy / VPN</option>
-            <option value="direct">Direct connection</option>
-            <option value="socks5">SOCKS5 proxy</option>
-          </select>
+            <NativeSelectOption value="system">System proxy / VPN</NativeSelectOption>
+            <NativeSelectOption value="direct">Direct connection</NativeSelectOption>
+            <NativeSelectOption value="socks5">SOCKS5 proxy</NativeSelectOption>
+          </NativeSelect>
           {form.networkMode === 'socks5' && (
             <>
-              <label htmlFor="socks5Address" className="mt-4 mb-2 block text-sm font-medium">SOCKS5 address</label>
-              <input
+              <Label htmlFor="socks5Address" className="mt-4 mb-2">SOCKS5 address</Label>
+              <Input
                 id="socks5Address"
                 value={form.socks5Address}
                 onChange={(e) => setForm({...form, socks5Address: e.target.value})}
                 placeholder="127.0.0.1:1080"
-                className="min-h-11 w-full rounded-lg border border-border/40 bg-card px-3 text-sm"
+                className="border-border/40 bg-card"
               />
               <p className="mt-1 text-xs text-muted-foreground">
                 Torrent traffic uses TCP through this proxy. UDP, DHT, and inbound peers are disabled.
               </p>
             </>
           )}
-          <button
+          <Button
             type="button"
+            variant="muted"
+            className="mt-4"
             disabled={testingNetwork}
-            className="mt-4 min-h-11 cursor-pointer rounded-lg bg-muted px-3 text-sm disabled:opacity-50"
             onClick={() => {
               setTestingNetwork(true)
               void TestNetworkConnection(form.networkMode, form.socks5Address)
@@ -132,110 +137,119 @@ export function SettingsView({notice, refreshKey}: Props) {
             }}
           >
             {testingNetwork ? 'Testing…' : 'Test connection'}
-          </button>
-        </div>
+          </Button>
+        </Card>
 
         <Field label="MPV path" htmlFor="mpvPath">
           <div className="flex flex-wrap gap-2">
-            <input
+            <Input
               id="mpvPath"
               value={form.mpvPath}
               onChange={(e) => setForm({...form, mpvPath: e.target.value})}
-              className="min-h-11 min-w-0 flex-1 rounded-lg border border-border/40 bg-card px-3 text-sm"
+              className="min-w-0 flex-1 border-border/40 bg-card"
             />
-            <button type="button" className="min-h-11 cursor-pointer rounded-lg bg-muted px-3 text-sm" onClick={() => DetectMpv().then((p) => setForm({...form, mpvPath: p})).catch((err) => notice(errorMessage(err), true))}>
+            <Button
+              type="button"
+              variant="muted"
+              onClick={() => DetectMpv().then((p) => setForm({...form, mpvPath: p})).catch((err) => notice(errorMessage(err), true))}
+            >
               Detect
-            </button>
-            <button type="button" className="min-h-11 cursor-pointer rounded-lg bg-muted px-3 text-sm" onClick={() => PickMpvPath().then((p) => p && setForm({...form, mpvPath: p}))}>
+            </Button>
+            <Button
+              type="button"
+              variant="muted"
+              onClick={() => PickMpvPath().then((p) => p && setForm({...form, mpvPath: p}))}
+            >
               Browse
-            </button>
+            </Button>
           </div>
         </Field>
 
         <Field label="Download folder" htmlFor="downloadDir">
           <div className="flex flex-wrap gap-2">
-            <input
+            <Input
               id="downloadDir"
               value={form.downloadDir}
               onChange={(e) => setForm({...form, downloadDir: e.target.value})}
-              className="min-h-11 min-w-0 flex-1 rounded-lg border border-border/40 bg-card px-3 text-sm"
+              className="min-w-0 flex-1 border-border/40 bg-card"
             />
-            <button type="button" className="min-h-11 cursor-pointer rounded-lg bg-muted px-3 text-sm" onClick={() => PickDownloadDir().then((p) => p && setForm({...form, downloadDir: p}))}>
+            <Button
+              type="button"
+              variant="muted"
+              onClick={() => PickDownloadDir().then((p) => p && setForm({...form, downloadDir: p}))}
+            >
               Browse
-            </button>
+            </Button>
           </div>
         </Field>
 
         <Field label="Download speed limit (KB/s)" htmlFor="downloadRateLimit">
-          <input
+          <Input
             id="downloadRateLimit"
             type="number"
             min={0}
             step={1}
             value={form.downloadRateLimit}
             onChange={(e) => setForm({...form, downloadRateLimit: Number(e.target.value)})}
-            className="min-h-11 w-32 rounded-lg border border-border/40 bg-card px-3 text-sm"
+            className="w-32 border-border/40 bg-card"
           />
           <p className="mt-1 text-xs text-muted-foreground">0 = unlimited</p>
         </Field>
 
         <Field label="Upload speed limit (KB/s)" htmlFor="uploadRateLimit">
-          <input
+          <Input
             id="uploadRateLimit"
             type="number"
             min={0}
             step={1}
             value={form.uploadRateLimit}
             onChange={(e) => setForm({...form, uploadRateLimit: Number(e.target.value)})}
-            className="min-h-11 w-32 rounded-lg border border-border/40 bg-card px-3 text-sm"
+            className="w-32 border-border/40 bg-card"
           />
           <p className="mt-1 text-xs text-muted-foreground">0 = unlimited</p>
         </Field>
 
         <Field label="AniList sync threshold (%)" htmlFor="threshold">
-          <input
+          <Input
             id="threshold"
             type="number"
             min={1}
             max={100}
             value={form.syncThreshold}
             onChange={(e) => setForm({...form, syncThreshold: Number(e.target.value)})}
-            className="min-h-11 w-32 rounded-lg border border-border/40 bg-card px-3 text-sm"
+            className="w-32 border-border/40 bg-card"
           />
         </Field>
 
-        <div className="rounded-xl bg-card p-4">
+        <Card>
           <h3 className="text-sm font-medium">AniList account</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             {status.connected ? `Connected as ${status.username}` : 'Not connected. Open login, then authorize in the browser.'}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button
+            <Button
               type="button"
-              className="min-h-11 cursor-pointer rounded-lg bg-secondary px-4 text-sm text-on-secondary"
+              variant="secondary"
               onClick={() => OpenAnilistLogin().catch((err) => notice(errorMessage(err), true))}
             >
               Open login
-            </button>
+            </Button>
             {status.connected && (
-              <button
+              <Button
                 type="button"
-                className="min-h-11 cursor-pointer rounded-lg px-4 text-sm text-destructive"
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
                 onClick={() => LogoutAnilist().then(() => reload()).catch((err) => notice(errorMessage(err), true))}
               >
                 Log out
-              </button>
+              </Button>
             )}
           </div>
-        </div>
+        </Card>
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="min-h-11 w-fit cursor-pointer rounded-lg bg-accent px-5 text-sm font-medium text-on-accent disabled:opacity-50"
-        >
+        <Button type="submit" disabled={saving} className="w-fit">
           {saving ? 'Saving…' : 'Save settings'}
-        </button>
+        </Button>
       </form>
     </section>
   )
@@ -244,7 +258,7 @@ export function SettingsView({notice, refreshKey}: Props) {
 function Field({label, htmlFor, children}: {label: string; htmlFor: string; children: ReactNode}) {
   return (
     <div>
-      <label htmlFor={htmlFor} className="mb-2 block text-sm font-medium">{label}</label>
+      <Label htmlFor={htmlFor} className="mb-2">{label}</Label>
       {children}
     </div>
   )

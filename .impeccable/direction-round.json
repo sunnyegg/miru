@@ -1,0 +1,197 @@
+{
+  "title": "Choose the visual world",
+  "question": "The roll assigned the fansub CRC checksum sheet. Keep it, take an alternate, or re-roll.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Fansub CRC Sheet",
+      "kicker": "THE ROLL",
+      "lineage": "release .nfo and CRC verification sheets",
+      "thesis": "Library as a verification sheet: shows grouped by title, episodes as checked rows, Play as the next verify.",
+      "palette": [
+        "#0b0d0c",
+        "#c8d4c0",
+        "#e8ff6a",
+        "#5eead4"
+      ],
+      "materials": [
+        "terminal phosphor",
+        "fixed-width columns",
+        "hairline rules"
+      ],
+      "viewport": "Left rail of named zones; right pane is a title column then episode rows with Play on the selected show.",
+      "risk": "Can feel like a log dump if grouping and Play do not lead.",
+      "raised": [
+        {
+          "from": "challenger-split-flap",
+          "raise": "Rows are live entities: playback and download restyle the line without breaking the grid."
+        },
+        {
+          "from": "challenger-ikeda",
+          "raise": "Numeric metadata stays tabular and dense; one focused title, surrounding rows stay faint."
+        },
+        {
+          "from": "challenger-botanical",
+          "raise": "Each title keeps a fixed-scale cover column so shows remain comparable at a glance."
+        },
+        {
+          "from": "challenger-annual",
+          "raise": "Hairline registration marks the active title block; primary Play is a filled rect, not a pill."
+        },
+        {
+          "from": "challenger-quote",
+          "raise": "Every zone is labeled with its literal name; wayfinding is reading, not icon decoding."
+        },
+        {
+          "from": "challenger-alphabet",
+          "raise": "One type family behaves as matter: titles monumental, rows condensed, never mixed display faces."
+        }
+      ],
+      "comp": ".impeccable/mocks/decision/assigned.webp"
+    },
+    {
+      "id": "model-pick",
+      "label": "MPV OSC Overlay",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "mpv on-screen controller and OSC",
+      "thesis": "The library as an OSC: covers fill the field, Play sits on the selected title like a timeline hit.",
+      "palette": [
+        "#111111",
+        "#f2f2f2",
+        "#ff5f1f"
+      ],
+      "materials": [
+        "matte black bezel",
+        "thin OSC bars",
+        "cover posters"
+      ],
+      "viewport": "Dark field of title posters; selected show expands a bottom OSC strip with episodes and Play.",
+      "risk": "Also the direction most anime-desktop runs land on.",
+      "comp": ".impeccable/mocks/decision/model-pick.webp"
+    },
+    {
+      "id": "challenger-split-flap",
+      "label": "Split-Flap Concourse",
+      "verdict": "competitive",
+      "lineage": "rail departure boards",
+      "thesis": "Titles as timed rows; episode state flips in place like a destination change.",
+      "palette": [
+        "#111111",
+        "#f4f4f0",
+        "#f5b942",
+        "#c43c3c"
+      ],
+      "materials": [
+        "matte flap faces",
+        "brushed steel frame",
+        "amber delay lamps"
+      ],
+      "viewport": "Ruled rows of titles ranked by recency; Play is the selected row’s action cell.",
+      "case": "Audience identification is strong; grouping-by-show is less clear than a sheet.",
+      "risk": "Cascade motion can fight scanability on a typical library.",
+      "comp": ".impeccable/mocks/decision/challenger-split-flap.webp",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-split-flap-concourse-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/signals-instruments-split-flap-concourse.webp"
+    },
+    {
+      "id": "challenger-ikeda",
+      "label": "Datamatics Field",
+      "verdict": "declined",
+      "lineage": "Ryoji Ikeda data sublime",
+      "palette": [
+        "#000000",
+        "#ffffff"
+      ],
+      "materials": [
+        "barcode columns",
+        "hairline rules"
+      ],
+      "case": "Loses identification and clarity: viewers do not browse anime as a barcode field.",
+      "kept": "Tabular density and one-title focus.",
+      "hero": "https://impeccable.style/worlds/cards/ikeda-datamatics-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/ikeda-datamatics.webp"
+    },
+    {
+      "id": "challenger-botanical",
+      "label": "Botanical Folio",
+      "verdict": "declined",
+      "lineage": "seasonal botanical plates",
+      "palette": [
+        "#f3ead8",
+        "#2f4a32",
+        "#9a1f24"
+      ],
+      "materials": [
+        "cream plates",
+        "sepia rules"
+      ],
+      "case": "Loses both axes: cream-plate nature study is not this audience’s home.",
+      "kept": "Fixed-scale cover column for comparison.",
+      "hero": "https://impeccable.style/worlds/cards/editorial-sequence-montage-botanical-folio-season-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/editorial-sequence-montage-botanical-folio-season.webp"
+    },
+    {
+      "id": "challenger-annual",
+      "label": "Design Annual Plates",
+      "verdict": "declined",
+      "lineage": "print design annuals",
+      "palette": [
+        "#F5F4F6",
+        "#16181A",
+        "#DCDDF3"
+      ],
+      "materials": [
+        "uncoated stock",
+        "registration marks"
+      ],
+      "case": "Loses identification: print-annual furniture is not how this audience watches.",
+      "kept": "Hairline registration and square Play.",
+      "hero": "https://impeccable.style/worlds/cards/design-annual-s-plate-section-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/design-annual-s-plate-section.webp"
+    },
+    {
+      "id": "challenger-quote",
+      "label": "Industrial Quote Tags",
+      "verdict": "declined",
+      "lineage": "industrial streetwear labeling",
+      "palette": [
+        "#f4f4f0",
+        "#111111",
+        "#ff5a1f"
+      ],
+      "materials": [
+        "nylon",
+        "hazard stripe"
+      ],
+      "case": "Loses both: quoted fashion grammar obscures episode work.",
+      "kept": "Literal named zones.",
+      "hero": "https://impeccable.style/worlds/cards/textiles-weave-drape-fashion-industrial-quote-grammar-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/textiles-weave-drape-fashion-industrial-quote-grammar.webp"
+    }
+  ],
+  "reroll": {
+    "registers": ["safer", "bolder"]
+  },
+  "buildPath": {
+    "value": "comp",
+    "toggle": true
+  },
+  "canon": true,
+  "canonCard": {
+    "label": "The category standard",
+    "thesis": "Dark streaming-app shell: poster grid, left nav, orange Play.",
+    "palette": [
+      "#0f0f23",
+      "#f8fafc",
+      "#f97316"
+    ],
+    "materials": [
+      "rounded cards",
+      "poster tiles"
+    ],
+    "viewport": "Sidebar plus poster grid of titles, Play on the selected show.",
+    "risk": "Indistinguishable from every anime client by design.",
+    "comp": ".impeccable/mocks/decision/canon.webp"
+  },
+  "steer": true
+}

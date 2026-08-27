@@ -2,6 +2,11 @@ import {useState} from 'react'
 import {SearchNyaa, StartTorrentURL} from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
 import type {NyaaResultView} from '../lib/types'
+import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
+import {Badge} from '@/components/ui/badge'
+import {Button} from '@/components/ui/button'
+import {Card} from '@/components/ui/card'
+import {Input} from '@/components/ui/input'
 
 type Props = {
   notice: (msg: string, isError?: boolean) => void
@@ -62,78 +67,75 @@ export function SearchView({notice, onDownloads}: Props) {
       </header>
 
       <form
-        className="flex flex-wrap gap-2 rounded-xl bg-card p-4"
+        className="flex flex-wrap gap-2 bg-card p-4"
         onSubmit={(event) => {
           event.preventDefault()
           void search()
         }}
       >
         <label htmlFor="nyaa-query" className="sr-only">Anime title</label>
-        <input
+        <Input
           id="nyaa-query"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search anime title"
-          className="min-h-11 min-w-0 flex-1 rounded-lg border border-border/40 bg-muted px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          className="min-w-0 flex-1 border-border/40"
         />
-        <button
-          type="submit"
-          disabled={loading}
-          className="min-h-11 cursor-pointer rounded-lg bg-accent px-4 text-sm font-medium text-on-accent disabled:cursor-not-allowed disabled:opacity-50"
-        >
+        <Button type="submit" disabled={loading}>
           {loading ? 'Searching…' : 'Search'}
-        </button>
+        </Button>
       </form>
 
       {loading ? (
-        <p className="rounded-xl border border-border/40 bg-card p-8 text-sm text-muted-foreground" role="status">
+        <Card className="border border-border/40 p-8" role="status">
           Loading Nyaa results…
-        </p>
+        </Card>
       ) : error ? (
-        <div className="rounded-xl border border-destructive/60 bg-card p-8" role="alert">
-          <p className="text-sm text-destructive">{error}</p>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
           {submittedQuery && (
-            <button
-              type="button"
-              onClick={() => void search(submittedQuery)}
-              className="mt-4 min-h-11 cursor-pointer rounded-lg bg-secondary px-4 text-sm text-on-secondary"
-            >
-              Try again
-            </button>
+            <AlertAction>
+              <Button type="button" variant="secondary" onClick={() => void search(submittedQuery)}>
+                Try again
+              </Button>
+            </AlertAction>
           )}
-        </div>
+        </Alert>
       ) : results.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border/40 p-8 text-sm text-muted-foreground">
+        <p className="border border-dashed border-border/40 p-8 text-sm text-muted-foreground">
           Search for an anime to see available torrents.
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
           {results.map((result, index) => (
-            <li key={`${result.magnet}-${index}`} className="rounded-xl bg-card p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <p className="break-words font-medium">{result.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {formatPublished(result.published)} · {result.size || 'Unknown size'}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {result.seeders} seeders · {result.leechers} leechers · {result.downloads} downloads
-                  </p>
-                  {(result.trusted || result.remake) && (
-                    <p className="mt-2 text-xs text-accent">
-                      {[result.trusted && 'Trusted', result.remake && 'Remake'].filter(Boolean).join(' · ')}
+            <li key={`${result.magnet}-${index}`}>
+              <Card>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="break-words font-medium">{result.title}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatPublished(result.published)} · {result.size || 'Unknown size'}
                     </p>
-                  )}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {result.seeders} seeders · {result.leechers} leechers · {result.downloads} downloads
+                    </p>
+                    {(result.trusted || result.remake) && (
+                      <p className="mt-2">
+                        {result.trusted && <Badge className="mr-2">Trusted</Badge>}
+                        {result.remake && <Badge>Remake</Badge>}
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => void download(result, index)}
+                    disabled={starting !== null}
+                  >
+                    {starting === index ? 'Adding…' : 'Download'}
+                  </Button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void download(result, index)}
-                  disabled={starting !== null}
-                  className="min-h-11 shrink-0 cursor-pointer rounded-lg bg-secondary px-4 text-sm text-on-secondary disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {starting === index ? 'Adding…' : 'Download'}
-                </button>
-              </div>
+              </Card>
             </li>
           ))}
         </ul>
