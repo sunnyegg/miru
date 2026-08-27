@@ -23,7 +23,49 @@ func (a *App) ListEpisodes() ([]EpisodeView, error) {
 	for _, row := range rows {
 		out = append(out, toEpisodeView(row))
 	}
+	a.applyAnilistProgress(out)
 	return out, nil
+}
+
+func (a *App) applyAnilistProgress(episodes []EpisodeView) {
+	token, err := a.tokens.Get()
+	if err != nil {
+		return
+	}
+	mediaIDs := make(map[int]struct{})
+	for _, episode := range episodes {
+		if episode.AnilistID > 0 {
+			mediaIDs[episode.AnilistID] = struct{}{}
+		}
+	}
+	if len(mediaIDs) == 0 {
+		return
+	}
+	ids := make([]int, 0, len(mediaIDs))
+	for mediaID := range mediaIDs {
+		ids = append(ids, mediaID)
+	}
+	client, err := a.newAnilist(token)
+	if err != nil {
+		return
+	}
+	progressByMedia, err := client.ListProgressForMedia(ids)
+	if err != nil {
+		return
+	}
+	for index := range episodes {
+		if episodes[index].AnilistID <= 0 {
+			continue
+		}
+		mediaProgress, ok := progressByMedia[episodes[index].AnilistID]
+		if !ok {
+			continue
+		}
+		episodes[index].Progress = mediaProgress.Progress
+		if mediaProgress.TotalEpisodes > 0 {
+			episodes[index].TotalEpisodes = mediaProgress.TotalEpisodes
+		}
+	}
 }
 
 func (a *App) ImportLocalFile() (ImportResult, error) {
@@ -181,13 +223,14 @@ func toEpisodeView(e storage.Episode) EpisodeView {
 		title = e.TitleRomaji
 	}
 	view := EpisodeView{
-		ID:           e.ID,
-		FilePath:     e.FilePath,
-		DisplayTitle: e.DisplayTitle,
-		Status:       e.Status,
-		AnimeTitle:   title,
-		CoverImage:   e.CoverImage,
-		Bound:        e.AnilistID.Valid,
+		ID:            e.ID,
+		FilePath:      e.FilePath,
+		DisplayTitle:  e.DisplayTitle,
+		Status:        e.Status,
+		AnimeTitle:    title,
+		CoverImage:    e.CoverImage,
+		Bound:         e.AnilistID.Valid,
+		TotalEpisodes: e.TotalEpisodes,
 	}
 	if e.AnilistID.Valid {
 		view.AnilistID = int(e.AnilistID.Int64)

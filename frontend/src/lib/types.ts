@@ -20,6 +20,8 @@ export type EpisodeView = {
   animeTitle: string
   coverImage: string
   bound: boolean
+  progress: number
+  totalEpisodes: number
 }
 
 export type AnimeView = {

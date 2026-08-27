@@ -72,6 +72,8 @@ export namespace main {
 	    animeTitle: string;
 	    coverImage: string;
 	    bound: boolean;
+	    progress: number;
+	    totalEpisodes: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new EpisodeView(source);
@@ -88,6 +90,8 @@ export namespace main {
 	        this.animeTitle = source["animeTitle"];
 	        this.coverImage = source["coverImage"];
 	        this.bound = source["bound"];
+	        this.progress = source["progress"];
+	        this.totalEpisodes = source["totalEpisodes"];
 	    }
 	}
 	export class ImportResult {

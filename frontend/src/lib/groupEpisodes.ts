@@ -6,6 +6,8 @@ export type ShowGroup = {
   coverImage: string
   bound: boolean
   unlinkedCount: number
+  progress: number
+  totalEpisodes: number
   episodes: EpisodeView[]
 }
 
@@ -41,6 +43,8 @@ export function groupEpisodes(episodes: EpisodeView[]): ShowGroup[] {
         coverImage: episode.coverImage,
         bound: episode.bound,
         unlinkedCount: episode.bound ? 0 : 1,
+        progress: episode.progress,
+        totalEpisodes: episode.totalEpisodes,
         episodes: [episode],
       })
       continue

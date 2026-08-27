@@ -116,6 +116,50 @@ func TestAiringSchedulesRejectsInvalidRange(t *testing.T) {
 	}
 }
 
+func TestListProgressForMedia(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer tok" {
+			t.Fatalf("authorization = %q", r.Header.Get("Authorization"))
+		}
+		var body struct {
+			Query     string `json:"query"`
+			Variables struct {
+				IDs []int `json:"ids"`
+			} `json:"variables"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(body.Query, "id_in") || !strings.Contains(body.Query, "mediaListEntry") {
+			t.Fatalf("query missing batch progress fields: %s", body.Query)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"Page":{"media":[
+			{"id":21,"episodes":12,"mediaListEntry":{"progress":5}},
+			{"id":22,"episodes":24,"mediaListEntry":null}
+		]}}}`))
+	}))
+	defer server.Close()
+
+	client := New("tok")
+	client.Endpoint = server.URL
+	client.HTTP = server.Client()
+
+	progressByMedia, err := client.ListProgressForMedia([]int{21, 22})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(progressByMedia) != 2 {
+		t.Fatalf("progressByMedia = %+v", progressByMedia)
+	}
+	if progressByMedia[21].Progress != 5 || progressByMedia[21].TotalEpisodes != 12 {
+		t.Fatalf("media 21 = %+v", progressByMedia[21])
+	}
+	if progressByMedia[22].Progress != 0 || progressByMedia[22].TotalEpisodes != 24 {
+		t.Fatalf("media 22 = %+v", progressByMedia[22])
+	}
+}
+
 func TestListCurrent(t *testing.T) {
 	var pages []int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

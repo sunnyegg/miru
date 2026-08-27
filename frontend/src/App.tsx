@@ -54,6 +54,9 @@ export default function App() {
     EventsOn('mpv:ended', () => setPlaying(null))
     EventsOn('sync:result', (payload: SyncEvent) => {
       showNotice(payload.message, !payload.ok)
+      if (payload.ok) {
+        setLibraryKey((count) => count + 1)
+      }
     })
     EventsOn('anilist:connected', () => {
       setAuthKey((n) => n + 1)

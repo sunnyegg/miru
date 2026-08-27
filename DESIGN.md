@@ -247,7 +247,7 @@ Lucide, 16px (`h-4 w-4`), stroke 1.75, `currentColor`. Rail destinations and gho
 
 ### Poster Field
 
-Square tiles, min 8.5rem, 12px gaps. Cover is `object-cover` on a muted square; missing cover is muted with dim title anchored at the bottom. Caption is medium body + label episode count. Selected tile: 2px orange outline, offset 2px. No Play on the tile.
+Square tiles, min 8.5rem, 12px gaps. Cover is `object-cover` on a muted square; missing cover is muted with dim title anchored at the bottom. Caption is medium body + label: AniList watch progress for linked shows (`5 / 12 · 7 left`), or local file count when not linked. Selected tile: 2px orange outline, offset 2px. No Play on the tile.
 
 ### OSC Strip
 

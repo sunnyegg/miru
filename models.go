@@ -20,6 +20,8 @@ type EpisodeView struct {
 	AnimeTitle    string `json:"animeTitle"`
 	CoverImage    string `json:"coverImage"`
 	Bound         bool   `json:"bound"`
+	Progress      int    `json:"progress"`
+	TotalEpisodes int    `json:"totalEpisodes"`
 }
 
 type AnimeView struct {

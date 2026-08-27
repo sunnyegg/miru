@@ -48,6 +48,12 @@ type CurrentEntry struct {
 	MediaStatus   string `json:"mediaStatus"`
 }
 
+type MediaProgress struct {
+	MediaID       int `json:"mediaId"`
+	Progress      int `json:"progress"`
+	TotalEpisodes int `json:"totalEpisodes"`
+}
+
 type Client struct {
 	HTTP     *http.Client
 	Endpoint string

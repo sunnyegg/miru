@@ -3,6 +3,21 @@ import {Alert} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 import {Skeleton} from '@/components/ui/skeleton'
 
+function posterCaption(show: ShowGroup): string {
+  if (!show.bound) {
+    const count = show.episodes.length
+    return `${count} episode${count === 1 ? '' : 's'} · not linked`
+  }
+  if (show.totalEpisodes > 0) {
+    const remaining = show.totalEpisodes - show.progress
+    if (remaining > 0) {
+      return `${show.progress} / ${show.totalEpisodes} · ${remaining} left`
+    }
+    return `${show.progress} / ${show.totalEpisodes}`
+  }
+  return `${show.progress} watched`
+}
+
 type Props = {
   loading: boolean
   loadError: string
@@ -84,8 +99,7 @@ export function LibraryPosterGrid({
               )}
               <span className="mt-2 truncate text-sm font-medium">{show.title}</span>
               <span className="truncate text-xs text-muted-foreground">
-                {show.episodes.length} episode{show.episodes.length === 1 ? '' : 's'}
-                {show.unlinkedCount > 0 ? ' · not linked' : ''}
+                {posterCaption(show)}
               </span>
             </button>
           </li>

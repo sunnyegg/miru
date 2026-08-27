@@ -139,6 +139,48 @@ func (c *Client) GetAnime(id int) (Anime, error) {
 	return out.Media.toAnime(), nil
 }
 
+func (c *Client) ListProgressForMedia(ids []int) (map[int]MediaProgress, error) {
+	if len(ids) == 0 {
+		return map[int]MediaProgress{}, nil
+	}
+
+	const chunkSize = 50
+	const q = `
+	query ($ids: [Int]) {
+	  Page(perPage: 50) {
+	    media(id_in: $ids, type: ANIME) {
+	      id
+	      episodes
+	      mediaListEntry {
+	        progress
+	      }
+	    }
+	  }
+	}`
+
+	result := make(map[int]MediaProgress, len(ids))
+	for start := 0; start < len(ids); start += chunkSize {
+		end := start + chunkSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+		chunk := ids[start:end]
+
+		var out struct {
+			Page struct {
+				Media []gqlMediaProgress `json:"media"`
+			} `json:"Page"`
+		}
+		if err := c.query(q, map[string]any{"ids": chunk}, &out); err != nil {
+			return nil, err
+		}
+		for _, media := range out.Page.Media {
+			result[media.ID] = media.toMediaProgress()
+		}
+	}
+	return result, nil
+}
+
 func (c *Client) ListProgress(mediaID int) (int, error) {
 	const q = `
 	query ($id: Int) {
@@ -253,6 +295,26 @@ type gqlAiringSchedule struct {
 			Large string `json:"large"`
 		} `json:"coverImage"`
 	} `json:"media"`
+}
+
+type gqlMediaProgress struct {
+	ID             int `json:"id"`
+	Episodes       int `json:"episodes"`
+	MediaListEntry *struct {
+		Progress int `json:"progress"`
+	} `json:"mediaListEntry"`
+}
+
+func (m gqlMediaProgress) toMediaProgress() MediaProgress {
+	progress := 0
+	if m.MediaListEntry != nil {
+		progress = m.MediaListEntry.Progress
+	}
+	return MediaProgress{
+		MediaID:       m.ID,
+		Progress:      progress,
+		TotalEpisodes: m.Episodes,
+	}
 }
 
 type gqlCurrentEntry struct {
