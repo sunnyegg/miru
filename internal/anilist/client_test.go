@@ -135,8 +135,8 @@ func TestListProgressForMedia(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"data":{"Page":{"media":[
-			{"id":21,"episodes":12,"mediaListEntry":{"progress":5}},
-			{"id":22,"episodes":24,"mediaListEntry":null}
+			{"id":21,"episodes":12,"status":"RELEASING","nextAiringEpisode":{"episode":8},"mediaListEntry":{"progress":5}},
+			{"id":22,"episodes":24,"status":"FINISHED","nextAiringEpisode":null,"mediaListEntry":null}
 		]}}}`))
 	}))
 	defer server.Close()
@@ -155,8 +155,14 @@ func TestListProgressForMedia(t *testing.T) {
 	if progressByMedia[21].Progress != 5 || progressByMedia[21].TotalEpisodes != 12 {
 		t.Fatalf("media 21 = %+v", progressByMedia[21])
 	}
+	if progressByMedia[21].MediaStatus != "RELEASING" || progressByMedia[21].NextAiringEpisode != 8 {
+		t.Fatalf("media 21 airing = %+v", progressByMedia[21])
+	}
 	if progressByMedia[22].Progress != 0 || progressByMedia[22].TotalEpisodes != 24 {
 		t.Fatalf("media 22 = %+v", progressByMedia[22])
+	}
+	if progressByMedia[22].MediaStatus != "FINISHED" || progressByMedia[22].NextAiringEpisode != 0 {
+		t.Fatalf("media 22 status = %+v", progressByMedia[22])
 	}
 }
 

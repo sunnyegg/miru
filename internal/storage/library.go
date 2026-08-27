@@ -49,6 +49,7 @@ type Episode struct {
 	TitleEnglish    string
 	CoverImage      string
 	TotalEpisodes   int
+	MediaStatus     string
 	ResumePosition  float64
 }
 
@@ -140,7 +141,7 @@ func (s *Store) ListEpisodes() ([]Episode, error) {
 		`SELECT e.id, e.anilist_id, e.episode_number, e.file_path, e.display_title,
 		        e.downloaded_bytes, e.status,
 		        COALESCE(a.title_romaji, ''), COALESCE(a.title_english, ''), COALESCE(a.cover_image, ''),
-		        COALESCE(a.total_episodes, 0)
+		        COALESCE(a.total_episodes, 0), COALESCE(a.status, '')
 		 FROM episode_downloads e
 		 LEFT JOIN anime_cache a ON a.anilist_id = e.anilist_id
 		 ORDER BY e.created_at DESC`,
@@ -156,7 +157,7 @@ func (s *Store) ListEpisodes() ([]Episode, error) {
 		if err := rows.Scan(
 			&e.ID, &e.AnilistID, &e.EpisodeNumber, &e.FilePath, &e.DisplayTitle,
 			&e.DownloadedBytes, &e.Status, &e.TitleRomaji, &e.TitleEnglish, &e.CoverImage,
-			&e.TotalEpisodes,
+			&e.TotalEpisodes, &e.MediaStatus,
 		); err != nil {
 			return nil, err
 		}

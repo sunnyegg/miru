@@ -11,17 +11,19 @@ type SettingsView struct {
 }
 
 type EpisodeView struct {
-	ID            int64  `json:"id"`
-	AnilistID     int    `json:"anilistId"`
-	EpisodeNumber int    `json:"episodeNumber"`
-	FilePath      string `json:"filePath"`
-	DisplayTitle  string `json:"displayTitle"`
-	Status        string `json:"status"`
-	AnimeTitle    string `json:"animeTitle"`
-	CoverImage    string `json:"coverImage"`
-	Bound         bool   `json:"bound"`
-	Progress      int    `json:"progress"`
-	TotalEpisodes int    `json:"totalEpisodes"`
+	ID                int64  `json:"id"`
+	AnilistID         int    `json:"anilistId"`
+	EpisodeNumber     int    `json:"episodeNumber"`
+	FilePath          string `json:"filePath"`
+	DisplayTitle      string `json:"displayTitle"`
+	Status            string `json:"status"`
+	AnimeTitle        string `json:"animeTitle"`
+	CoverImage        string `json:"coverImage"`
+	Bound             bool   `json:"bound"`
+	Progress          int    `json:"progress"`
+	TotalEpisodes     int    `json:"totalEpisodes"`
+	MediaStatus       string `json:"mediaStatus"`
+	NextAiringEpisode int    `json:"nextAiringEpisode"`
 }
 
 type AnimeView struct {

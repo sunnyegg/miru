@@ -8,7 +8,17 @@ export type ShowGroup = {
   unlinkedCount: number
   progress: number
   totalEpisodes: number
+  mediaStatus: string
+  nextAiringEpisode: number
   episodes: EpisodeView[]
+}
+
+export type EpisodeSlotKind = 'available' | 'missing' | 'upcoming'
+
+export type EpisodeSlot = {
+  number: number
+  file: EpisodeView | null
+  kind: EpisodeSlotKind
 }
 
 export function visibleLibraryEpisodes(episodes: EpisodeView[]): EpisodeView[] {
@@ -45,6 +55,8 @@ export function groupEpisodes(episodes: EpisodeView[]): ShowGroup[] {
         unlinkedCount: episode.bound ? 0 : 1,
         progress: episode.progress,
         totalEpisodes: episode.totalEpisodes,
+        mediaStatus: episode.mediaStatus,
+        nextAiringEpisode: episode.nextAiringEpisode,
         episodes: [episode],
       })
       continue
@@ -63,6 +75,15 @@ export function groupEpisodes(episodes: EpisodeView[]): ShowGroup[] {
     if (episode.animeTitle) {
       existing.title = episode.animeTitle
     }
+    if (episode.mediaStatus) {
+      existing.mediaStatus = episode.mediaStatus
+    }
+    if (episode.nextAiringEpisode > 0) {
+      existing.nextAiringEpisode = episode.nextAiringEpisode
+    }
+    if (episode.totalEpisodes > 0) {
+      existing.totalEpisodes = episode.totalEpisodes
+    }
   }
 
   const shows = [...groups.values()]
@@ -70,4 +91,72 @@ export function groupEpisodes(episodes: EpisodeView[]): ShowGroup[] {
     show.episodes.sort((a, b) => a.episodeNumber - b.episodeNumber)
   }
   return shows
+}
+
+export function episodeSlots(show: ShowGroup): EpisodeSlot[] {
+  if (!show.bound) {
+    return show.episodes.map((episode) => ({
+      number: episode.episodeNumber,
+      file: episode,
+      kind: 'available' as const,
+    }))
+  }
+
+  const filesByNumber = new Map<number, EpisodeView>()
+  let maxLocalNumber = 0
+
+  for (const episode of show.episodes) {
+    if (episode.episodeNumber > 0) {
+      filesByNumber.set(episode.episodeNumber, episode)
+      if (episode.episodeNumber > maxLocalNumber) {
+        maxLocalNumber = episode.episodeNumber
+      }
+    }
+  }
+
+  let slotCount = show.totalEpisodes
+  if (slotCount <= 0) {
+    slotCount = Math.max(show.nextAiringEpisode, maxLocalNumber)
+  }
+
+  const slots: EpisodeSlot[] = []
+  const hasUpcoming = show.nextAiringEpisode > 0 && show.mediaStatus !== 'FINISHED'
+
+  for (let number = 1; number <= slotCount; number++) {
+    const file = filesByNumber.get(number) ?? null
+    if (file) {
+      slots.push({number, file, kind: 'available'})
+      continue
+    }
+    if (hasUpcoming && number >= show.nextAiringEpisode) {
+      slots.push({number, file: null, kind: 'upcoming'})
+      continue
+    }
+    slots.push({number, file: null, kind: 'missing'})
+  }
+
+  for (const episode of show.episodes) {
+    if (episode.episodeNumber <= 0 || episode.episodeNumber > slotCount) {
+      slots.push({
+        number: episode.episodeNumber,
+        file: episode,
+        kind: 'available',
+      })
+    }
+  }
+
+  slots.sort((left, right) => {
+    if (left.number <= 0 && right.number <= 0) {
+      return 0
+    }
+    if (left.number <= 0) {
+      return 1
+    }
+    if (right.number <= 0) {
+      return -1
+    }
+    return left.number - right.number
+  })
+
+  return slots
 }

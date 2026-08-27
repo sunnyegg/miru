@@ -156,28 +156,3 @@ body {
   scrollbar-color: var(--accent) var(--bezel);
   scrollbar-width: thin;
 }
-
-.osc-drop {
-  animation: osc-drop 280ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes osc-drop {
-  from {
-    transform: translateY(12px);
-    clip-path: inset(100% 0 0 0);
-  }
-  to {
-    transform: translateY(0);
-    clip-path: inset(0 0 0 0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .osc-drop {
-    animation: none;
-  }
-
-  .osc-progress-fill {
-    transition-duration: 0ms;
-  }
-}

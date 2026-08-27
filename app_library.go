@@ -28,10 +28,6 @@ func (a *App) ListEpisodes() ([]EpisodeView, error) {
 }
 
 func (a *App) applyAnilistProgress(episodes []EpisodeView) {
-	token, err := a.tokens.Get()
-	if err != nil {
-		return
-	}
 	mediaIDs := make(map[int]struct{})
 	for _, episode := range episodes {
 		if episode.AnilistID > 0 {
@@ -45,6 +41,7 @@ func (a *App) applyAnilistProgress(episodes []EpisodeView) {
 	for mediaID := range mediaIDs {
 		ids = append(ids, mediaID)
 	}
+	token, _ := a.tokens.Get()
 	client, err := a.newAnilist(token)
 	if err != nil {
 		return
@@ -65,6 +62,10 @@ func (a *App) applyAnilistProgress(episodes []EpisodeView) {
 		if mediaProgress.TotalEpisodes > 0 {
 			episodes[index].TotalEpisodes = mediaProgress.TotalEpisodes
 		}
+		if mediaProgress.MediaStatus != "" {
+			episodes[index].MediaStatus = mediaProgress.MediaStatus
+		}
+		episodes[index].NextAiringEpisode = mediaProgress.NextAiringEpisode
 	}
 }
 
@@ -231,6 +232,7 @@ func toEpisodeView(e storage.Episode) EpisodeView {
 		CoverImage:    e.CoverImage,
 		Bound:         e.AnilistID.Valid,
 		TotalEpisodes: e.TotalEpisodes,
+		MediaStatus:   e.MediaStatus,
 	}
 	if e.AnilistID.Valid {
 		view.AnilistID = int(e.AnilistID.Int64)

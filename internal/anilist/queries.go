@@ -151,6 +151,8 @@ func (c *Client) ListProgressForMedia(ids []int) (map[int]MediaProgress, error) 
 	    media(id_in: $ids, type: ANIME) {
 	      id
 	      episodes
+	      status
+	      nextAiringEpisode { episode }
 	      mediaListEntry {
 	        progress
 	      }
@@ -298,8 +300,12 @@ type gqlAiringSchedule struct {
 }
 
 type gqlMediaProgress struct {
-	ID             int `json:"id"`
-	Episodes       int `json:"episodes"`
+	ID             int    `json:"id"`
+	Episodes       int    `json:"episodes"`
+	Status         string `json:"status"`
+	NextAiringEpisode *struct {
+		Episode int `json:"episode"`
+	} `json:"nextAiringEpisode"`
 	MediaListEntry *struct {
 		Progress int `json:"progress"`
 	} `json:"mediaListEntry"`
@@ -310,10 +316,16 @@ func (m gqlMediaProgress) toMediaProgress() MediaProgress {
 	if m.MediaListEntry != nil {
 		progress = m.MediaListEntry.Progress
 	}
+	nextAiringEpisode := 0
+	if m.NextAiringEpisode != nil {
+		nextAiringEpisode = m.NextAiringEpisode.Episode
+	}
 	return MediaProgress{
-		MediaID:       m.ID,
-		Progress:      progress,
-		TotalEpisodes: m.Episodes,
+		MediaID:           m.ID,
+		Progress:          progress,
+		TotalEpisodes:     m.Episodes,
+		MediaStatus:       m.Status,
+		NextAiringEpisode: nextAiringEpisode,
 	}
 }
 

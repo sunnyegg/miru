@@ -20,7 +20,7 @@ Go: guard clauses over nested `if`. Invert the empty/error case and return. Extr
 
 - App lives in `frontend/`. UI primitives are shadcn in `frontend/src/components/ui/`.
 - Visual rules are in `DESIGN.md`: zero radius, 44px controls, orange only as the hit (Play, progress, selected mark). Use Tailwind tokens (`bg-background`, `text-muted-foreground`, `border-border`). Do not add CSS modules or new hex colors.
-- Library poster grid, OSC strip, and episode ticks stay custom. Do not flatten them into generic shadcn layouts.
+- Library poster grid and episode list stay custom. Do not flatten them into generic shadcn layouts.
 - Views import icons from `frontend/src/components/Icons.tsx`, not Lucide directly.
 
 Folders: `views/` one screen, `components/` app-owned (Sidebar, Icons), `components/ui/` generated shadcn (leave them), `lib/` pure helpers and DTOs. Do not add `hooks/`, `stores/`, or `features/` until something is reused across screens.

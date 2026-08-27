@@ -82,7 +82,7 @@ export default function App() {
             {initError}
           </Alert>
         )}
-        {playing && tab !== 'library' && (
+        {playing && (
           <div className="border-b border-border bg-bezel px-4 py-2 text-sm" role="status">
             Playing · {Math.round(playing.percent)}%
           </div>

@@ -74,6 +74,8 @@ export namespace main {
 	    bound: boolean;
 	    progress: number;
 	    totalEpisodes: number;
+	    mediaStatus: string;
+	    nextAiringEpisode: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new EpisodeView(source);
@@ -92,6 +94,8 @@ export namespace main {
 	        this.bound = source["bound"];
 	        this.progress = source["progress"];
 	        this.totalEpisodes = source["totalEpisodes"];
+	        this.mediaStatus = source["mediaStatus"];
+	        this.nextAiringEpisode = source["nextAiringEpisode"];
 	    }
 	}
 	export class ImportResult {

@@ -22,6 +22,8 @@ export type EpisodeView = {
   bound: boolean
   progress: number
   totalEpisodes: number
+  mediaStatus: string
+  nextAiringEpisode: number
 }
 
 export type AnimeView = {

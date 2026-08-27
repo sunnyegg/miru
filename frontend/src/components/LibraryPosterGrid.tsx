@@ -22,7 +22,7 @@ type Props = {
   loading: boolean
   loadError: string
   shows: ShowGroup[]
-  selectedKey: string | null
+  highlightedKey: string | null
   onSelectShow: (key: string) => void
   onRetry: () => void
 }
@@ -31,7 +31,7 @@ export function LibraryPosterGrid({
   loading,
   loadError,
   shows,
-  selectedKey,
+  highlightedKey,
   onSelectShow,
   onRetry,
 }: Props) {
@@ -74,7 +74,7 @@ export function LibraryPosterGrid({
   return (
     <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(8.5rem,100%),1fr))] gap-3 p-1">
       {shows.map((show) => {
-        const active = show.key === selectedKey
+        const active = show.key === highlightedKey
         return (
           <li key={show.key}>
             <button

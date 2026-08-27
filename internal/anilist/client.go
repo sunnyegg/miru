@@ -49,9 +49,11 @@ type CurrentEntry struct {
 }
 
 type MediaProgress struct {
-	MediaID       int `json:"mediaId"`
-	Progress      int `json:"progress"`
-	TotalEpisodes int `json:"totalEpisodes"`
+	MediaID           int    `json:"mediaId"`
+	Progress          int    `json:"progress"`
+	TotalEpisodes     int    `json:"totalEpisodes"`
+	MediaStatus       string `json:"mediaStatus"`
+	NextAiringEpisode int    `json:"nextAiringEpisode"`
 }
 
 type Client struct {
