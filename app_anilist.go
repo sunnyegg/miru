@@ -195,17 +195,14 @@ func (a *App) ListAnimeList(status string) ([]WatchingEntryView, error) {
 		return nil, err
 	}
 	status = strings.ToUpper(strings.TrimSpace(status))
-	if status != "CURRENT" && status != "COMPLETED" {
+	if !anilist.ValidListStatus(status) {
 		return nil, fmt.Errorf("unsupported list status %q", status)
 	}
 	token, err := a.tokens.Get()
 	if err != nil {
 		return nil, errors.New("AniList not connected")
 	}
-	cacheKey := watchingCacheKey
-	if status == "COMPLETED" {
-		cacheKey = completedCacheKey
-	}
+	cacheKey := animeListCacheKey(status)
 	return loadCachedJSON(a.store, cacheKey, apiCacheTTL, func() ([]WatchingEntryView, error) {
 		client, err := a.newAnilist(token)
 		if err != nil {
@@ -249,7 +246,51 @@ func (a *App) SetAnimeListStatus(mediaID int, status string, totalEpisodes int) 
 	return nil
 }
 
+func (a *App) SaveAnimeListEntry(input AnimeListEntryInput) error {
+	if err := a.ready(); err != nil {
+		return err
+	}
+	if input.MediaID <= 0 {
+		return errors.New("invalid anime id")
+	}
+	status := strings.ToUpper(strings.TrimSpace(input.Status))
+	if status == "" {
+		return errors.New("status is required")
+	}
+	token, err := a.tokens.Get()
+	if err != nil {
+		return errors.New("AniList not connected")
+	}
+	client, err := a.newAnilist(token)
+	if err != nil {
+		return err
+	}
+	save := anilist.ListEntrySave{
+		MediaID:         input.MediaID,
+		Status:          status,
+		Progress:        input.Progress,
+		ScoreRaw:        input.ScoreRaw,
+		Notes:           input.Notes,
+		SendNotes:       true,
+		Repeat:          input.Repeat,
+		Private:         input.Private,
+		SendPrivate:     true,
+		StartedAt:       anilist.FuzzyDate{Year: input.StartedYear, Month: input.StartedMonth, Day: input.StartedDay},
+		SendStartedAt:   true,
+		CompletedAt:     anilist.FuzzyDate{Year: input.CompletedYear, Month: input.CompletedMonth, Day: input.CompletedDay},
+		SendCompletedAt: true,
+	}
+	if err := client.SaveListEntry(save); err != nil {
+		return err
+	}
+	a.invalidateAnimeListCache()
+	return nil
+}
+
 func (a *App) invalidateAnimeListCache() {
+	for _, status := range anilist.ListStatuses {
+		_ = a.store.DeleteAPICache(animeListCacheKey(status))
+	}
 	_ = a.store.DeleteAPICache(watchingCacheKey)
 	_ = a.store.DeleteAPICache(completedCacheKey)
 }
@@ -259,7 +300,14 @@ func toWatchingEntryViews(entries []anilist.CurrentEntry) []WatchingEntryView {
 	for _, entry := range entries {
 		out = append(out, WatchingEntryView{
 			MediaID:       entry.MediaID,
+			ListStatus:    entry.ListStatus,
 			Progress:      entry.Progress,
+			ScoreRaw:      entry.ScoreRaw,
+			Notes:         entry.Notes,
+			Repeat:        entry.Repeat,
+			Private:       entry.Private,
+			StartedAt:     FuzzyDateView{Year: entry.StartedAt.Year, Month: entry.StartedAt.Month, Day: entry.StartedAt.Day},
+			CompletedAt:   FuzzyDateView{Year: entry.CompletedAt.Year, Month: entry.CompletedAt.Month, Day: entry.CompletedAt.Day},
 			TitleRomaji:   entry.TitleRomaji,
 			TitleEnglish:  entry.TitleEnglish,
 			CoverImage:    entry.CoverImage,

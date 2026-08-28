@@ -210,7 +210,7 @@ func TestListCurrent(t *testing.T) {
 		}
 		pages = append(pages, body.Variables.Page)
 		if body.Variables.Page == 1 {
-			_, _ = w.Write([]byte(`{"data":{"Page":{"pageInfo":{"hasNextPage":true},"mediaList":[{"progress":3,"media":{"id":21,"title":{"romaji":"One Piece","english":"One Piece"},"coverImage":{"large":"cover"},"episodes":12,"status":"RELEASING"}}]}}}`))
+			_, _ = w.Write([]byte(`{"data":{"Page":{"pageInfo":{"hasNextPage":true},"mediaList":[{"status":"CURRENT","progress":3,"score":85,"notes":"great","repeat":1,"private":false,"startedAt":{"year":2024,"month":1,"day":2},"completedAt":{"year":0,"month":0,"day":0},"media":{"id":21,"title":{"romaji":"One Piece","english":"One Piece"},"coverImage":{"large":"cover"},"episodes":12,"status":"RELEASING"}}]}}}`))
 			return
 		}
 		_, _ = w.Write([]byte(`{"data":{"Page":{"pageInfo":{"hasNextPage":false},"mediaList":[{"progress":7,"media":{"id":22,"title":{"romaji":"Another","english":null},"coverImage":{"large":""},"episodes":null,"status":"FINISHED"}}]}}}`))
@@ -229,6 +229,12 @@ func TestListCurrent(t *testing.T) {
 	}
 	if len(entries) != 2 || entries[0].Progress != 3 || entries[1].MediaID != 22 {
 		t.Fatalf("entries = %+v", entries)
+	}
+	if entries[0].ListStatus != "CURRENT" || entries[0].ScoreRaw != 85 || entries[0].Notes != "great" {
+		t.Fatalf("entry fields = %+v", entries[0])
+	}
+	if entries[0].StartedAt.Year != 2024 || entries[0].StartedAt.Month != 1 || entries[0].StartedAt.Day != 2 {
+		t.Fatalf("startedAt = %+v", entries[0].StartedAt)
 	}
 	if entries[1].TotalEpisodes != 0 || entries[1].MediaStatus != "FINISHED" {
 		t.Fatalf("ongoing mapping = %+v", entries[1])
@@ -272,7 +278,107 @@ func TestListMediaListCompleted(t *testing.T) {
 
 func TestListMediaListRejectsUnknownStatus(t *testing.T) {
 	client := New("tok")
-	if _, err := client.ListMediaList("PLANNING"); err == nil {
+	if _, err := client.ListMediaList("INVALID"); err == nil {
 		t.Fatal("expected error for unsupported status")
+	}
+}
+
+func TestListMediaListPlanning(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Query     string `json:"query"`
+			Variables struct {
+				Status string `json:"status"`
+			} `json:"variables"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(body.Query, "Viewer") {
+			_, _ = w.Write([]byte(`{"data":{"Viewer":{"id":42}}}`))
+			return
+		}
+		if body.Variables.Status != "PLANNING" {
+			t.Fatalf("status = %q", body.Variables.Status)
+		}
+		_, _ = w.Write([]byte(`{"data":{"Page":{"pageInfo":{"hasNextPage":false},"mediaList":[{"status":"PLANNING","progress":0,"score":0,"notes":"","repeat":0,"private":false,"startedAt":{"year":0,"month":0,"day":0},"completedAt":{"year":0,"month":0,"day":0},"media":{"id":21,"title":{"romaji":"Plan Show","english":null},"coverImage":{"large":""},"episodes":12,"status":"NOT_YET_RELEASED"}}]}}}`))
+	}))
+	defer server.Close()
+
+	client := New("tok")
+	client.Endpoint = server.URL
+	client.HTTP = server.Client()
+	entries, err := client.ListMediaList("PLANNING")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].ListStatus != "PLANNING" {
+		t.Fatalf("entries = %+v", entries)
+	}
+}
+
+func TestSaveListEntry(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Query     string         `json:"query"`
+			Variables map[string]any `json:"variables"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if !strings.Contains(body.Query, "SaveMediaListEntry") {
+			t.Fatalf("unexpected query: %s", body.Query)
+		}
+		if body.Variables["mediaId"] != float64(21) {
+			t.Fatalf("mediaId = %v", body.Variables["mediaId"])
+		}
+		if body.Variables["status"] != "PLANNING" {
+			t.Fatalf("status = %v", body.Variables["status"])
+		}
+		if body.Variables["scoreRaw"] != float64(90) {
+			t.Fatalf("scoreRaw = %v", body.Variables["scoreRaw"])
+		}
+		startedAt, ok := body.Variables["startedAt"].(map[string]any)
+		if !ok || startedAt["year"] != float64(2020) {
+			t.Fatalf("startedAt = %v", body.Variables["startedAt"])
+		}
+		completedAt := body.Variables["completedAt"]
+		if completedAt != nil {
+			t.Fatalf("completedAt = %v", completedAt)
+		}
+		_, _ = w.Write([]byte(`{"data":{"SaveMediaListEntry":{"id":1,"status":"PLANNING","progress":4,"score":90}}}`))
+	}))
+	defer server.Close()
+
+	client := New("tok")
+	client.Endpoint = server.URL
+	client.HTTP = server.Client()
+	err := client.SaveListEntry(ListEntrySave{
+		MediaID:         21,
+		Status:          "PLANNING",
+		Progress:        4,
+		ScoreRaw:        90,
+		Notes:           "note",
+		SendNotes:       true,
+		Repeat:          0,
+		SendPrivate:     true,
+		Private:         true,
+		StartedAt:       FuzzyDate{Year: 2020, Month: 3, Day: 15},
+		SendStartedAt:   true,
+		CompletedAt:     FuzzyDate{},
+		SendCompletedAt: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSaveListEntryRejectsInvalidStatus(t *testing.T) {
+	client := New("tok")
+	err := client.SaveListEntry(ListEntrySave{MediaID: 1, Status: "INVALID"})
+	if err == nil {
+		t.Fatal("expected invalid status error")
 	}
 }

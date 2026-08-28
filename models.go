@@ -58,14 +58,43 @@ type AiringScheduleView struct {
 	CoverImage   string `json:"coverImage"`
 }
 
+type FuzzyDateView struct {
+	Year  int `json:"year"`
+	Month int `json:"month"`
+	Day   int `json:"day"`
+}
+
+type AnimeListEntryInput struct {
+	MediaID        int    `json:"mediaId"`
+	Status         string `json:"status"`
+	Progress       int    `json:"progress"`
+	ScoreRaw       int    `json:"scoreRaw"`
+	Notes          string `json:"notes"`
+	Repeat         int    `json:"repeat"`
+	Private        bool   `json:"private"`
+	StartedYear    int    `json:"startedYear"`
+	StartedMonth   int    `json:"startedMonth"`
+	StartedDay     int    `json:"startedDay"`
+	CompletedYear  int    `json:"completedYear"`
+	CompletedMonth int    `json:"completedMonth"`
+	CompletedDay   int    `json:"completedDay"`
+}
+
 type WatchingEntryView struct {
-	MediaID       int    `json:"mediaId"`
-	Progress      int    `json:"progress"`
-	TitleRomaji   string `json:"titleRomaji"`
-	TitleEnglish  string `json:"titleEnglish"`
-	CoverImage    string `json:"coverImage"`
-	TotalEpisodes int    `json:"totalEpisodes"`
-	MediaStatus   string `json:"mediaStatus"`
+	MediaID       int           `json:"mediaId"`
+	ListStatus    string        `json:"listStatus"`
+	Progress      int           `json:"progress"`
+	ScoreRaw      int           `json:"scoreRaw"`
+	Notes         string        `json:"notes"`
+	Repeat        int           `json:"repeat"`
+	Private       bool          `json:"private"`
+	StartedAt     FuzzyDateView `json:"startedAt"`
+	CompletedAt   FuzzyDateView `json:"completedAt"`
+	TitleRomaji   string        `json:"titleRomaji"`
+	TitleEnglish  string        `json:"titleEnglish"`
+	CoverImage    string        `json:"coverImage"`
+	TotalEpisodes int           `json:"totalEpisodes"`
+	MediaStatus   string        `json:"mediaStatus"`
 }
 
 type NyaaResultView struct {

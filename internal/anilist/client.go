@@ -18,6 +18,24 @@ const (
 	RedirectURL     = "http://127.0.0.1:58496/callback"
 )
 
+var ListStatuses = []string{
+	"CURRENT",
+	"COMPLETED",
+	"PLANNING",
+	"PAUSED",
+	"DROPPED",
+	"REPEATING",
+}
+
+func ValidListStatus(status string) bool {
+	switch strings.ToUpper(strings.TrimSpace(status)) {
+	case "CURRENT", "COMPLETED", "PLANNING", "PAUSED", "DROPPED", "REPEATING":
+		return true
+	default:
+		return false
+	}
+}
+
 type Anime struct {
 	ID            int    `json:"id"`
 	TitleRomaji   string `json:"titleRomaji"`
@@ -39,14 +57,43 @@ type AiringSchedule struct {
 	CoverImage   string `json:"coverImage"`
 }
 
+type FuzzyDate struct {
+	Year  int `json:"year"`
+	Month int `json:"month"`
+	Day   int `json:"day"`
+}
+
 type CurrentEntry struct {
-	MediaID       int    `json:"mediaId"`
-	Progress      int    `json:"progress"`
-	TitleRomaji   string `json:"titleRomaji"`
-	TitleEnglish  string `json:"titleEnglish"`
-	CoverImage    string `json:"coverImage"`
-	TotalEpisodes int    `json:"totalEpisodes"`
-	MediaStatus   string `json:"mediaStatus"`
+	MediaID       int       `json:"mediaId"`
+	ListStatus    string    `json:"listStatus"`
+	Progress      int       `json:"progress"`
+	ScoreRaw      int       `json:"scoreRaw"`
+	Notes         string    `json:"notes"`
+	Repeat        int       `json:"repeat"`
+	Private       bool      `json:"private"`
+	StartedAt     FuzzyDate `json:"startedAt"`
+	CompletedAt   FuzzyDate `json:"completedAt"`
+	TitleRomaji   string    `json:"titleRomaji"`
+	TitleEnglish  string    `json:"titleEnglish"`
+	CoverImage    string    `json:"coverImage"`
+	TotalEpisodes int       `json:"totalEpisodes"`
+	MediaStatus   string    `json:"mediaStatus"`
+}
+
+type ListEntrySave struct {
+	MediaID           int
+	Status            string
+	Progress          int
+	ScoreRaw          int
+	Notes             string
+	SendNotes         bool
+	Repeat            int
+	Private           bool
+	SendPrivate       bool
+	StartedAt         FuzzyDate
+	SendStartedAt     bool
+	CompletedAt       FuzzyDate
+	SendCompletedAt   bool
 }
 
 type MediaProgress struct {

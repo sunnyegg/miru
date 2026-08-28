@@ -41,7 +41,7 @@ func (c *Client) ListCurrent() ([]CurrentEntry, error) {
 
 func (c *Client) ListMediaList(status string) ([]CurrentEntry, error) {
 	status = strings.ToUpper(strings.TrimSpace(status))
-	if status != "CURRENT" && status != "COMPLETED" {
+	if !ValidListStatus(status) {
 		return nil, fmt.Errorf("unsupported media list status %q", status)
 	}
 
@@ -55,7 +55,14 @@ func (c *Client) ListMediaList(status string) ([]CurrentEntry, error) {
 	  Page(page: $page, perPage: 50) {
 	    pageInfo { hasNextPage }
 	    mediaList(userId: $userId, type: ANIME, status: $status, sort: UPDATED_TIME_DESC) {
+	      status
 	      progress
+	      score(format: POINT_100)
+	      notes
+	      repeat
+	      private
+	      startedAt { year month day }
+	      completedAt { year month day }
 	      media {
 	        id
 	        title { romaji english }
@@ -281,42 +288,112 @@ func (c *Client) SaveProgress(mediaID, progress int) error {
 }
 
 func (c *Client) SaveListStatus(mediaID int, status string, progress int) error {
-	status = strings.ToUpper(strings.TrimSpace(status))
-	if status != "CURRENT" && status != "COMPLETED" {
+	save := ListEntrySave{
+		MediaID: mediaID,
+		Status:  status,
+	}
+	if progress >= 0 {
+		save.Progress = progress
+	} else {
+		save.Progress = -1
+	}
+	return c.SaveListEntry(save)
+}
+
+func (c *Client) SaveListEntry(save ListEntrySave) error {
+	status := strings.ToUpper(strings.TrimSpace(save.Status))
+	if !validListStatus(status) {
 		return fmt.Errorf("unsupported media list status %q", status)
+	}
+	if save.MediaID <= 0 {
+		return fmt.Errorf("invalid media id %d", save.MediaID)
+	}
+	if save.Progress < -1 {
+		return fmt.Errorf("invalid progress %d", save.Progress)
+	}
+	if save.ScoreRaw < -1 || save.ScoreRaw > 100 {
+		return fmt.Errorf("invalid score %d", save.ScoreRaw)
+	}
+	if save.Repeat < -1 {
+		return fmt.Errorf("invalid repeat %d", save.Repeat)
 	}
 
 	variables := map[string]any{
-		"mediaId": mediaID,
+		"mediaId": save.MediaID,
 		"status":  status,
 	}
-	query := `
-	mutation ($mediaId: Int, $status: MediaListStatus) {
-	  SaveMediaListEntry(mediaId: $mediaId, status: $status) {
+	fields := []string{"$mediaId: Int", "$status: MediaListStatus"}
+	args := []string{"mediaId: $mediaId", "status: $status"}
+
+	if save.Progress >= 0 {
+		variables["progress"] = save.Progress
+		fields = append(fields, "$progress: Int")
+		args = append(args, "progress: $progress")
+	}
+	if save.ScoreRaw >= 0 {
+		variables["scoreRaw"] = save.ScoreRaw
+		fields = append(fields, "$scoreRaw: Int")
+		args = append(args, "scoreRaw: $scoreRaw")
+	}
+	if save.SendNotes {
+		variables["notes"] = save.Notes
+		fields = append(fields, "$notes: String")
+		args = append(args, "notes: $notes")
+	}
+	if save.Repeat >= 0 {
+		variables["repeat"] = save.Repeat
+		fields = append(fields, "$repeat: Int")
+		args = append(args, "repeat: $repeat")
+	}
+	if save.SendPrivate {
+		variables["private"] = save.Private
+		fields = append(fields, "$private: Boolean")
+		args = append(args, "private: $private")
+	}
+	if save.SendStartedAt {
+		variables["startedAt"] = fuzzyDateVariable(save.StartedAt)
+		fields = append(fields, "$startedAt: FuzzyDateInput")
+		args = append(args, "startedAt: $startedAt")
+	}
+	if save.SendCompletedAt {
+		variables["completedAt"] = fuzzyDateVariable(save.CompletedAt)
+		fields = append(fields, "$completedAt: FuzzyDateInput")
+		args = append(args, "completedAt: $completedAt")
+	}
+
+	query := fmt.Sprintf(`
+	mutation (%s) {
+	  SaveMediaListEntry(%s) {
 	    id
 	    status
 	    progress
+	    score(format: POINT_100)
 	  }
-	}`
-	if progress >= 0 {
-		query = `
-		mutation ($mediaId: Int, $status: MediaListStatus, $progress: Int) {
-		  SaveMediaListEntry(mediaId: $mediaId, status: $status, progress: $progress) {
-		    id
-		    status
-		    progress
-		  }
-		}`
-		variables["progress"] = progress
-	}
+	}`, strings.Join(fields, ", "), strings.Join(args, ", "))
 
 	var out struct {
 		SaveMediaListEntry struct {
-			Status   string `json:"status"`
-			Progress int    `json:"progress"`
+			Status   string  `json:"status"`
+			Progress int     `json:"progress"`
+			Score    float64 `json:"score"`
 		} `json:"SaveMediaListEntry"`
 	}
 	return c.query(query, variables, &out)
+}
+
+func validListStatus(status string) bool {
+	return ValidListStatus(status)
+}
+
+func fuzzyDateVariable(date FuzzyDate) any {
+	if date.Year <= 0 {
+		return nil
+	}
+	return map[string]int{
+		"year":  date.Year,
+		"month": date.Month,
+		"day":   date.Day,
+	}
 }
 
 type gqlMedia struct {
@@ -383,7 +460,22 @@ func (m gqlMediaProgress) toMediaProgress() MediaProgress {
 }
 
 type gqlCurrentEntry struct {
-	Progress int `json:"progress"`
+	Status    string  `json:"status"`
+	Progress  int     `json:"progress"`
+	Score     float64 `json:"score"`
+	Notes     string `json:"notes"`
+	Repeat    int    `json:"repeat"`
+	Private   bool   `json:"private"`
+	StartedAt struct {
+		Year  int `json:"year"`
+		Month int `json:"month"`
+		Day   int `json:"day"`
+	} `json:"startedAt"`
+	CompletedAt struct {
+		Year  int `json:"year"`
+		Month int `json:"month"`
+		Day   int `json:"day"`
+	} `json:"completedAt"`
 	Media    struct {
 		ID    int `json:"id"`
 		Title struct {
@@ -401,7 +493,14 @@ type gqlCurrentEntry struct {
 func (e gqlCurrentEntry) toCurrentEntry() CurrentEntry {
 	return CurrentEntry{
 		MediaID:       e.Media.ID,
+		ListStatus:    e.Status,
 		Progress:      e.Progress,
+		ScoreRaw:      int(e.Score),
+		Notes:         e.Notes,
+		Repeat:        e.Repeat,
+		Private:       e.Private,
+		StartedAt:     FuzzyDate{Year: e.StartedAt.Year, Month: e.StartedAt.Month, Day: e.StartedAt.Day},
+		CompletedAt:   FuzzyDate{Year: e.CompletedAt.Year, Month: e.CompletedAt.Month, Day: e.CompletedAt.Day},
 		TitleRomaji:   e.Media.Title.Romaji,
 		TitleEnglish:  e.Media.Title.English,
 		CoverImage:    e.Media.CoverImage.Large,

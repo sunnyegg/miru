@@ -106,6 +106,10 @@ export function SaveAnilistToken(arg1) {
   return window['go']['main']['App']['SaveAnilistToken'](arg1);
 }
 
+export function SaveAnimeListEntry(arg1) {
+  return window['go']['main']['App']['SaveAnimeListEntry'](arg1);
+}
+
 export function SaveDownloadSettings(arg1, arg2, arg3) {
   return window['go']['main']['App']['SaveDownloadSettings'](arg1, arg2, arg3);
 }

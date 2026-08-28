@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,10 +21,14 @@ import (
 )
 
 const (
-	apiCacheTTL       = 7 * 24 * time.Hour
-	watchingCacheKey  = "watching"
+	apiCacheTTL      = 7 * 24 * time.Hour
+	watchingCacheKey = "watching"
 	completedCacheKey = "completed"
 )
+
+func animeListCacheKey(status string) string {
+	return "anilist:list:" + strings.ToLower(strings.TrimSpace(status))
+}
 
 type App struct {
 	ctx      context.Context

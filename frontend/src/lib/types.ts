@@ -58,9 +58,38 @@ export type AiringScheduleView = {
   coverImage: string
 }
 
+export type FuzzyDateView = {
+  year: number
+  month: number
+  day: number
+}
+
+export type AnimeListEntryInput = {
+  mediaId: number
+  status: string
+  progress: number
+  scoreRaw: number
+  notes: string
+  repeat: number
+  private: boolean
+  startedYear: number
+  startedMonth: number
+  startedDay: number
+  completedYear: number
+  completedMonth: number
+  completedDay: number
+}
+
 export type WatchingEntryView = {
   mediaId: number
+  listStatus: string
   progress: number
+  scoreRaw: number
+  notes: string
+  repeat: number
+  private: boolean
+  startedAt: FuzzyDateView
+  completedAt: FuzzyDateView
   titleRomaji: string
   titleEnglish: string
   coverImage: string

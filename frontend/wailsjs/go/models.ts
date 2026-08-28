@@ -38,6 +38,42 @@ export namespace main {
 	        this.username = source["username"];
 	    }
 	}
+	export class AnimeListEntryInput {
+	    mediaId: number;
+	    status: string;
+	    progress: number;
+	    scoreRaw: number;
+	    notes: string;
+	    repeat: number;
+	    private: boolean;
+	    startedYear: number;
+	    startedMonth: number;
+	    startedDay: number;
+	    completedYear: number;
+	    completedMonth: number;
+	    completedDay: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new AnimeListEntryInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mediaId = source["mediaId"];
+	        this.status = source["status"];
+	        this.progress = source["progress"];
+	        this.scoreRaw = source["scoreRaw"];
+	        this.notes = source["notes"];
+	        this.repeat = source["repeat"];
+	        this.private = source["private"];
+	        this.startedYear = source["startedYear"];
+	        this.startedMonth = source["startedMonth"];
+	        this.startedDay = source["startedDay"];
+	        this.completedYear = source["completedYear"];
+	        this.completedMonth = source["completedMonth"];
+	        this.completedDay = source["completedDay"];
+	    }
+	}
 	export class AnimeView {
 	    id: number;
 	    titleRomaji: string;
@@ -98,6 +134,22 @@ export namespace main {
 	        this.totalEpisodes = source["totalEpisodes"];
 	        this.mediaStatus = source["mediaStatus"];
 	        this.nextAiringEpisode = source["nextAiringEpisode"];
+	    }
+	}
+	export class FuzzyDateView {
+	    year: number;
+	    month: number;
+	    day: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new FuzzyDateView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.year = source["year"];
+	        this.month = source["month"];
+	        this.day = source["day"];
 	    }
 	}
 	export class ImportResult {
@@ -190,7 +242,14 @@ export namespace main {
 	}
 	export class WatchingEntryView {
 	    mediaId: number;
+	    listStatus: string;
 	    progress: number;
+	    scoreRaw: number;
+	    notes: string;
+	    repeat: number;
+	    private: boolean;
+	    startedAt: FuzzyDateView;
+	    completedAt: FuzzyDateView;
 	    titleRomaji: string;
 	    titleEnglish: string;
 	    coverImage: string;
@@ -204,13 +263,38 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.mediaId = source["mediaId"];
+	        this.listStatus = source["listStatus"];
 	        this.progress = source["progress"];
+	        this.scoreRaw = source["scoreRaw"];
+	        this.notes = source["notes"];
+	        this.repeat = source["repeat"];
+	        this.private = source["private"];
+	        this.startedAt = this.convertValues(source["startedAt"], FuzzyDateView);
+	        this.completedAt = this.convertValues(source["completedAt"], FuzzyDateView);
 	        this.titleRomaji = source["titleRomaji"];
 	        this.titleEnglish = source["titleEnglish"];
 	        this.coverImage = source["coverImage"];
 	        this.totalEpisodes = source["totalEpisodes"];
 	        this.mediaStatus = source["mediaStatus"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

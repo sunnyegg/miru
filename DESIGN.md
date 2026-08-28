@@ -178,7 +178,7 @@ Library owns the field: main has no page padding and does not scroll as a whole.
 
 Inherited views (Watching, Search, Downloads, Calendar, Settings) use 24px main padding and 24px section gaps. Calendar day blocks go two columns from `lg` (1024px). Watching list goes two columns from `lg`.
 
-Watching is an AniList list manager, not a poster field. Header carries a **Watching / Completed** filter (selected = muted fill, idle = ghost — not orange). Search AniList sits in a sheet card above the list: 44px input, secondary Search, result rows with cover + title + list-status caption, and an orange **Watch** action only when the title is not already CURRENT. List cards keep the inherited row layout; **Completed** on Watching rows, **Watching** on Completed rows (secondary). Status changes remove the row from the active filter after a successful save.
+Watching is an AniList list manager, not a poster field. Header carries a **Watching / Completed / Planning / Paused / Dropped / Repeating** filter row (selected = muted fill, idle = ghost — not orange). Search AniList sits in a sheet card above the list: 44px input, secondary Search, result rows with cover + title + list-status caption, and an orange **Watch** action only when the title is not already CURRENT. List cards keep the inherited row layout; **Edit** (ghost) opens a centered sheet overlay on bezel scrim where status, progress, score, dates, repeat, private, and notes can be changed — not a direct status toggle on the row. Status changes remove the row from the active filter after a successful save.
 
 Rhythm is 8 / 12 / 16 / 20 / 24px. Interactive chrome is at least 44px tall.
 

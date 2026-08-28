@@ -1,7 +1,8 @@
 import {useEffect, useState} from 'react'
-import {ListAnimeList, SearchAnime, SetAnimeListStatus} from '../../wailsjs/go/main/App'
+import {ListAnimeList, SaveAnimeListEntry, SearchAnime, SetAnimeListStatus} from '../../wailsjs/go/main/App'
+import {WatchingEditSheet} from '../components/WatchingEditSheet'
 import {errorMessage} from '../lib/format'
-import type {AnimeView, WatchingEntryView} from '../lib/types'
+import type {AnimeListEntryInput, AnimeView, WatchingEntryView} from '../lib/types'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
@@ -13,25 +14,29 @@ type Props = {
   onSettings: () => void
 }
 
-type ListFilter = 'CURRENT' | 'COMPLETED'
+type ListFilter =
+  | 'CURRENT'
+  | 'COMPLETED'
+  | 'PLANNING'
+  | 'PAUSED'
+  | 'DROPPED'
+  | 'REPEATING'
+
+const listFilters: {value: ListFilter; label: string}[] = [
+  {value: 'CURRENT', label: 'Watching'},
+  {value: 'COMPLETED', label: 'Completed'},
+  {value: 'PLANNING', label: 'Planning'},
+  {value: 'PAUSED', label: 'Paused'},
+  {value: 'DROPPED', label: 'Dropped'},
+  {value: 'REPEATING', label: 'Repeating'},
+]
 
 function listStatusLabel(status: string): string {
-  switch (status) {
-    case 'CURRENT':
-      return 'Watching'
-    case 'COMPLETED':
-      return 'Completed'
-    case 'PLANNING':
-      return 'Planning'
-    case 'DROPPED':
-      return 'Dropped'
-    case 'PAUSED':
-      return 'Paused'
-    case 'REPEATING':
-      return 'Repeating'
-    default:
-      return status
+  const match = listFilters.find((filter) => filter.value === status)
+  if (match) {
+    return match.label
   }
+  return status
 }
 
 export function WatchingView({refreshKey, notice, onSettings}: Props) {
@@ -45,6 +50,8 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState('')
   const [busyMediaId, setBusyMediaId] = useState<number | null>(null)
+  const [editingEntry, setEditingEntry] = useState<WatchingEntryView | null>(null)
+  const [savingEntry, setSavingEntry] = useState(false)
 
   async function loadList(filter: ListFilter = listFilter) {
     setLoading(true)
@@ -85,15 +92,14 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
     }
   }
 
-  async function setStatus(mediaId: number, status: ListFilter, totalEpisodes: number) {
+  async function markWatching(mediaId: number) {
     setBusyMediaId(mediaId)
     try {
-      await SetAnimeListStatus(mediaId, status, totalEpisodes)
-      const label = status === 'CURRENT' ? 'Watching' : 'Completed'
-      notice(`Marked as ${label}`)
+      await SetAnimeListStatus(mediaId, 'CURRENT', 0)
+      notice('Marked as Watching')
       setSearchResults((current) =>
         current.map((anime) =>
-          anime.id === mediaId ? {...anime, listStatus: status} : anime
+          anime.id === mediaId ? {...anime, listStatus: 'CURRENT'} : anime
         )
       )
       await loadList(listFilter)
@@ -101,6 +107,20 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
       notice(errorMessage(err), true)
     } finally {
       setBusyMediaId(null)
+    }
+  }
+
+  async function saveEntry(input: AnimeListEntryInput) {
+    setSavingEntry(true)
+    try {
+      await SaveAnimeListEntry(input)
+      notice('List entry updated')
+      setEditingEntry(null)
+      await loadList(listFilter)
+    } catch (err) {
+      notice(errorMessage(err), true)
+    } finally {
+      setSavingEntry(false)
     }
   }
 
@@ -113,11 +133,8 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
     void loadList()
   }, [refreshKey])
 
-  const filterLabel = listFilter === 'CURRENT' ? 'Currently Watching' : 'Completed'
-  const emptyCopy =
-    listFilter === 'CURRENT'
-      ? 'Nothing on your Currently Watching list.'
-      : 'Nothing on your Completed list.'
+  const filterLabel = listStatusLabel(listFilter)
+  const emptyCopy = `Nothing on your ${filterLabel} list.`
 
   return (
     <section className="flex h-full flex-col gap-6">
@@ -128,21 +145,17 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
             Your AniList anime list and watch progress.
           </p>
         </div>
-        <div className="flex gap-1">
-          <Button
-            type="button"
-            variant={listFilter === 'CURRENT' ? 'muted' : 'ghost'}
-            onClick={() => selectFilter('CURRENT')}
-          >
-            Watching
-          </Button>
-          <Button
-            type="button"
-            variant={listFilter === 'COMPLETED' ? 'muted' : 'ghost'}
-            onClick={() => selectFilter('COMPLETED')}
-          >
-            Completed
-          </Button>
+        <div className="flex flex-wrap gap-1">
+          {listFilters.map((filter) => (
+            <Button
+              key={filter.value}
+              type="button"
+              variant={listFilter === filter.value ? 'muted' : 'ghost'}
+              onClick={() => selectFilter(filter.value)}
+            >
+              {filter.label}
+            </Button>
+          ))}
         </div>
       </header>
 
@@ -206,7 +219,7 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
                       {!onList && (
                         <Button
                           type="button"
-                          onClick={() => void setStatus(anime.id, 'CURRENT', 0)}
+                          onClick={() => void markWatching(anime.id)}
                           disabled={busyMediaId !== null}
                           aria-busy={busyMediaId === anime.id}
                         >
@@ -254,7 +267,6 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
           {entries.map((entry) => {
             const title = entry.titleEnglish || entry.titleRomaji
             const total = entry.totalEpisodes > 0 ? entry.totalEpisodes : '?'
-            const busy = busyMediaId === entry.mediaId
             return (
               <li key={entry.mediaId}>
                 <Card className="flex-row items-center gap-4 p-3">
@@ -278,32 +290,23 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
                       <p className="mt-1 text-xs text-muted-foreground">{entry.mediaStatus}</p>
                     )}
                   </div>
-                  {listFilter === 'CURRENT' ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => void setStatus(entry.mediaId, 'COMPLETED', entry.totalEpisodes)}
-                      disabled={busyMediaId !== null}
-                      aria-busy={busy}
-                    >
-                      {busy ? 'Saving…' : 'Completed'}
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => void setStatus(entry.mediaId, 'CURRENT', 0)}
-                      disabled={busyMediaId !== null}
-                      aria-busy={busy}
-                    >
-                      {busy ? 'Saving…' : 'Watching'}
-                    </Button>
-                  )}
+                  <Button type="button" variant="ghost" onClick={() => setEditingEntry(entry)}>
+                    Edit
+                  </Button>
                 </Card>
               </li>
             )
           })}
         </ul>
+      )}
+
+      {editingEntry && (
+        <WatchingEditSheet
+          entry={editingEntry}
+          saving={savingEntry}
+          onClose={() => setEditingEntry(null)}
+          onSave={(input) => void saveEntry(input)}
+        />
       )}
     </section>
   )

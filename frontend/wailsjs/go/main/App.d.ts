@@ -55,6 +55,8 @@ export function SaveAnilistSettings(arg1:number):Promise<void>;
 
 export function SaveAnilistToken(arg1:string):Promise<void>;
 
+export function SaveAnimeListEntry(arg1:main.AnimeListEntryInput):Promise<void>;
+
 export function SaveDownloadSettings(arg1:string,arg2:number,arg3:number):Promise<void>;
 
 export function SaveNetworkSettings(arg1:string,arg2:string):Promise<void>;
