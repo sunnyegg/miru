@@ -111,7 +111,7 @@ func (m *Manager) run(t *torrent.Torrent, jobID int64) {
 			session.job.BytesTotal = total
 		}
 		downloadDone := session.job.Status == "DOWNLOADING" && completed >= total && total > 0
-		seedingDone := session.job.Status == "SEEDING" && seedingComplete(session.job.BytesUploaded, total)
+		seedingDone := session.job.Status == "SEEDING" && seedingComplete(session.job.BytesUploaded, total, m.seedRatioLocked())
 		m.mu.Unlock()
 
 		m.persistProgress(jobID, m.snapshot(jobID))
@@ -128,8 +128,15 @@ func (m *Manager) run(t *torrent.Torrent, jobID int64) {
 	}
 }
 
-func seedingComplete(uploaded, total int64) bool {
-	return total > 0 && uploaded >= (total+1)/2
+func seedingComplete(uploaded, total int64, ratio float64) bool {
+	if total <= 0 {
+		return false
+	}
+	if ratio <= 0 {
+		return true
+	}
+	required := int64(float64(total) * ratio)
+	return uploaded >= required
 }
 
 func (m *Manager) startSeeding(jobID int64) {

@@ -7,6 +7,7 @@ type SettingsView struct {
 	DownloadRateLimit      int64   `json:"downloadRateLimit"`
 	UploadRateLimit        int64   `json:"uploadRateLimit"`
 	MaxConcurrentDownloads int     `json:"maxConcurrentDownloads"`
+	SeedRatio              float64 `json:"seedRatio"`
 	NetworkMode            string  `json:"networkMode"`
 	Socks5Address          string  `json:"socks5Address"`
 	UpdateChannel          string  `json:"updateChannel"`

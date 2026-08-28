@@ -96,11 +96,35 @@ func TestUploadRatio(t *testing.T) {
 }
 
 func TestSeedingComplete(t *testing.T) {
-	if !seedingComplete(50, 100) {
+	if !seedingComplete(50, 100, 0.5) {
 		t.Fatal("expected 0.5 ratio to complete seeding")
 	}
-	if seedingComplete(49, 100) {
+	if seedingComplete(49, 100, 0.5) {
 		t.Fatal("expected less than 0.5 ratio to keep seeding")
+	}
+	if !seedingComplete(100, 100, 1.0) {
+		t.Fatal("expected 1.0 ratio at full upload to complete")
+	}
+	if seedingComplete(99, 100, 1.0) {
+		t.Fatal("expected less than 1.0 ratio to keep seeding")
+	}
+	if !seedingComplete(0, 100, 0) {
+		t.Fatal("expected ratio 0 to complete immediately")
+	}
+}
+
+func TestClampSeedRatio(t *testing.T) {
+	if got := ClampSeedRatio(0.5); got != 0.5 {
+		t.Fatalf("got %v", got)
+	}
+	if got := ClampSeedRatio(0); got != 0 {
+		t.Fatalf("zero ratio should stay 0, got %v", got)
+	}
+	if got := ClampSeedRatio(-1); got != DefaultSeedRatio {
+		t.Fatalf("negative ratio should default, got %v", got)
+	}
+	if got := ClampSeedRatio(15); got != DefaultSeedRatio {
+		t.Fatalf("ratio above max should default, got %v", got)
 	}
 }
 

@@ -130,8 +130,8 @@ export function SaveAnimeListEntry(arg1) {
   return window['go']['main']['App']['SaveAnimeListEntry'](arg1);
 }
 
-export function SaveDownloadSettings(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['SaveDownloadSettings'](arg1, arg2, arg3, arg4);
+export function SaveDownloadSettings(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['SaveDownloadSettings'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function SaveNetworkSettings(arg1, arg2) {

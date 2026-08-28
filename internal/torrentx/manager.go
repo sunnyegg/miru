@@ -17,6 +17,8 @@ import (
 const (
 	minConcurrentDownloads = 1
 	maxConcurrentDownloads = 8
+	DefaultSeedRatio       = 0.5
+	maxSeedRatio           = 10.0
 )
 
 type JobView struct {
@@ -47,6 +49,7 @@ type Manager struct {
 	sessions      map[int64]*session
 	maxConcurrent int
 	limits        RateLimits
+	seedRatio     float64
 	networkConfig networking.Config
 	onProgress    func(JobView)
 	onComplete    func([]string)
@@ -65,6 +68,7 @@ func NewManager(store *storage.Store) *Manager {
 		sessions:      make(map[int64]*session),
 		persistLogged: make(map[int64]struct{}),
 		maxConcurrent: minConcurrentDownloads,
+		seedRatio:     DefaultSeedRatio,
 	}
 }
 
@@ -91,6 +95,26 @@ func (m *Manager) SetMaxConcurrent(max int) {
 	m.maxConcurrent = max
 	m.mu.Unlock()
 	m.PumpQueue()
+}
+
+func ClampSeedRatio(ratio float64) float64 {
+	if ratio < 0 || ratio > maxSeedRatio {
+		return DefaultSeedRatio
+	}
+	return ratio
+}
+
+func (m *Manager) SetSeedRatio(ratio float64) {
+	m.mu.Lock()
+	m.seedRatio = ClampSeedRatio(ratio)
+	m.mu.Unlock()
+}
+
+func (m *Manager) seedRatioLocked() float64 {
+	if m.seedRatio < 0 || m.seedRatio > maxSeedRatio {
+		return DefaultSeedRatio
+	}
+	return m.seedRatio
 }
 
 func ClampMaxConcurrent(max int) int {
