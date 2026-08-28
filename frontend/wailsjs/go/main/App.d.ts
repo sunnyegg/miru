@@ -71,7 +71,7 @@ export function SaveDownloadSettings(arg1:string,arg2:number,arg3:number,arg4:nu
 
 export function SaveNetworkSettings(arg1:string,arg2:string):Promise<void>;
 
-export function SavePlaybackSettings(arg1:string):Promise<void>;
+export function SavePlaybackSettings(arg1:string,arg2:boolean):Promise<void>;
 
 export function SaveUpdateChannel(arg1:string):Promise<void>;
 

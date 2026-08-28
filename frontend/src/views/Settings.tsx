@@ -25,6 +25,8 @@ import {NativeSelect, NativeSelectOption} from '@/components/ui/native-select'
 
 const empty: SettingsView = {
   mpvPath: '',
+  anime4kEnabled: false,
+  anime4kShadersReady: false,
   downloadDir: '',
   syncThreshold: 85,
   downloadRateLimit: 0,
@@ -73,6 +75,8 @@ export function SettingsView({
       const [settings, anilist] = await Promise.all([GetSettings(), AnilistStatus()])
       setForm({
         mpvPath: settings?.mpvPath ?? '',
+        anime4kEnabled: settings?.anime4kEnabled ?? false,
+        anime4kShadersReady: settings?.anime4kShadersReady ?? false,
         downloadDir: settings?.downloadDir ?? '',
         syncThreshold: settings?.syncThreshold || 85,
         downloadRateLimit: bytesToKb(settings?.downloadRateLimit ?? 0),
@@ -202,7 +206,14 @@ export function SettingsView({
         <form
           onSubmit={(e) => {
             e.preventDefault()
-            void saveSection('playback', () => SavePlaybackSettings(form.mpvPath), 'Playback saved')
+            void saveSection(
+              'playback',
+              async () => {
+                await SavePlaybackSettings(form.mpvPath, form.anime4kEnabled)
+                await reload()
+              },
+              'Playback saved',
+            )
           }}
         >
           <Card>
@@ -224,6 +235,30 @@ export function SettingsView({
                 </Button>
               </div>
             </Field>
+            <div className="mt-4">
+              <label className="flex min-h-11 cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={form.anime4kEnabled}
+                  onChange={(e) => setForm({...form, anime4kEnabled: e.target.checked})}
+                  className="size-4 accent-primary"
+                />
+                <span className="text-sm">Enable Anime4K upscaling</span>
+              </label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Applies Anime4K Mode A shaders when MPV starts. Shaders are cached in your Miru config folder.
+              </p>
+              {form.anime4kEnabled && !form.anime4kShadersReady && (
+                <Alert variant="destructive" className="mt-3">
+                  <AlertDescription>
+                    Anime4K shaders are not installed yet. Save playback settings to download them.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {form.anime4kEnabled && form.anime4kShadersReady && (
+                <p className="mt-2 text-xs text-muted-foreground">Anime4K shaders are installed.</p>
+              )}
+            </div>
             <Button type="submit" disabled={saving === 'playback'} className="mt-4 w-fit">
               {saving === 'playback' ? 'Saving…' : 'Save'}
             </Button>

@@ -86,7 +86,7 @@ func (p *Player) Stop() {
 	}
 }
 
-func (p *Player) Play(mpvPath, mediaPath string, startSeconds float64, onProgress func(Progress), onExit func(error)) error {
+func (p *Player) Play(mpvPath, mediaPath string, startSeconds float64, glslShaders []string, onProgress func(Progress), onExit func(error)) error {
 	if mpvPath == "" {
 		return fmt.Errorf("mpv path is empty")
 	}
@@ -107,6 +107,9 @@ func (p *Player) Play(mpvPath, mediaPath string, startSeconds float64, onProgres
 	}
 	if startSeconds > 0 {
 		args = append(args, fmt.Sprintf("--start=%.3f", startSeconds))
+	}
+	for _, shaderPath := range glslShaders {
+		args = append(args, "--glsl-shader="+shaderPath)
 	}
 	args = append(args, mediaPath)
 
