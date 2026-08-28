@@ -134,6 +134,10 @@ export function SavePlaybackSettings(arg1) {
   return window['go']['main']['App']['SavePlaybackSettings'](arg1);
 }
 
+export function SaveUpdateChannel(arg1) {
+  return window['go']['main']['App']['SaveUpdateChannel'](arg1);
+}
+
 export function SearchAnime(arg1) {
   return window['go']['main']['App']['SearchAnime'](arg1);
 }

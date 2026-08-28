@@ -12,6 +12,7 @@ import (
 	"github.com/sunnyegg/miru/internal/nyaa"
 	"github.com/sunnyegg/miru/internal/storage"
 	"github.com/sunnyegg/miru/internal/torrentx"
+	"github.com/sunnyegg/miru/internal/update"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -92,6 +93,19 @@ func (a *App) SaveNetworkSettings(networkMode, socks5Address string) error {
 	return a.setSettings(map[string]string{
 		"network_mode":   normalizedNetwork.Mode,
 		"socks5_address": normalizedNetwork.Address,
+	})
+}
+
+func (a *App) SaveUpdateChannel(channel string) error {
+	if err := a.ready(); err != nil {
+		return err
+	}
+	parsed, err := update.ParseChannel(channel)
+	if err != nil {
+		return err
+	}
+	return a.setSettings(map[string]string{
+		"update_channel": parsed,
 	})
 }
 
@@ -178,6 +192,13 @@ func (a *App) loadSettings() (SettingsView, error) {
 	view.Socks5Address, _ = a.store.GetSetting("socks5_address")
 	if view.Socks5Address == "" {
 		view.Socks5Address = "127.0.0.1:1080"
+	}
+	storedChannel, _ := a.store.GetSetting("update_channel")
+	parsedChannel, err := update.ParseChannel(storedChannel)
+	if err != nil {
+		view.UpdateChannel = update.DefaultChannel(version)
+	} else {
+		view.UpdateChannel = parsedChannel
 	}
 	return view, nil
 }

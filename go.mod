@@ -7,6 +7,7 @@ require (
 	github.com/nssteinbrenner/anitogo v1.0.0
 	github.com/wailsapp/wails/v2 v2.15.0
 	github.com/zalando/go-keyring v0.2.8
+	golang.org/x/mod v0.37.0
 	golang.org/x/net v0.56.0
 	golang.org/x/time v0.14.0
 	modernc.org/sqlite v1.57.0
