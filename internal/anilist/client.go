@@ -81,19 +81,19 @@ type CurrentEntry struct {
 }
 
 type ListEntrySave struct {
-	MediaID           int
-	Status            string
-	Progress          int
-	ScoreRaw          int
-	Notes             string
-	SendNotes         bool
-	Repeat            int
-	Private           bool
-	SendPrivate       bool
-	StartedAt         FuzzyDate
-	SendStartedAt     bool
-	CompletedAt       FuzzyDate
-	SendCompletedAt   bool
+	MediaID         int
+	Status          string
+	Progress        int
+	ScoreRaw        int
+	Notes           string
+	SendNotes       bool
+	Repeat          int
+	Private         bool
+	SendPrivate     bool
+	StartedAt       FuzzyDate
+	SendStartedAt   bool
+	CompletedAt     FuzzyDate
+	SendCompletedAt bool
 }
 
 type MediaProgress struct {

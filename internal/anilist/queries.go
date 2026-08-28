@@ -430,9 +430,9 @@ type gqlAiringSchedule struct {
 }
 
 type gqlMediaProgress struct {
-	ID             int    `json:"id"`
-	Episodes       int    `json:"episodes"`
-	Status         string `json:"status"`
+	ID                int    `json:"id"`
+	Episodes          int    `json:"episodes"`
+	Status            string `json:"status"`
 	NextAiringEpisode *struct {
 		Episode int `json:"episode"`
 	} `json:"nextAiringEpisode"`
@@ -463,9 +463,9 @@ type gqlCurrentEntry struct {
 	Status    string  `json:"status"`
 	Progress  int     `json:"progress"`
 	Score     float64 `json:"score"`
-	Notes     string `json:"notes"`
-	Repeat    int    `json:"repeat"`
-	Private   bool   `json:"private"`
+	Notes     string  `json:"notes"`
+	Repeat    int     `json:"repeat"`
+	Private   bool    `json:"private"`
 	StartedAt struct {
 		Year  int `json:"year"`
 		Month int `json:"month"`
@@ -476,7 +476,7 @@ type gqlCurrentEntry struct {
 		Month int `json:"month"`
 		Day   int `json:"day"`
 	} `json:"completedAt"`
-	Media    struct {
+	Media struct {
 		ID    int `json:"id"`
 		Title struct {
 			Romaji  string `json:"romaji"`
