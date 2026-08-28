@@ -17,11 +17,15 @@ import (
 )
 
 func (a *App) StartMagnet(magnet string) error {
-	return a.startTorrent(magnet)
+	return a.startTorrent(magnet, nil)
 }
 
 func (a *App) StartTorrentURL(source string) error {
-	return a.startTorrent(source)
+	return a.startTorrent(source, nil)
+}
+
+func (a *App) StartTorrent(source string, files []torrentx.FileView) error {
+	return a.startTorrent(source, files)
 }
 
 func (a *App) SearchNyaa(query string) ([]NyaaResultView, error) {
@@ -98,7 +102,18 @@ func (a *App) SearchTokyoToshokan(query string) ([]NyaaResultView, error) {
 	return out, nil
 }
 
-func (a *App) startTorrent(source string) error {
+func (a *App) InspectTorrent(source string) (torrentx.ContentsView, error) {
+	if err := a.ready(); err != nil {
+		return torrentx.ContentsView{}, err
+	}
+	settings, err := a.loadSettings()
+	if err != nil {
+		return torrentx.ContentsView{}, err
+	}
+	return a.torrents.Inspect(source, settings.DownloadDir, torrentRateLimits(settings), networkConfig(settings))
+}
+
+func (a *App) startTorrent(source string, files []torrentx.FileView) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
@@ -106,28 +121,28 @@ func (a *App) startTorrent(source string) error {
 	if err != nil {
 		return err
 	}
-	return a.torrents.Start(source, settings.DownloadDir, torrentRateLimits(settings), networkConfig(settings))
+	return a.torrents.Start(source, settings.DownloadDir, files, torrentRateLimits(settings), networkConfig(settings))
 }
 
-func (a *App) StartTorrentFile() error {
+func (a *App) PickTorrentFile() (string, error) {
 	if err := a.ready(); err != nil {
-		return err
+		return "", err
 	}
-	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
 		Title: "Open torrent file",
 		Filters: []runtime.FileFilter{{
 			DisplayName: "Torrent",
 			Pattern:     "*.torrent",
 		}},
 	})
+}
+
+func (a *App) StartTorrentFile() error {
+	path, err := a.PickTorrentFile()
 	if err != nil || path == "" {
 		return err
 	}
-	settings, err := a.loadSettings()
-	if err != nil {
-		return err
-	}
-	return a.torrents.Start(path, settings.DownloadDir, torrentRateLimits(settings), networkConfig(settings))
+	return a.startTorrent(path, nil)
 }
 
 func (a *App) DownloadStatus() (*torrentx.JobView, error) {

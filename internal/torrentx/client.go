@@ -124,15 +124,18 @@ func addSource(client *torrent.Client, source string, httpClient *http.Client) (
 	if strings.HasPrefix(strings.ToLower(source), "magnet:") {
 		return client.AddMagnet(source)
 	}
+	mi, err := loadMetaInfo(source, httpClient)
+	if err != nil {
+		return nil, err
+	}
+	return client.AddTorrent(mi)
+}
 
+func loadMetaInfo(source string, httpClient *http.Client) (*metainfo.MetaInfo, error) {
 	parsed, err := url.Parse(source)
 	isHTTP := err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https")
 	if !isHTTP {
-		mi, err := metainfo.LoadFromFile(source)
-		if err != nil {
-			return nil, err
-		}
-		return client.AddTorrent(mi)
+		return metainfo.LoadFromFile(source)
 	}
 
 	if httpClient == nil {
@@ -150,11 +153,7 @@ func addSource(client *torrent.Client, source string, httpClient *http.Client) (
 	if err != nil {
 		return nil, err
 	}
-	mi, err := metainfo.Load(bytes.NewReader(raw))
-	if err != nil {
-		return nil, err
-	}
-	return client.AddTorrent(mi)
+	return metainfo.Load(bytes.NewReader(raw))
 }
 
 func displaySource(source string) string {

@@ -11,7 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const currentVersion = 5
+const currentVersion = 6
 
 var ErrNotFound = errors.New("not found")
 
@@ -79,6 +79,11 @@ func (s *Store) migrate() error {
 	}
 	if version < 5 {
 		if _, err := tx.Exec(schemaV5); err != nil {
+			return err
+		}
+	}
+	if version < 6 {
+		if _, err := tx.Exec(schemaV6); err != nil {
 			return err
 		}
 	}
@@ -211,6 +216,10 @@ SELECT
 FROM torrent_jobs_v4;
 
 DROP TABLE torrent_jobs_v4;
+`
+
+const schemaV6 = `
+ALTER TABLE torrent_jobs ADD COLUMN files_json TEXT NOT NULL DEFAULT '';
 `
 
 func (s *Store) GetSetting(key string) (string, error) {

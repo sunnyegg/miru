@@ -113,6 +113,20 @@ export type NyaaResultView = {
   remake: boolean
 }
 
+export type TorrentFileView = {
+  path: string
+  length: number
+  bytesCompleted: number
+  selected: boolean
+  isVideo: boolean
+}
+
+export type TorrentContentsView = {
+  name: string
+  bytesTotal: number
+  files: TorrentFileView[]
+}
+
 export type DownloadView = {
   id: number
   name: string
@@ -127,6 +141,7 @@ export type DownloadView = {
   error: string
   source: string
   live: boolean
+  files: TorrentFileView[]
 }
 
 export type PlaybackEvent = {

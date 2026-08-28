@@ -1,7 +1,8 @@
 import {useEffect, useRef, useState} from 'react'
-import {SearchNyaa, SearchTokyoToshokan, StartTorrentURL} from '../../wailsjs/go/main/App'
+import {InspectTorrent, SearchNyaa, SearchTokyoToshokan, StartTorrent} from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
-import type {NyaaResultView} from '../lib/types'
+import type {NyaaResultView, TorrentContentsView, TorrentFileView} from '../lib/types'
+import {TorrentFileSheet} from '../components/TorrentFileSheet'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Badge} from '@/components/ui/badge'
 import {Button} from '@/components/ui/button'
@@ -35,6 +36,13 @@ export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [starting, setStarting] = useState<number | null>(null)
+  const [picker, setPicker] = useState<{
+    source: string
+    contents: TorrentContentsView
+    loading: boolean
+    error: string
+  } | null>(null)
+  const [confirming, setConfirming] = useState(false)
   const resultsScrollRef = useRef<HTMLDivElement>(null)
   const prefillHandled = useRef('')
 
@@ -77,15 +85,62 @@ export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed
   }
 
   async function download(result: NyaaResultView, resultIndex: number) {
+    const source = result.link || result.magnet
+    if (!source) {
+      notice('This result has no torrent link', true)
+      return
+    }
     setStarting(resultIndex)
+    setPicker({
+      source,
+      contents: {name: result.title, bytesTotal: 0, files: []},
+      loading: true,
+      error: '',
+    })
     try {
-      await StartTorrentURL(result.link)
+      const contents = await InspectTorrent(source)
+      setPicker((current) => {
+        if (!current || current.source !== source) {
+          return current
+        }
+        return {
+          source,
+          contents: contents ?? {name: result.title, bytesTotal: 0, files: []},
+          loading: false,
+          error: '',
+        }
+      })
+    } catch (err) {
+      setPicker((current) => {
+        if (!current || current.source !== source) {
+          return current
+        }
+        return {
+          source,
+          contents: {name: result.title, bytesTotal: 0, files: []},
+          loading: false,
+          error: errorMessage(err),
+        }
+      })
+    } finally {
+      setStarting(null)
+    }
+  }
+
+  async function confirmPicker(files: TorrentFileView[]) {
+    if (!picker) {
+      return
+    }
+    setConfirming(true)
+    try {
+      await StartTorrent(picker.source, files)
+      setPicker(null)
       notice('Download added')
       onDownloads()
     } catch (err) {
       notice(errorMessage(err), true)
     } finally {
-      setStarting(null)
+      setConfirming(false)
     }
   }
 
@@ -245,6 +300,19 @@ export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed
             Next
           </Button>
         </div>
+      )}
+
+      {picker && (
+        <TorrentFileSheet
+          name={picker.contents.name}
+          bytesTotal={picker.contents.bytesTotal}
+          files={picker.contents.files ?? []}
+          loading={picker.loading}
+          error={picker.error}
+          confirming={confirming}
+          onClose={() => setPicker(null)}
+          onConfirm={(files) => void confirmPicker(files)}
+        />
       )}
     </section>
   )

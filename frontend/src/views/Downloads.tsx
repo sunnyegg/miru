@@ -3,16 +3,18 @@ import {
   CancelDownload,
   DownloadHistory,
   FinishDownload,
+  InspectTorrent,
   OpenDownloadFolder,
   PauseDownload,
+  PickTorrentFile,
   RemoveDownload,
   ResumeDownload,
   ResumeSeeding,
-  StartMagnet,
-  StartTorrentFile,
+  StartTorrent,
 } from '../../wailsjs/go/main/App'
 import {errorMessage, formatBytes, formatSpeed} from '../lib/format'
-import type {DownloadView} from '../lib/types'
+import type {DownloadView, TorrentContentsView, TorrentFileView} from '../lib/types'
+import {TorrentFileSheet} from '../components/TorrentFileSheet'
 import {IconFolder} from '../components/Icons'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
@@ -27,11 +29,20 @@ type Props = {
   onJobs: (jobs: DownloadView[]) => void
 }
 
+type PickerState = {
+  source: string
+  contents: TorrentContentsView
+  loading: boolean
+  error: string
+}
+
 export function DownloadsView({notice, jobs, onJobs}: Props) {
   const [magnet, setMagnet] = useState('')
   const [busy, setBusy] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
   const [loadError, setLoadError] = useState('')
+  const [picker, setPicker] = useState<PickerState | null>(null)
+  const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
     void refreshHistory()
@@ -48,14 +59,45 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
     }
   }
 
+  async function openPicker(source: string) {
+    setPicker({
+      source,
+      contents: {name: '', bytesTotal: 0, files: []},
+      loading: true,
+      error: '',
+    })
+    try {
+      const contents = await InspectTorrent(source)
+      setPicker((current) => {
+        if (!current || current.source !== source) {
+          return current
+        }
+        return {
+          source,
+          contents: contents ?? {name: '', bytesTotal: 0, files: []},
+          loading: false,
+          error: '',
+        }
+      })
+    } catch (err) {
+      const message = errorMessage(err)
+      setPicker((current) => {
+        if (!current || current.source !== source) {
+          return current
+        }
+        return {...current, loading: false, error: message}
+      })
+    }
+  }
+
   async function startMagnet() {
+    const source = magnet.trim()
+    if (!source) {
+      return
+    }
     setBusy(true)
     try {
-      await StartMagnet(magnet.trim())
-      setMagnet('')
-      await refreshHistory()
-    } catch (err) {
-      notice(errorMessage(err), true)
+      await openPicker(source)
     } finally {
       setBusy(false)
     }
@@ -64,12 +106,32 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
   async function startFile() {
     setBusy(true)
     try {
-      await StartTorrentFile()
-      await refreshHistory()
+      const path = await PickTorrentFile()
+      if (!path) {
+        return
+      }
+      await openPicker(path)
     } catch (err) {
       notice(errorMessage(err), true)
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function confirmPicker(files: TorrentFileView[]) {
+    if (!picker) {
+      return
+    }
+    setConfirming(true)
+    try {
+      await StartTorrent(picker.source, files)
+      setMagnet('')
+      setPicker(null)
+      await refreshHistory()
+    } catch (err) {
+      notice(errorMessage(err), true)
+    } finally {
+      setConfirming(false)
     }
   }
 
@@ -159,7 +221,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
       <header>
         <h2 className="text-2xl font-semibold">Downloads</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Up to your max concurrent setting can download at once. Extra torrents wait in queue. Completed files seed until 0.5x upload ratio.
+          Choose which files to keep before a torrent starts. Extra torrents wait in queue. Completed files seed until 0.5x upload ratio.
         </p>
       </header>
 
@@ -210,6 +272,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
             const isQueued = item.status === 'QUEUED'
             const isLive = Boolean(item.live)
             const confirmingDelete = pendingDeleteId === item.id
+            const files = item.files ?? []
 
             let actions = (
               <div className="flex flex-wrap gap-2">
@@ -296,6 +359,24 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
                 {!isQueued && (
                   <Progress className="mt-3" value={Math.min(100, Math.max(0, item.percent))} />
                 )}
+                {files.length > 0 && (
+                  <ul className="mt-3 max-h-40 overflow-y-auto border-t border-border/40 pt-3">
+                    {files.map((file) => {
+                      const filePercent = file.length > 0 ? Math.min(100, (file.bytesCompleted / file.length) * 100) : 0
+                      return (
+                        <li key={file.path} className="flex min-h-11 items-center justify-between gap-3 px-1 text-sm">
+                          <span className="min-w-0 break-all">{file.path}</span>
+                          <span className="shrink-0 tabular-nums text-xs text-muted-foreground">
+                            {file.bytesCompleted > 0
+                              ? `${formatBytes(file.bytesCompleted)} / ${formatBytes(file.length)}`
+                              : formatBytes(file.length)}
+                            {isLive && file.length > 0 ? ` · ${Math.round(filePercent)}%` : ''}
+                          </span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
                 {item.error && <p className="mt-2 text-sm text-destructive">{item.error}</p>}
               </Card>
             )
@@ -303,6 +384,19 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">No torrent jobs yet. Add a magnet or open a .torrent file to start.</p>
+      )}
+
+      {picker && (
+        <TorrentFileSheet
+          name={picker.contents.name}
+          bytesTotal={picker.contents.bytesTotal}
+          files={picker.contents.files ?? []}
+          loading={picker.loading}
+          error={picker.error}
+          confirming={confirming}
+          onClose={() => setPicker(null)}
+          onConfirm={(files) => void confirmPicker(files)}
+        />
       )}
     </section>
   )
