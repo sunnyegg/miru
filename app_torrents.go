@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sunnyegg/miru/internal/networking"
+	"github.com/sunnyegg/miru/internal/notify"
 	"github.com/sunnyegg/miru/internal/nyaa"
 	"github.com/sunnyegg/miru/internal/storage"
 	"github.com/sunnyegg/miru/internal/tokyotosho"
@@ -267,13 +268,27 @@ func (a *App) emitTorrent(view torrentx.JobView) {
 	if view.Status == "FAILED" && view.Error != "" {
 		a.logErr(fmt.Sprintf("torrent job %d failed", view.ID), errors.New(view.Error))
 	}
+	if view.Status == "COMPLETED" && a.torrents.UserStarted(view.ID) {
+		a.notifyDownloadComplete(view.Name)
+	}
 	runtime.EventsEmit(a.ctx, "torrent:progress", view)
+}
+
+func (a *App) notifyDownloadComplete(fileName string) {
+	settings, err := a.loadSettings()
+	if err != nil || !settings.DownloadNotifications {
+		return
+	}
+	if err := notify.DownloadComplete(fileName); err != nil {
+		a.logDebugErr("desktop notification", err)
+	}
 }
 
 func networkConfig(settings SettingsView) networking.Config {
 	return networking.Config{
-		Mode:    settings.NetworkMode,
-		Address: settings.Socks5Address,
+		Mode:     settings.NetworkMode,
+		Address:  settings.Socks5Address,
+		ProxyURL: settings.HttpProxyURL,
 	}
 }
 

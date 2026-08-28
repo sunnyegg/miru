@@ -55,6 +55,7 @@ type Manager struct {
 	onComplete    func([]string)
 	onError       func(string, error)
 	persistLogged map[int64]struct{}
+	userStarted   map[int64]struct{}
 }
 
 type RateLimits struct {
@@ -67,9 +68,17 @@ func NewManager(store *storage.Store) *Manager {
 		store:         store,
 		sessions:      make(map[int64]*session),
 		persistLogged: make(map[int64]struct{}),
+		userStarted:   make(map[int64]struct{}),
 		maxConcurrent: minConcurrentDownloads,
 		seedRatio:     DefaultSeedRatio,
 	}
+}
+
+func (m *Manager) UserStarted(id int64) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	_, ok := m.userStarted[id]
+	return ok
 }
 
 func (m *Manager) SetCallbacks(onProgress func(JobView), onComplete func([]string), onError func(string, error)) {
@@ -275,6 +284,9 @@ func (m *Manager) Start(source, destDir string, files []FileView, limits RateLim
 		return err
 	}
 	job.ID = id
+	m.mu.Lock()
+	m.userStarted[id] = struct{}{}
+	m.mu.Unlock()
 	m.emitProgress(ToView(job))
 	m.PumpQueue()
 	return nil

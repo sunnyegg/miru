@@ -24,16 +24,46 @@ func (a *App) GetSettings() (SettingsView, error) {
 	return a.loadSettings()
 }
 
-func (a *App) SavePlaybackSettings(mpvPath string) error {
+func (a *App) SavePlaybackSettings(mpvPath string, anime4KEnabled, discordRpcEnabled bool, discordAppID string) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
-	return a.setSettings(map[string]string{
-		"mpv_path": strings.TrimSpace(mpvPath),
-	})
+	if anime4KEnabled {
+		client, err := a.networkHTTPClient()
+		if err != nil {
+			return err
+		}
+		if err := mpv.EnsureAnime4KShaders(a.ctx, client, a.dirs.Config); err != nil {
+			return fmt.Errorf("Anime4K shaders: %w", err)
+		}
+	}
+	if err := a.setSettings(map[string]string{
+		"mpv_path":            strings.TrimSpace(mpvPath),
+		"anime4k_enabled":     strconv.FormatBool(anime4KEnabled),
+		"discord_rpc_enabled": strconv.FormatBool(discordRpcEnabled),
+		"discord_app_id":      strings.TrimSpace(discordAppID),
+	}); err != nil {
+		return err
+	}
+	if !discordRpcEnabled {
+		a.clearDiscordPresence()
+		return nil
+	}
+	settings, err := a.loadSettings()
+	if err != nil {
+		return err
+	}
+	a.playMu.Lock()
+	session := a.play
+	a.playMu.Unlock()
+	if session == nil {
+		return nil
+	}
+	a.syncDiscordPresence(settings, session.animeTitle, session.episodeNum, session.lastProgress.Percent)
+	return nil
 }
 
-func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, uploadRateLimit int64, maxConcurrentDownloads int, seedRatio float64) error {
+func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, uploadRateLimit int64, maxConcurrentDownloads int, seedRatio float64, downloadNotifications bool) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
@@ -47,6 +77,7 @@ func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, upload
 		"upload_rate_limit":        formatInt64(uploadRateLimit),
 		"max_concurrent_downloads": strconv.Itoa(maxConcurrentDownloads),
 		"seed_ratio":               strconv.FormatFloat(seedRatio, 'f', -1, 64),
+		"download_notifications":   formatBool(downloadNotifications),
 	}); err != nil {
 		return err
 	}
@@ -67,13 +98,14 @@ func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, upload
 	return nil
 }
 
-func (a *App) SaveNetworkSettings(networkMode, socks5Address string) error {
+func (a *App) SaveNetworkSettings(networkMode, socks5Address, httpProxyURL string) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
 	normalizedNetwork, err := (networking.Config{
-		Mode:    networkMode,
-		Address: socks5Address,
+		Mode:     networkMode,
+		Address:  socks5Address,
+		ProxyURL: httpProxyURL,
 	}).Normalized()
 	if err != nil {
 		return err
@@ -84,18 +116,23 @@ func (a *App) SaveNetworkSettings(networkMode, socks5Address string) error {
 			return loadErr
 		}
 		currentNetwork, currentErr := (networking.Config{
-			Mode:    current.NetworkMode,
-			Address: current.Socks5Address,
+			Mode:     current.NetworkMode,
+			Address:  current.Socks5Address,
+			ProxyURL: current.HttpProxyURL,
 		}).Normalized()
-		if currentErr != nil ||
-			currentNetwork.Mode != normalizedNetwork.Mode ||
-			currentNetwork.Address != normalizedNetwork.Address {
+		if currentErr != nil {
+			return currentErr
+		}
+		currentKey, currentKeyErr := currentNetwork.NetworkKey()
+		newKey, newKeyErr := normalizedNetwork.NetworkKey()
+		if currentKeyErr != nil || newKeyErr != nil || currentKey != newKey {
 			return errors.New("stop the active download before changing networking")
 		}
 	}
 	return a.setSettings(map[string]string{
 		"network_mode":   normalizedNetwork.Mode,
 		"socks5_address": normalizedNetwork.Address,
+		"http_proxy_url": normalizedNetwork.ProxyURL,
 	})
 }
 
@@ -143,13 +180,14 @@ func (a *App) SaveAnilistSettings(syncThreshold float64) error {
 	})
 }
 
-func (a *App) TestNetworkConnection(mode, socks5Address string) error {
+func (a *App) TestNetworkConnection(mode, socks5Address, httpProxyURL string) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
 	client, err := (networking.Config{
-		Mode:    mode,
-		Address: socks5Address,
+		Mode:     mode,
+		Address:  socks5Address,
+		ProxyURL: httpProxyURL,
 	}).HTTPClient()
 	if err != nil {
 		return err
@@ -196,8 +234,14 @@ func (a *App) DetectMpv() (string, error) {
 }
 
 func (a *App) loadSettings() (SettingsView, error) {
-	view := SettingsView{SyncThreshold: 85, SeedRatio: torrentx.DefaultSeedRatio}
+	view := SettingsView{
+		SyncThreshold:         85,
+		SeedRatio:             torrentx.DefaultSeedRatio,
+		DownloadNotifications: true,
+	}
 	view.MpvPath, _ = a.store.GetSetting("mpv_path")
+	view.Anime4KEnabled = settingBool(a.store, "anime4k_enabled", false)
+	view.Anime4KShadersReady = mpv.Anime4KInstalled(a.dirs.Config)
 	view.DownloadDir, _ = a.store.GetSetting("download_dir")
 	raw, err := a.store.GetSetting("sync_threshold")
 	threshold, parseErr := strconv.ParseFloat(raw, 64)
@@ -220,6 +264,15 @@ func (a *App) loadSettings() (SettingsView, error) {
 	if view.Socks5Address == "" {
 		view.Socks5Address = "127.0.0.1:1080"
 	}
+	view.HttpProxyURL, _ = a.store.GetSetting("http_proxy_url")
+	if view.HttpProxyURL == "" {
+		view.HttpProxyURL = "http://127.0.0.1:8080"
+	}
+	view.DiscordRpcEnabled = settingBool(a.store, "discord_rpc_enabled", false)
+	view.DiscordAppID, _ = a.store.GetSetting("discord_app_id")
+	if view.DiscordAppID == "" {
+		view.DiscordAppID = envTrim("DISCORD_APP_ID")
+	}
 	storedChannel, _ := a.store.GetSetting("update_channel")
 	parsedChannel, err := update.ParseChannel(storedChannel)
 	if err != nil {
@@ -234,6 +287,7 @@ func (a *App) loadSettings() (SettingsView, error) {
 	if view.RSSPollIntervalMinutes > 1440 {
 		view.RSSPollIntervalMinutes = 1440
 	}
+	view.DownloadNotifications = settingBool(a.store, "download_notifications", true)
 	return view, nil
 }
 
@@ -248,6 +302,13 @@ func (a *App) setSettings(pairs map[string]string) error {
 
 func formatInt64(v int64) string {
 	return strconv.FormatInt(normalizeRateLimit(v), 10)
+}
+
+func formatBool(value bool) string {
+	if value {
+		return "true"
+	}
+	return "false"
 }
 
 func settingInt64(store *storage.Store, key string) int64 {
@@ -267,6 +328,21 @@ func normalizeRateLimit(value int64) int64 {
 		return 0
 	}
 	return value
+}
+
+func settingBool(store *storage.Store, key string, defaultValue bool) bool {
+	raw, err := store.GetSetting(key)
+	if err != nil {
+		return defaultValue
+	}
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "0", "false", "no", "off":
+		return false
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return defaultValue
+	}
 }
 
 func settingInt(store *storage.Store, key string, defaultValue int) int {

@@ -2,6 +2,8 @@ package main
 
 type SettingsView struct {
 	MpvPath                string  `json:"mpvPath"`
+	Anime4KEnabled         bool    `json:"anime4kEnabled"`
+	Anime4KShadersReady    bool    `json:"anime4kShadersReady"`
 	DownloadDir            string  `json:"downloadDir"`
 	SyncThreshold          float64 `json:"syncThreshold"`
 	DownloadRateLimit      int64   `json:"downloadRateLimit"`
@@ -10,8 +12,12 @@ type SettingsView struct {
 	SeedRatio              float64 `json:"seedRatio"`
 	NetworkMode            string  `json:"networkMode"`
 	Socks5Address          string  `json:"socks5Address"`
+	HttpProxyURL           string  `json:"httpProxyUrl"`
 	UpdateChannel          string  `json:"updateChannel"`
 	RSSPollIntervalMinutes int     `json:"rssPollIntervalMinutes"`
+	DiscordRpcEnabled      bool    `json:"discordRpcEnabled"`
+	DiscordAppID           string  `json:"discordAppId"`
+	DownloadNotifications  bool    `json:"downloadNotifications"`
 }
 
 type EpisodeView struct {

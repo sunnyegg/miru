@@ -26,6 +26,8 @@ import {NativeSelect, NativeSelectOption} from '@/components/ui/native-select'
 
 const empty: SettingsView = {
   mpvPath: '',
+  anime4kEnabled: false,
+  anime4kShadersReady: false,
   downloadDir: '',
   syncThreshold: 85,
   downloadRateLimit: 0,
@@ -34,8 +36,12 @@ const empty: SettingsView = {
   seedRatio: 0.5,
   networkMode: 'system',
   socks5Address: '127.0.0.1:1080',
+  httpProxyUrl: 'http://127.0.0.1:8080',
   updateChannel: 'stable',
   rssPollIntervalMinutes: 30,
+  discordRpcEnabled: false,
+  discordAppId: '',
+  downloadNotifications: true,
 }
 
 type Props = {
@@ -75,6 +81,8 @@ export function SettingsView({
       const [settings, anilist] = await Promise.all([GetSettings(), AnilistStatus()])
       setForm({
         mpvPath: settings?.mpvPath ?? '',
+        anime4kEnabled: settings?.anime4kEnabled ?? false,
+        anime4kShadersReady: settings?.anime4kShadersReady ?? false,
         downloadDir: settings?.downloadDir ?? '',
         syncThreshold: settings?.syncThreshold || 85,
         downloadRateLimit: bytesToKb(settings?.downloadRateLimit ?? 0),
@@ -83,8 +91,12 @@ export function SettingsView({
         seedRatio: settings?.seedRatio ?? 0.5,
         networkMode: settings?.networkMode ?? 'system',
         socks5Address: settings?.socks5Address ?? '127.0.0.1:1080',
+        httpProxyUrl: settings?.httpProxyUrl ?? 'http://127.0.0.1:8080',
         updateChannel: settings?.updateChannel ?? 'stable',
         rssPollIntervalMinutes: settings?.rssPollIntervalMinutes ?? 30,
+        discordRpcEnabled: settings?.discordRpcEnabled ?? false,
+        discordAppId: settings?.discordAppId ?? '',
+        downloadNotifications: settings?.downloadNotifications ?? true,
       })
       setStatus(anilist ?? {connected: false, username: ''})
     } catch (err) {
@@ -144,7 +156,7 @@ export function SettingsView({
   async function testNetwork() {
     setTestingNetwork(true)
     try {
-      await TestNetworkConnection(form.networkMode, form.socks5Address)
+      await TestNetworkConnection(form.networkMode, form.socks5Address, form.httpProxyUrl)
       notice('Network connection succeeded')
     } catch (err) {
       notice(errorMessage(err), true)
@@ -205,7 +217,19 @@ export function SettingsView({
         <form
           onSubmit={(e) => {
             e.preventDefault()
-            void saveSection('playback', () => SavePlaybackSettings(form.mpvPath), 'Playback saved')
+            void saveSection(
+              'playback',
+              async () => {
+                await SavePlaybackSettings(
+                  form.mpvPath,
+                  form.anime4kEnabled,
+                  form.discordRpcEnabled,
+                  form.discordAppId,
+                )
+                await reload()
+              },
+              'Playback saved',
+            )
           }}
         >
           <Card>
@@ -227,10 +251,63 @@ export function SettingsView({
                 </Button>
               </div>
             </Field>
+            <div className="mt-4">
+              <label className="flex min-h-11 cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={form.anime4kEnabled}
+                  onChange={(e) => setForm({...form, anime4kEnabled: e.target.checked})}
+                  className="size-4 accent-primary"
+                />
+                <span className="text-sm">Enable Anime4K upscaling</span>
+              </label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Applies Anime4K Mode A shaders when MPV starts. Shaders are cached in your Miru config folder.
+              </p>
+              {form.anime4kEnabled && !form.anime4kShadersReady && (
+                <Alert variant="destructive" className="mt-3">
+                  <AlertDescription>
+                    Anime4K shaders are not installed yet. Save playback settings to download them.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {form.anime4kEnabled && form.anime4kShadersReady && (
+                <p className="mt-2 text-xs text-muted-foreground">Anime4K shaders are installed.</p>
+              )}
+            </div>
+            <div className="mt-4 flex items-start gap-3">
+              <input
+                id="discordRpcEnabled"
+                type="checkbox"
+                checked={form.discordRpcEnabled}
+                onChange={(e) => setForm({...form, discordRpcEnabled: e.target.checked})}
+                className="mt-1 size-4 shrink-0 accent-primary"
+              />
+              <div>
+                <Label htmlFor="discordRpcEnabled">Discord Rich Presence</Label>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Show the anime you are watching on your Discord profile while MPV is playing.
+                </p>
+              </div>
+            </div>
+            {form.discordRpcEnabled && (
+              <Field label="Discord application ID" htmlFor="discordAppId">
+                <Input
+                  id="discordAppId"
+                  value={form.discordAppId}
+                  onChange={(e) => setForm({...form, discordAppId: e.target.value})}
+                  placeholder="From the Discord Developer Portal"
+                  className="bg-card"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Leave empty to use DISCORD_APP_ID from the build .env file.
+                </p>
+              </Field>
+            )}
             <Button type="submit" disabled={saving === 'playback'} className="mt-4 w-fit">
               {saving === 'playback' ? 'Saving…' : 'Save'}
             </Button>
-            <p className="mt-2 text-xs text-muted-foreground">Requires an MPV restart to take effect.</p>
+            <p className="mt-2 text-xs text-muted-foreground">Requires Discord desktop running. MPV path needs a restart.</p>
           </Card>
         </form>
 
@@ -246,6 +323,7 @@ export function SettingsView({
                   kbToBytes(form.uploadRateLimit),
                   form.maxConcurrentDownloads,
                   form.seedRatio,
+                  form.downloadNotifications,
                 )
                 await SaveRSSPollSettings(form.rssPollIntervalMinutes)
               },
@@ -336,6 +414,23 @@ export function SettingsView({
                 How often subscribed RSS feeds are checked in the background (5–1440).
               </p>
             </Field>
+            <div className="mt-4 flex items-start gap-3">
+              <input
+                id="downloadNotifications"
+                type="checkbox"
+                checked={form.downloadNotifications}
+                onChange={(event) =>
+                  setForm((current) => ({...current, downloadNotifications: event.target.checked}))
+                }
+                className="mt-1 size-4 shrink-0 accent-primary"
+              />
+              <div>
+                <Label htmlFor="downloadNotifications">Desktop notifications</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Show an OS notification when a download you started finishes in the background.
+                </p>
+              </div>
+            </div>
             <Button type="submit" variant="secondary" disabled={saving === 'downloads'} className="mt-4 w-fit">
               {saving === 'downloads' ? 'Saving…' : 'Save'}
             </Button>
@@ -347,7 +442,7 @@ export function SettingsView({
             e.preventDefault()
             void saveSection(
               'network',
-              () => SaveNetworkSettings(form.networkMode, form.socks5Address),
+              () => SaveNetworkSettings(form.networkMode, form.socks5Address, form.httpProxyUrl),
               'Networking saved',
             )
           }}
@@ -366,6 +461,7 @@ export function SettingsView({
               <NativeSelectOption value="system">System proxy / VPN</NativeSelectOption>
               <NativeSelectOption value="direct">Direct connection</NativeSelectOption>
               <NativeSelectOption value="socks5">SOCKS5 proxy</NativeSelectOption>
+              <NativeSelectOption value="http_proxy">HTTP/HTTPS proxy</NativeSelectOption>
             </NativeSelect>
             {form.networkMode === 'socks5' && (
               <>
@@ -379,6 +475,21 @@ export function SettingsView({
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
                   Torrent traffic uses TCP through this proxy. UDP, DHT, and inbound peers are disabled.
+                </p>
+              </>
+            )}
+            {form.networkMode === 'http_proxy' && (
+              <>
+                <Label htmlFor="httpProxyUrl" className="mt-4 mb-2">Proxy URL</Label>
+                <Input
+                  id="httpProxyUrl"
+                  value={form.httpProxyUrl}
+                  onChange={(e) => setForm({...form, httpProxyUrl: e.target.value})}
+                  placeholder="http://127.0.0.1:8080"
+                  className="bg-card"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  HTTP and HTTPS traffic routes through this proxy. Use http:// or https:// with host and port.
                 </p>
               </>
             )}

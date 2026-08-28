@@ -43,6 +43,10 @@ func (d Dirs) TokenFile() string {
 	return filepath.Join(d.Config, "anilist.token")
 }
 
+func (d Dirs) ShadersDir() string {
+	return filepath.Join(d.Config, "shaders")
+}
+
 func DefaultDownloadDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
