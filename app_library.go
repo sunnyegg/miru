@@ -122,11 +122,19 @@ func (a *App) BindEpisode(episodeID int64, anilistID int) error {
 	if err := a.store.UpsertAnime(toStoredAnime(anime)); err != nil {
 		return err
 	}
-	episodeNum := int(ep.EpisodeNumber.Int64)
-	if !ep.EpisodeNumber.Valid {
+	episodeNum := 0
+	if ep.EpisodeNumber.Valid && ep.EpisodeNumber.Int64 > 0 {
+		episodeNum = int(ep.EpisodeNumber.Int64)
+	} else {
 		parsed := media.ParseFilename(ep.FilePath)
-		if parsed.HasEpisode {
-			episodeNum = parsed.Episode
+		if number, ok := media.EpisodeOrSingle(parsed, anime.TotalEpisodes); ok {
+			taken, takenErr := a.store.HasEpisodeNumber(anilistID, number, episodeID)
+			if takenErr != nil {
+				return takenErr
+			}
+			if !taken {
+				episodeNum = number
+			}
 		}
 	}
 	mapped, mapErr := client.MapSeasonEpisode(anilistID, episodeNum)
@@ -207,13 +215,22 @@ func (a *App) resolveImportMatch(parsed media.Parsed, ep *storage.Episode) ([]An
 		return nil, false, err
 	}
 	ep.AnilistID = sql.NullInt64{Int64: int64(found[0].ID), Valid: true}
-	if !parsed.HasEpisode {
+	number, hasNumber := media.EpisodeOrSingle(parsed, found[0].TotalEpisodes)
+	if !hasNumber {
 		return candidates, true, nil
 	}
-	mapped, mapErr := client.MapSeasonEpisode(found[0].ID, parsed.Episode)
-	if mapErr == nil {
-		ep.EpisodeNumber = sql.NullInt64{Int64: int64(mapped), Valid: true}
+	taken, err := a.store.HasEpisodeNumber(found[0].ID, number, 0)
+	if err != nil {
+		return nil, false, err
 	}
+	if taken {
+		return candidates, true, nil
+	}
+	mapped, mapErr := client.MapSeasonEpisode(found[0].ID, number)
+	if mapErr == nil {
+		number = mapped
+	}
+	ep.EpisodeNumber = sql.NullInt64{Int64: int64(number), Valid: true}
 	return candidates, true, nil
 }
 

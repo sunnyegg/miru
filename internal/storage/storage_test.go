@@ -214,6 +214,114 @@ func TestDeleteEpisodesByFilePrefix(t *testing.T) {
 	}
 }
 
+func TestHealSingleEpisodeNumbers(t *testing.T) {
+	store := openTestStore(t)
+	if err := store.UpsertAnime(Anime{
+		AnilistID:     99,
+		TitleRomaji:   "Movie",
+		TotalEpisodes: 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	movieID, err := store.InsertEpisode(Episode{
+		AnilistID:    sql.NullInt64{Int64: 99, Valid: true},
+		FilePath:     "/tmp/movie.mkv",
+		DisplayTitle: "Movie",
+		Status:       "COMPLETED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	episodes, err := store.ListEpisodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(episodes) != 1 {
+		t.Fatalf("len = %d", len(episodes))
+	}
+	if !episodes[0].EpisodeNumber.Valid || episodes[0].EpisodeNumber.Int64 != 1 {
+		t.Fatalf("healed episode number = %+v", episodes[0].EpisodeNumber)
+	}
+	got, err := store.GetEpisode(movieID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.EpisodeNumber.Valid || got.EpisodeNumber.Int64 != 1 {
+		t.Fatalf("stored episode number = %+v", got.EpisodeNumber)
+	}
+}
+
+func TestHealSingleEpisodeNumbersSkipsWhenSlotTaken(t *testing.T) {
+	store := openTestStore(t)
+	if err := store.UpsertAnime(Anime{
+		AnilistID:     100,
+		TitleRomaji:   "Movie",
+		TotalEpisodes: 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.InsertEpisode(Episode{
+		AnilistID:     sql.NullInt64{Int64: 100, Valid: true},
+		EpisodeNumber: sql.NullInt64{Int64: 1, Valid: true},
+		FilePath:      "/tmp/first.mkv",
+		DisplayTitle:  "Movie first",
+		Status:        "COMPLETED",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	extraID, err := store.InsertEpisode(Episode{
+		AnilistID:    sql.NullInt64{Int64: 100, Valid: true},
+		FilePath:     "/tmp/extra.mkv",
+		DisplayTitle: "Movie extra",
+		Status:       "COMPLETED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.HealSingleEpisodeNumbers(); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.GetEpisode(extraID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.EpisodeNumber.Valid {
+		t.Fatalf("extra file should stay unnumbered: %+v", got.EpisodeNumber)
+	}
+}
+
+func TestHasEpisodeNumber(t *testing.T) {
+	store := openTestStore(t)
+	if err := store.UpsertAnime(Anime{AnilistID: 5, TitleRomaji: "Test"}); err != nil {
+		t.Fatal(err)
+	}
+	id, err := store.InsertEpisode(Episode{
+		FilePath:     "/tmp/slot1.mkv",
+		DisplayTitle: "Test 01",
+		Status:       "COMPLETED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.BindEpisode(id, 5, 1); err != nil {
+		t.Fatal(err)
+	}
+	taken, err := store.HasEpisodeNumber(5, 1, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !taken {
+		t.Fatal("slot 1 should be taken")
+	}
+	taken, err = store.HasEpisodeNumber(5, 1, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if taken {
+		t.Fatal("current episode should be excluded")
+	}
+}
+
 func TestEpisodeBind(t *testing.T) {
 	store := openTestStore(t)
 	if err := store.UpsertAnime(Anime{AnilistID: 1, TitleRomaji: "Test"}); err != nil {

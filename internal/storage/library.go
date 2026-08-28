@@ -136,7 +136,37 @@ func (s *Store) EpisodeByDisplayTitle(title string) (Episode, error) {
 	return e, err
 }
 
+func (s *Store) HasEpisodeNumber(anilistID, episodeNumber int, excludeID int64) (bool, error) {
+	var count int
+	err := s.db.QueryRow(
+		`SELECT COUNT(1) FROM episode_downloads
+		 WHERE anilist_id = ? AND episode_number = ? AND id != ?`,
+		anilistID, episodeNumber, excludeID,
+	).Scan(&count)
+	return count > 0, err
+}
+
+func (s *Store) HealSingleEpisodeNumbers() error {
+	_, err := s.db.Exec(
+		`UPDATE episode_downloads
+		 SET episode_number = 1
+		 WHERE anilist_id IS NOT NULL
+		   AND (episode_number IS NULL OR episode_number = 0)
+		   AND anilist_id IN (SELECT anilist_id FROM anime_cache WHERE total_episodes = 1)
+		   AND NOT EXISTS (
+		     SELECT 1 FROM episode_downloads other
+		     WHERE other.anilist_id = episode_downloads.anilist_id
+		       AND other.episode_number = 1
+		       AND other.id != episode_downloads.id
+		   )`,
+	)
+	return err
+}
+
 func (s *Store) ListEpisodes() ([]Episode, error) {
+	if err := s.HealSingleEpisodeNumbers(); err != nil {
+		return nil, err
+	}
 	rows, err := s.db.Query(
 		`SELECT e.id, e.anilist_id, e.episode_number, e.file_path, e.display_title,
 		        e.downloaded_bytes, e.status,
