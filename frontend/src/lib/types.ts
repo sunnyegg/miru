@@ -9,6 +9,7 @@ export type SettingsView = {
   maxConcurrentDownloads: number
   networkMode: string
   socks5Address: string
+  updateChannel: string
 }
 
 export type EpisodeView = {

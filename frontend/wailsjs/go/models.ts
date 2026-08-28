@@ -225,6 +225,7 @@ export namespace main {
 	    maxConcurrentDownloads: number;
 	    networkMode: string;
 	    socks5Address: string;
+	    updateChannel: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsView(source);
@@ -240,6 +241,7 @@ export namespace main {
 	        this.maxConcurrentDownloads = source["maxConcurrentDownloads"];
 	        this.networkMode = source["networkMode"];
 	        this.socks5Address = source["socks5Address"];
+	        this.updateChannel = source["updateChannel"];
 	    }
 	}
 	export class UpdateInfo {

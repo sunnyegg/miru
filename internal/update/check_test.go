@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -20,12 +21,29 @@ func TestNewer(t *testing.T) {
 		{current: "v1.0.0", latest: "v1.0.0", want: false},
 		{current: "v1.2.0", latest: "v2.0.0", want: true},
 		{current: "dev", latest: "v1.0.0", want: false},
+		{current: "v0.1.0-alpha", latest: "v0.1.0", want: true},
+		{current: "v0.1.0-alpha", latest: "v0.1.0-alpha.1", want: true},
+		{current: "v0.1.0", latest: "v0.1.0-alpha", want: false},
+		{current: "v0.0.9", latest: "v0.1.0-alpha", want: true},
 	}
 	for _, tc := range cases {
 		got := Newer(tc.current, tc.latest)
 		if got != tc.want {
 			t.Fatalf("Newer(%q, %q) = %v, want %v", tc.current, tc.latest, got, tc.want)
 		}
+	}
+}
+
+func TestDefaultChannel(t *testing.T) {
+	t.Parallel()
+	if got := DefaultChannel("v0.1.0-alpha"); got != ChannelPrerelease {
+		t.Fatalf("prerelease build: got %q", got)
+	}
+	if got := DefaultChannel("v0.1.0"); got != ChannelStable {
+		t.Fatalf("stable build: got %q", got)
+	}
+	if got := DefaultChannel("dev"); got != ChannelStable {
+		t.Fatalf("dev build: got %q", got)
 	}
 }
 
@@ -43,6 +61,10 @@ func TestAssetName(t *testing.T) {
 	if err != nil || name != "miru-1.2.0-mac-universal.zip" {
 		t.Fatalf("darwin/arm64: got %q %v", name, err)
 	}
+	name, err = AssetName("linux", "amd64", "v0.1.0-alpha")
+	if err != nil || name != "miru-0.1.0-alpha-linux-amd64" {
+		t.Fatalf("linux alpha: got %q %v", name, err)
+	}
 	if _, err := AssetName("linux", "arm64", "v1.2.0"); err == nil {
 		t.Fatal("expected error for linux/arm64")
 	}
@@ -56,7 +78,7 @@ func TestCheckDevSkipsNetwork(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	info, err := Check(context.Background(), server.Client(), "dev", server.URL, "linux", "amd64")
+	info, err := Check(context.Background(), server.Client(), "dev", server.URL, ChannelStable, "linux", "amd64")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,30 +87,67 @@ func TestCheckDevSkipsNetwork(t *testing.T) {
 	}
 }
 
-func TestCheckParsesLatestRedirect(t *testing.T) {
+func TestCheckParsesAtomFeed(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("User-Agent") == "" {
 			t.Error("missing User-Agent")
 		}
-		if r.URL.Path != "/releases/latest" {
+		if r.URL.Path != "/releases.atom" {
 			t.Errorf("path %s", r.URL.Path)
 		}
-		http.Redirect(w, r, "/sunnyegg/miru/releases/tag/v1.2.0", http.StatusFound)
+		w.Header().Set("Content-Type", "application/atom+xml")
+		_, _ = w.Write([]byte(atomFeedXML))
 	}))
 	t.Cleanup(server.Close)
 
-	latestURL := server.URL + "/releases/latest"
-	info, err := Check(context.Background(), server.Client(), "v1.0.0", latestURL, "linux", "amd64")
+	feedURL := server.URL + "/releases.atom"
+	info, err := Check(context.Background(), server.Client(), "v0.0.8", feedURL, ChannelPrerelease, "linux", "amd64")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !info.Available || info.Latest != "v1.2.0" || info.AssetName != "miru-1.2.0-linux-amd64" {
+	if !info.Available || info.Latest != "v0.1.0-alpha" || info.AssetName != "miru-0.1.0-alpha-linux-amd64" {
 		t.Fatalf("got %+v", info)
 	}
-	wantAsset := server.URL + "/releases/download/v1.2.0/miru-1.2.0-linux-amd64"
+	wantAsset := server.URL + "/releases/download/v0.1.0-alpha/miru-0.1.0-alpha-linux-amd64"
 	if info.AssetURL != wantAsset {
 		t.Fatalf("asset url %q, want %q", info.AssetURL, wantAsset)
+	}
+}
+
+func TestCheckStableSkipsPrerelease(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/atom+xml")
+		_, _ = w.Write([]byte(atomFeedXML))
+	}))
+	t.Cleanup(server.Close)
+
+	feedURL := server.URL + "/releases.atom"
+	info, err := Check(context.Background(), server.Client(), "v0.0.8", feedURL, ChannelStable, "linux", "amd64")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.Available || info.Latest != "v0.0.9" {
+		t.Fatalf("got %+v", info)
+	}
+}
+
+func TestCheckStableEmptyWhenOnlyPrerelease(t *testing.T) {
+	t.Parallel()
+	onlyAlpha := strings.ReplaceAll(atomFeedXML, `<entry>
+    <title>v0.0.9</title>
+    <link rel="alternate" href="https://github.com/sunnyegg/miru/releases/tag/v0.0.9"/>
+  </entry>`, "")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/atom+xml")
+		_, _ = w.Write([]byte(onlyAlpha))
+	}))
+	t.Cleanup(server.Close)
+
+	_, err := Check(context.Background(), server.Client(), "v0.0.8", server.URL+"/releases.atom", ChannelStable, "linux", "amd64")
+	if err == nil || err.Error() != "github releases: no stable release" {
+		t.Fatalf("got %v", err)
 	}
 }
 
@@ -100,7 +159,7 @@ func TestCheckForbiddenIsShort(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	_, err := Check(context.Background(), server.Client(), "v1.0.0", server.URL+"/releases/latest", "linux", "amd64")
+	_, err := Check(context.Background(), server.Client(), "v1.0.0", server.URL+"/releases.atom", ChannelStable, "linux", "amd64")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -108,3 +167,16 @@ func TestCheckForbiddenIsShort(t *testing.T) {
 		t.Fatalf("got %q", err)
 	}
 }
+
+const atomFeedXML = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <title>v0.1.0-alpha</title>
+    <link rel="alternate" href="https://github.com/sunnyegg/miru/releases/tag/v0.1.0-alpha"/>
+  </entry>
+  <entry>
+    <title>v0.0.9</title>
+    <link rel="alternate" href="https://github.com/sunnyegg/miru/releases/tag/v0.0.9"/>
+  </entry>
+</feed>
+`

@@ -11,6 +11,7 @@ import {
   SaveDownloadSettings,
   SaveNetworkSettings,
   SavePlaybackSettings,
+  SaveUpdateChannel,
   TestNetworkConnection,
 } from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
@@ -31,6 +32,7 @@ const empty: SettingsView = {
   maxConcurrentDownloads: 1,
   networkMode: 'system',
   socks5Address: '127.0.0.1:1080',
+  updateChannel: 'stable',
 }
 
 type Props = {
@@ -45,7 +47,7 @@ type Props = {
   onOpenRelease: () => void
 }
 
-type SettingsSection = 'playback' | 'downloads' | 'network' | 'anilist'
+type SettingsSection = 'playback' | 'downloads' | 'network' | 'anilist' | 'updates'
 
 export function SettingsView({
   notice,
@@ -77,6 +79,7 @@ export function SettingsView({
         maxConcurrentDownloads: settings?.maxConcurrentDownloads ?? 1,
         networkMode: settings?.networkMode ?? 'system',
         socks5Address: settings?.socks5Address ?? '127.0.0.1:1080',
+        updateChannel: settings?.updateChannel ?? 'stable',
       })
       setStatus(anilist ?? {connected: false, username: ''})
     } catch (err) {
@@ -150,6 +153,20 @@ export function SettingsView({
       await OpenAnilistLogin()
     } catch (err) {
       notice(errorMessage(err), true)
+    }
+  }
+
+  async function saveUpdateChannel(channel: string) {
+    setForm((current) => ({...current, updateChannel: channel}))
+    setSaving('updates')
+    try {
+      await SaveUpdateChannel(channel)
+      onCheckUpdate()
+    } catch (err) {
+      notice(errorMessage(err), true)
+      await reload()
+    } finally {
+      setSaving(null)
     }
   }
 
@@ -384,6 +401,19 @@ export function SettingsView({
         <Card>
           <h3 className="text-sm font-medium">About</h3>
           <p className="mt-1 text-sm text-muted-foreground">Version {appVersion || 'dev'}</p>
+          <Label htmlFor="updateChannel" className="mt-4 mb-2">Update channel</Label>
+          <NativeSelect
+            id="updateChannel"
+            value={form.updateChannel}
+            disabled={saving === 'updates' || checkingUpdate}
+            onChange={(e) => void saveUpdateChannel(e.target.value)}
+          >
+            <NativeSelectOption value="stable">Stable</NativeSelectOption>
+            <NativeSelectOption value="prerelease">Prerelease</NativeSelectOption>
+          </NativeSelect>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Prerelease includes alpha and beta builds. Stable ignores them.
+          </p>
           {update?.available ? (
             <>
               <p className="mt-3 text-sm">Miru {update.latest} is available.</p>

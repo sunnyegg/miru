@@ -69,6 +69,8 @@ export function SaveNetworkSettings(arg1:string,arg2:string):Promise<void>;
 
 export function SavePlaybackSettings(arg1:string):Promise<void>;
 
+export function SaveUpdateChannel(arg1:string):Promise<void>;
+
 export function SearchAnime(arg1:string):Promise<Array<main.AnimeView>>;
 
 export function SearchNyaa(arg1:string):Promise<Array<main.NyaaResultView>>;

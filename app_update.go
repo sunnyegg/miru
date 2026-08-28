@@ -24,7 +24,11 @@ func (a *App) CheckForUpdate() (UpdateInfo, error) {
 	if err != nil {
 		return UpdateInfo{}, err
 	}
-	result, err := update.Check(a.ctx, client, version, update.LatestPage, goruntime.GOOS, goruntime.GOARCH)
+	channel, err := a.updateChannel()
+	if err != nil {
+		return UpdateInfo{}, err
+	}
+	result, err := update.Check(a.ctx, client, version, update.ReleasesFeed, channel, goruntime.GOOS, goruntime.GOARCH)
 	if err != nil {
 		return UpdateInfo{}, err
 	}
@@ -44,8 +48,12 @@ func (a *App) ApplyUpdate() error {
 	}
 	downloadClient := *client
 	downloadClient.Timeout = 0
+	channel, err := a.updateChannel()
+	if err != nil {
+		return err
+	}
 
-	release, err := update.FetchLatest(a.ctx, client, update.LatestPage, goruntime.GOOS, goruntime.GOARCH)
+	release, err := update.FetchLatest(a.ctx, client, update.ReleasesFeed, channel, goruntime.GOOS, goruntime.GOARCH)
 	if err != nil {
 		return err
 	}
@@ -72,6 +80,14 @@ func (a *App) ApplyUpdate() error {
 		runtime.Quit(a.ctx)
 	}
 	return nil
+}
+
+func (a *App) updateChannel() (string, error) {
+	settings, err := a.loadSettings()
+	if err != nil {
+		return "", err
+	}
+	return settings.UpdateChannel, nil
 }
 
 func toUpdateInfo(result update.Info) UpdateInfo {

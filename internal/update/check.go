@@ -2,15 +2,20 @@ package update
 
 import (
 	"context"
+	"encoding/xml"
 	"fmt"
+	"io"
 	"net/http"
-	"strconv"
 	"strings"
+
+	"golang.org/x/mod/semver"
 )
 
 const (
-	LatestPage = "https://github.com/sunnyegg/miru/releases/latest"
-	userAgent  = "miru"
+	ChannelStable     = "stable"
+	ChannelPrerelease = "prerelease"
+	ReleasesFeed      = "https://github.com/sunnyegg/miru/releases.atom"
+	userAgent         = "miru"
 )
 
 type Info struct {
@@ -23,9 +28,54 @@ type Info struct {
 	AssetURL   string
 }
 
+type atomFeed struct {
+	Entries []atomEntry `xml:"entry"`
+}
+
+type atomEntry struct {
+	Title   string     `xml:"title"`
+	Content string     `xml:"content"`
+	Links   []atomLink `xml:"link"`
+}
+
+type atomLink struct {
+	Rel  string `xml:"rel,attr"`
+	Href string `xml:"href,attr"`
+}
+
 func IsDev(version string) bool {
 	trimmed := strings.TrimSpace(version)
 	return trimmed == "" || trimmed == "dev"
+}
+
+func ParseChannel(channel string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(channel)) {
+	case ChannelStable:
+		return ChannelStable, nil
+	case ChannelPrerelease:
+		return ChannelPrerelease, nil
+	default:
+		return "", fmt.Errorf("unsupported update channel %q", channel)
+	}
+}
+
+func DefaultChannel(version string) string {
+	canonicalVersion := canonical(version)
+	if canonicalVersion != "" && semver.Prerelease(canonicalVersion) != "" {
+		return ChannelPrerelease
+	}
+	return ChannelStable
+}
+
+func canonical(version string) string {
+	trimmed := strings.TrimSpace(version)
+	if trimmed == "" {
+		return ""
+	}
+	if !strings.HasPrefix(trimmed, "v") {
+		trimmed = "v" + trimmed
+	}
+	return semver.Canonical(trimmed)
 }
 
 func AssetName(goos, goarch, version string) (string, error) {
@@ -52,28 +102,20 @@ func AssetName(goos, goarch, version string) (string, error) {
 }
 
 func Newer(current, latest string) bool {
-	currentParts, currentOK := parseVersion(current)
-	latestParts, latestOK := parseVersion(latest)
-	if !currentOK || !latestOK {
+	currentCanonical := canonical(current)
+	latestCanonical := canonical(latest)
+	if currentCanonical == "" || latestCanonical == "" {
 		return false
 	}
-	for i := range currentParts {
-		if latestParts[i] > currentParts[i] {
-			return true
-		}
-		if latestParts[i] < currentParts[i] {
-			return false
-		}
-	}
-	return false
+	return semver.Compare(currentCanonical, latestCanonical) < 0
 }
 
-func Check(ctx context.Context, client *http.Client, current, latestURL, goos, goarch string) (Info, error) {
+func Check(ctx context.Context, client *http.Client, current, feedURL, channel, goos, goarch string) (Info, error) {
 	info := Info{Current: current}
 	if IsDev(current) {
 		return info, nil
 	}
-	release, err := FetchLatest(ctx, client, latestURL, goos, goarch)
+	release, err := FetchLatest(ctx, client, feedURL, channel, goos, goarch)
 	if err != nil {
 		return Info{}, err
 	}
@@ -86,77 +128,120 @@ func Check(ctx context.Context, client *http.Client, current, latestURL, goos, g
 	return info, nil
 }
 
-func FetchLatest(ctx context.Context, client *http.Client, latestURL, goos, goarch string) (Info, error) {
+func FetchLatest(ctx context.Context, client *http.Client, feedURL, channel, goos, goarch string) (Info, error) {
 	if _, err := AssetName(goos, goarch, "0.0.0"); err != nil {
 		return Info{}, err
 	}
-
-	pageClient := *client
-	pageClient.CheckRedirect = func(*http.Request, []*http.Request) error {
-		return http.ErrUseLastResponse
+	parsedChannel, err := ParseChannel(channel)
+	if err != nil {
+		return Info{}, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, latestURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feedURL, nil)
 	if err != nil {
 		return Info{}, err
 	}
 	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Accept", "application/atom+xml, application/xml")
 
-	resp, err := pageClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return Info{}, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode < 300 || resp.StatusCode >= 400 {
+	if resp.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, resp.Body)
 		return Info{}, fmt.Errorf("github releases: %s", resp.Status)
 	}
 
-	location := resp.Header.Get("Location")
-	if location == "" {
-		return Info{}, fmt.Errorf("github releases: missing Location")
-	}
-	resolved, err := resp.Request.URL.Parse(location)
-	if err != nil {
+	var feed atomFeed
+	if err := xml.NewDecoder(resp.Body).Decode(&feed); err != nil {
 		return Info{}, fmt.Errorf("github releases: %w", err)
 	}
-
-	const marker = "/releases/tag/"
-	idx := strings.LastIndex(resolved.Path, marker)
-	if idx < 0 {
-		return Info{}, fmt.Errorf("github releases: unexpected Location")
+	if len(feed.Entries) == 0 {
+		return Info{}, fmt.Errorf("github releases: empty feed")
 	}
-	tag := strings.Trim(resolved.Path[idx+len(marker):], "/")
-	if tag == "" {
-		return Info{}, fmt.Errorf("github releases: missing tag name")
+
+	chosen, tag, err := pickRelease(feed.Entries, parsedChannel)
+	if err != nil {
+		return Info{}, err
 	}
 	wanted, err := AssetName(goos, goarch, tag)
 	if err != nil {
 		return Info{}, err
 	}
 
-	repoBase := strings.TrimSuffix(strings.TrimSuffix(latestURL, "/"), "/releases/latest")
+	repoBase := strings.TrimSuffix(strings.TrimSuffix(feedURL, "/"), "/releases.atom")
 	return Info{
 		Latest:     tag,
-		ReleaseURL: resolved.String(),
+		Notes:      strings.TrimSpace(chosen.Title),
+		ReleaseURL: releaseURL(chosen, repoBase, tag),
 		AssetName:  wanted,
 		AssetURL:   repoBase + "/releases/download/" + tag + "/" + wanted,
 	}, nil
 }
 
-func parseVersion(raw string) ([3]int, bool) {
-	trimmed := strings.TrimSpace(raw)
-	trimmed = strings.TrimPrefix(trimmed, "v")
-	parts := strings.Split(trimmed, ".")
-	if len(parts) != 3 {
-		return [3]int{}, false
-	}
-	var parsed [3]int
-	for i, part := range parts {
-		n, err := strconv.Atoi(part)
-		if err != nil || n < 0 {
-			return [3]int{}, false
+func pickRelease(entries []atomEntry, channel string) (atomEntry, string, error) {
+	var chosen atomEntry
+	var chosenTag string
+	for _, entry := range entries {
+		tag, ok := tagFromEntry(entry)
+		if !ok {
+			continue
 		}
-		parsed[i] = n
+		canonicalTag := canonical(tag)
+		if canonicalTag == "" {
+			continue
+		}
+		if channel == ChannelStable && semver.Prerelease(canonicalTag) != "" {
+			continue
+		}
+		if chosenTag == "" || semver.Compare(canonicalTag, canonical(chosenTag)) > 0 {
+			chosen = entry
+			chosenTag = tag
+		}
 	}
-	return parsed, true
+	if chosenTag == "" {
+		if channel == ChannelStable {
+			return atomEntry{}, "", fmt.Errorf("github releases: no stable release")
+		}
+		return atomEntry{}, "", fmt.Errorf("github releases: no matching release")
+	}
+	return chosen, chosenTag, nil
+}
+
+func tagFromEntry(entry atomEntry) (string, bool) {
+	for _, link := range entry.Links {
+		tag, ok := tagFromPath(link.Href)
+		if ok {
+			return tag, true
+		}
+	}
+	return tagFromPath(entry.Title)
+}
+
+func tagFromPath(raw string) (string, bool) {
+	trimmed := strings.TrimSpace(raw)
+	const marker = "/releases/tag/"
+	idx := strings.LastIndex(trimmed, marker)
+	if idx >= 0 {
+		trimmed = trimmed[idx+len(marker):]
+	}
+	trimmed = strings.Trim(trimmed, "/")
+	if canonical(trimmed) == "" {
+		return "", false
+	}
+	if !strings.HasPrefix(trimmed, "v") {
+		trimmed = "v" + trimmed
+	}
+	return trimmed, true
+}
+
+func releaseURL(entry atomEntry, repoBase, tag string) string {
+	for _, link := range entry.Links {
+		if strings.Contains(link.Href, "/releases/tag/") {
+			return link.Href
+		}
+	}
+	return repoBase + "/releases/tag/" + tag
 }
