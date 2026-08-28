@@ -49,7 +49,7 @@ Tidak seperti aplikasi media manager anime konvensional yang memerlukan *client*
 ### 3.1 MPV Execution & Detection Engine
 
 * ~~**Automated Multi-Path Detection:** Memindai biner MPV di `PATH` sistem, lokasi instalasi umum (Program Files, Homebrew, `/usr/bin`), dan konfigurasi manual.~~
-  * **Implementasi:** `PATH` + lokasi umum **Linux** (`/usr/bin`, `/usr/local/bin`, `~/.local/bin`, Snap). Windows/macOS mengandalkan `PATH` + path manual di Settings.
+  * **Implementasi:** `PATH` + lokasi umum per platform: **Linux** (`/usr/bin`, `/usr/local/bin`, `~/.local/bin`, Snap); **Windows** (Program Files, Chocolatey, Scoop); **macOS** (Homebrew `/opt/homebrew` & `/usr/local`, `mpv.app`). Path manual di Settings tetap didukung.
 * ~~**Custom File Picker:** Menyediakan dialog *file picker* OS untuk pengguna yang menempatkan biner MPV portabel di folder khusus.~~
 * ~~**JSON-IPC Integration:** Mengendalikan MPV, memantau *watch progress* (persentase durasi tonton), dan membaca status *playback*.~~
   * **Implementasi:** MPV diluncurkan dengan jendela sendiri (`--force-window=yes`), bukan headless. Progress dipoll via IPC; posisi resume disimpan ke SQLite saat MPV ditutup.
@@ -64,7 +64,8 @@ Tidak seperti aplikasi media manager anime konvensional yang memerlukan *client*
   * **Implementasi:** Juga ada batas **maksimum unduhan bersamaan** dan antrian `QUEUED`.
 * **Multi-Source RSS Indexing:** Pencarian on-demand dari Nyaa.si dan Tokyo Toshokan (RSS sebagai API pencarian).
   * ~~Nyaa.si~~ dan ~~Tokyo Toshokan~~ sudah ada.
-  * **Belum:** feed RSS otomatis / langganan background, endpoint fansub langsung.
+  * ~~**Feed RSS otomatis:** Langganan & polling feed di background (Search → RSS feeds).~~
+    * **Implementasi:** SQLite `rss_feeds` / `rss_feed_items`, poller interval di Settings → Downloads (default 30 menit). URL http/https fansub/Nyaa/Tokyo Toshokan via AddRSSFeed. **Auto-queue unduh:** Settings → Downloads (`rss_auto_download`, opsional filter library-only). Notifikasi toast saat auto-queue jika desktop notifications aktif.
 
 ### 3.3 AniList Sync & Parser Metadata
 
@@ -72,7 +73,7 @@ Tidak seperti aplikasi media manager anime konvensional yang memerlukan *client*
 * ~~**Anitogo File Parsing:** Memecah nama file torrent/lokal menjadi judul, nomor episode, resolusi, dan grup fansub.~~
   * **Implementasi:** Metadata parse disimpan di backend; UI Library belum menampilkan resolusi/grup fansub.
 * ~~**Auto Progress Update:** Mengirim mutasi GraphQL `SaveMediaListEntry` ketika pemutaran mencapai threshold (default **≥ 85%**, bisa diatur di Settings).~~
-  * **Implementasi:** Sync terjadi **saat MPV ditutup**, bukan real-time di tengah pemutaran. Dedup via tabel `sync_events`. Mapping episode multi-season via AniList season API.
+  * **Implementasi:** Sync real-time saat progress ≥ threshold selama pemutaran (MPV IPC poll); retry saat MPV ditutup jika sync gagal atau threshold baru tercapai di akhir. Dedup via tabel `sync_events` dan flag sesi. Mapping episode multi-season via AniList season API.
 * ~~**Airing Calendar:** Tab jadwal rilis mingguan berdasarkan zona waktu lokal.~~
 
 **Di luar PRD asli, sudah ada:**
@@ -214,7 +215,7 @@ CREATE TABLE IF NOT EXISTS api_cache (
 * **Shader Injection (Anime4K):** Opsi otomatisasi pengaktifan shader upscaling video pada MPV.
 * **Desktop Notifications:** Notifikasi lokal OS ketika unduhan episode selesai di latar belakang.
 * **Feed RSS otomatis:** Langganan & polling feed fansub/indexer di background.
-* **MPV detection Windows/macOS:** Scan path instalasi umum (Program Files, Homebrew).
+* ~~**MPV detection Windows/macOS:** Scan path instalasi umum (Program Files, Homebrew).~~
 * **Proxy HTTP/HTTPS** selain SOCKS5.
 * **Sync AniList real-time** (mutasi saat threshold tercapai, tanpa menunggu MPV ditutup).
 * **Benchmark RAM idle** & dokumentasi hasil.

@@ -56,15 +56,16 @@ type App struct {
 }
 
 type playSession struct {
-	episodeID     int64
-	anilistID     int
-	episodeNum    int
-	animeTitle    string
-	synced        bool
-	episodeMapped bool
-	mapFailed     bool
-	loggedAnilist bool
-	lastProgress  mpv.Progress
+	episodeID             int64
+	anilistID             int
+	episodeNum            int
+	animeTitle            string
+	synced                bool
+	realtimeSyncAttempted bool
+	episodeMapped         bool
+	mapFailed             bool
+	loggedAnilist         bool
+	lastProgress          mpv.Progress
 }
 
 func NewApp() *App {

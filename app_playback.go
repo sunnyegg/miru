@@ -62,6 +62,16 @@ func (a *App) PlayEpisode(episodeID int64) error {
 		a.playMu.Lock()
 		session.lastProgress = p
 		needsMap := !session.episodeMapped && !session.mapFailed
+		shouldSync := syncprogress.ShouldAttemptRealtimeSync(
+			p.Percent,
+			settings.SyncThreshold,
+			session.synced,
+			session.mapFailed,
+			session.realtimeSyncAttempted,
+		)
+		if shouldSync {
+			session.realtimeSyncAttempted = true
+		}
 		a.playMu.Unlock()
 
 		runtime.EventsEmit(a.ctx, "mpv:progress", PlaybackEvent{
@@ -76,6 +86,9 @@ func (a *App) PlayEpisode(episodeID int64) error {
 				return
 			}
 			_ = a.ensureSeasonEpisode(session, client)
+		}
+		if shouldSync {
+			a.maybeSync(session, p.Percent, settings.SyncThreshold)
 		}
 	}, func(exitErr error) {
 		a.clearDiscordPresence()
