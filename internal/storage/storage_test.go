@@ -94,6 +94,74 @@ func TestFailInterruptedDownloads(t *testing.T) {
 	}
 }
 
+func TestNextQueuedTorrentJob(t *testing.T) {
+	store := openTestStore(t)
+	firstID, err := store.InsertTorrentJob(TorrentJob{
+		Source:  "first.torrent",
+		DestDir: t.TempDir(),
+		Status:  "QUEUED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondID, err := store.InsertTorrentJob(TorrentJob{
+		Source:  "second.torrent",
+		DestDir: t.TempDir(),
+		Status:  "QUEUED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstID >= secondID {
+		t.Fatalf("insert order = %d, %d", firstID, secondID)
+	}
+
+	job, err := store.NextQueuedTorrentJob()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.ID != firstID {
+		t.Fatalf("next queued = %+v, want id %d", job, firstID)
+	}
+}
+
+func TestFailInterruptedDownloadsKeepsQueued(t *testing.T) {
+	store := openTestStore(t)
+	queuedID, err := store.InsertTorrentJob(TorrentJob{
+		Source:  "queued.torrent",
+		DestDir: t.TempDir(),
+		Status:  "QUEUED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	downloadingID, err := store.InsertTorrentJob(TorrentJob{
+		Source:  "magnet:?xt=urn:btih:abc",
+		DestDir: t.TempDir(),
+		Status:  "DOWNLOADING",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.FailInterruptedDownloads(); err != nil {
+		t.Fatal(err)
+	}
+	queued, err := store.TorrentJobByID(queuedID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if queued.Status != "QUEUED" {
+		t.Fatalf("queued = %+v", queued)
+	}
+	downloading, err := store.TorrentJobByID(downloadingID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if downloading.Status != "FAILED" {
+		t.Fatalf("downloading = %+v", downloading)
+	}
+}
+
 func TestListTorrentJobs(t *testing.T) {
 	store := openTestStore(t)
 	first, err := store.InsertTorrentJob(TorrentJob{

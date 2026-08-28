@@ -6,6 +6,7 @@ export type SettingsView = {
   syncThreshold: number
   downloadRateLimit: number
   uploadRateLimit: number
+  maxConcurrentDownloads: number
   networkMode: string
   socks5Address: string
 }

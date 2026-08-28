@@ -27,6 +27,14 @@ func (m *Manager) ensureClient(dataDir string, limits RateLimits, networkConfig 
 	networkKey := normalizedNetwork.Mode + ":" + normalizedNetwork.Address
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.client != nil && len(m.sessions) > 0 {
+		if m.dataDir != dataDir {
+			return nil, errors.New("finish active downloads before changing the download folder")
+		}
+		if m.networkKey != networkKey {
+			return nil, errors.New("stop active downloads before changing networking")
+		}
+	}
 	if m.client != nil && m.dataDir == dataDir && m.networkKey == networkKey {
 		m.applyRateLimitsLocked(limits)
 		return m.client, nil

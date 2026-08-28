@@ -51,6 +51,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
     try {
       await StartMagnet(magnet.trim())
       setMagnet('')
+      await refreshHistory()
     } catch (err) {
       notice(errorMessage(err), true)
     } finally {
@@ -62,17 +63,6 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
     setBusy(true)
     try {
       await StartTorrentFile()
-    } catch (err) {
-      notice(errorMessage(err), true)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function cancel() {
-    setBusy(true)
-    try {
-      await CancelDownload()
       await refreshHistory()
     } catch (err) {
       notice(errorMessage(err), true)
@@ -81,10 +71,10 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
     }
   }
 
-  async function pause() {
+  async function cancel(id: number) {
     setBusy(true)
     try {
-      await PauseDownload()
+      await CancelDownload(id)
       await refreshHistory()
     } catch (err) {
       notice(errorMessage(err), true)
@@ -93,10 +83,22 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
     }
   }
 
-  async function resume() {
+  async function pause(id: number) {
     setBusy(true)
     try {
-      await ResumeDownload()
+      await PauseDownload(id)
+      await refreshHistory()
+    } catch (err) {
+      notice(errorMessage(err), true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function resume(id: number) {
+    setBusy(true)
+    try {
+      await ResumeDownload(id)
       await refreshHistory()
     } catch (err) {
       notice(errorMessage(err), true)
@@ -150,13 +152,13 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
     }
   }
 
-  const activeJob = jobs.find((item) => item.live)
-
   return (
     <section className="flex h-full flex-col gap-6">
       <header>
         <h2 className="text-2xl font-semibold">Downloads</h2>
-        <p className="mt-1 text-sm text-muted-foreground">One active torrent at a time. Completed files seed until 0.5x upload ratio.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Up to your max concurrent setting can download at once. Extra torrents wait in queue. Completed files seed until 0.5x upload ratio.
+        </p>
       </header>
 
       <form
@@ -175,10 +177,10 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
           placeholder="magnet:?xt=urn:btih:..."
         />
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={busy || !magnet.trim() || Boolean(activeJob)}>
+          <Button type="submit" disabled={busy || !magnet.trim()}>
             Add magnet
           </Button>
-          <Button type="button" variant="secondary" onClick={() => void startFile()} disabled={busy || Boolean(activeJob)}>
+          <Button type="button" variant="secondary" onClick={() => void startFile()} disabled={busy}>
             Open .torrent
           </Button>
           <Button type="button" variant="ghost" onClick={() => void openFolder()}>
@@ -203,6 +205,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
             const isDownloading = item.status === 'DOWNLOADING'
             const isPaused = item.status === 'PAUSED'
             const isSeeding = item.status === 'SEEDING'
+            const isQueued = item.status === 'QUEUED'
             const isLive = Boolean(item.live)
             const confirmingDelete = pendingDeleteId === item.id
 
@@ -213,13 +216,21 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
                 </Button>
               </div>
             )
-            if (isLive && isPaused) {
+            if (isQueued) {
               actions = (
                 <div className="flex flex-wrap gap-2">
-                  <Button type="button" onClick={() => void resume()} disabled={busy}>
+                  <Button type="button" variant="destructive" onClick={() => void cancel(item.id)} disabled={busy}>
+                    Cancel
+                  </Button>
+                </div>
+              )
+            } else if (isLive && isPaused) {
+              actions = (
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" onClick={() => void resume(item.id)} disabled={busy}>
                     Resume
                   </Button>
-                  <Button type="button" variant="destructive" onClick={() => void cancel()} disabled={busy}>
+                  <Button type="button" variant="destructive" onClick={() => void cancel(item.id)} disabled={busy}>
                     Cancel
                   </Button>
                 </div>
@@ -227,7 +238,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
             } else if (isLive) {
               actions = (
                 <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="secondary" onClick={() => void pause()} disabled={busy}>
+                  <Button type="button" variant="secondary" onClick={() => void pause(item.id)} disabled={busy}>
                     Pause
                   </Button>
                   {isSeeding && (
@@ -235,7 +246,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
                       Finish
                     </Button>
                   )}
-                  <Button type="button" variant="destructive" onClick={() => void cancel()} disabled={busy}>
+                  <Button type="button" variant="destructive" onClick={() => void cancel(item.id)} disabled={busy}>
                     Cancel
                   </Button>
                 </div>
@@ -243,7 +254,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
             } else if (isSeeding) {
               actions = (
                 <div className="flex flex-wrap gap-2">
-                  <Button type="button" onClick={() => void resumeSeeding(item.id)} disabled={busy || Boolean(activeJob)}>
+                  <Button type="button" onClick={() => void resumeSeeding(item.id)} disabled={busy}>
                     Resume
                   </Button>
                   <Button type="button" variant="secondary" onClick={() => void finish(item.id)} disabled={busy}>
@@ -280,7 +291,9 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
                   </div>
                   {actions}
                 </div>
-                <Progress className="mt-3" value={Math.min(100, Math.max(0, item.percent))} />
+                {!isQueued && (
+                  <Progress className="mt-3" value={Math.min(100, Math.max(0, item.percent))} />
+                )}
                 {item.error && <p className="mt-2 text-sm text-destructive">{item.error}</p>}
               </Card>
             )

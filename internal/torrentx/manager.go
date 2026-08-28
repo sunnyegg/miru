@@ -14,6 +14,11 @@ import (
 	"golang.org/x/time/rate"
 )
 
+const (
+	minConcurrentDownloads = 1
+	maxConcurrentDownloads = 8
+)
+
 type JobView struct {
 	ID                        int64   `json:"id"`
 	Name                      string  `json:"name"`
@@ -31,19 +36,19 @@ type JobView struct {
 }
 
 type Manager struct {
-	store        *storage.Store
-	mu           sync.Mutex
-	client       *torrent.Client
-	dataDir      string
-	networkKey   string
-	uploadRate   *rate.Limiter
-	downloadRate *rate.Limiter
-	current      *torrent.Torrent
-	job          storage.TorrentJob
-	pausedFrom   string
-	uploadOffset int64
-	onProgress   func(JobView)
-	onComplete   func([]string)
+	store         *storage.Store
+	mu            sync.Mutex
+	client        *torrent.Client
+	dataDir       string
+	networkKey    string
+	uploadRate    *rate.Limiter
+	downloadRate  *rate.Limiter
+	sessions      map[int64]*session
+	maxConcurrent int
+	limits        RateLimits
+	networkConfig networking.Config
+	onProgress    func(JobView)
+	onComplete    func([]string)
 }
 
 type RateLimits struct {
@@ -52,7 +57,11 @@ type RateLimits struct {
 }
 
 func NewManager(store *storage.Store) *Manager {
-	return &Manager{store: store}
+	return &Manager{
+		store:         store,
+		sessions:      make(map[int64]*session),
+		maxConcurrent: minConcurrentDownloads,
+	}
 }
 
 func (m *Manager) SetCallbacks(onProgress func(JobView), onComplete func([]string)) {
@@ -60,6 +69,33 @@ func (m *Manager) SetCallbacks(onProgress func(JobView), onComplete func([]strin
 	defer m.mu.Unlock()
 	m.onProgress = onProgress
 	m.onComplete = onComplete
+}
+
+func (m *Manager) SetQueueConfig(limits RateLimits, networkConfig networking.Config) {
+	m.rememberConfig(limits, networkConfig)
+}
+
+func (m *Manager) SetMaxConcurrent(max int) {
+	if max < minConcurrentDownloads {
+		max = minConcurrentDownloads
+	}
+	if max > maxConcurrentDownloads {
+		max = maxConcurrentDownloads
+	}
+	m.mu.Lock()
+	m.maxConcurrent = max
+	m.mu.Unlock()
+	m.PumpQueue()
+}
+
+func ClampMaxConcurrent(max int) int {
+	if max < minConcurrentDownloads {
+		return minConcurrentDownloads
+	}
+	if max > maxConcurrentDownloads {
+		return maxConcurrentDownloads
+	}
+	return max
 }
 
 func JobPercent(completed, total int64) float64 {
@@ -103,8 +139,8 @@ func UploadRatio(uploaded, total int64) float64 {
 
 func (m *Manager) Status() (JobView, error) {
 	m.mu.Lock()
-	if m.job.ID != 0 && m.current != nil {
-		view := liveView(m.job)
+	for _, session := range m.sessions {
+		view := liveView(session.job)
 		m.mu.Unlock()
 		return view, nil
 	}
@@ -123,16 +159,16 @@ func (m *Manager) History() ([]JobView, error) {
 		return nil, err
 	}
 	m.mu.Lock()
-	liveID := int64(0)
-	if m.current != nil {
-		liveID = m.job.ID
+	liveIDs := make(map[int64]struct{}, len(m.sessions))
+	for jobID := range m.sessions {
+		liveIDs[jobID] = struct{}{}
 	}
 	m.mu.Unlock()
 
 	views := make([]JobView, 0, len(jobs))
 	for _, job := range jobs {
 		view := ToView(job)
-		view.Live = job.ID == liveID
+		_, view.Live = liveIDs[job.ID]
 		views = append(views, view)
 	}
 	return views, nil
@@ -141,7 +177,7 @@ func (m *Manager) History() ([]JobView, error) {
 func (m *Manager) Busy() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.job.ID != 0 && isActiveStatus(m.job.Status)
+	return len(m.sessions) > 0
 }
 
 func isActiveStatus(status string) bool {
@@ -159,70 +195,147 @@ func (m *Manager) Start(source, destDir string, limits RateLimits, networkConfig
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return err
 	}
-	if m.Busy() {
-		return errors.New("a download is already running")
-	}
+
+	m.rememberConfig(limits, networkConfig)
 
 	job := storage.TorrentJob{
 		Source:  source,
 		DestDir: destDir,
 		Name:    displaySource(source),
-		Status:  "DOWNLOADING",
+		Status:  "QUEUED",
 	}
 	id, err := m.store.InsertTorrentJob(job)
 	if err != nil {
 		return err
 	}
 	job.ID = id
+	m.emitProgress(ToView(job))
+	m.PumpQueue()
+	return nil
+}
 
-	client, err := m.ensureClient(destDir, limits, networkConfig)
+func (m *Manager) activateJob(job storage.TorrentJob, limits RateLimits, networkConfig networking.Config) error {
+	m.rememberConfig(limits, networkConfig)
+
+	if job.DestDir == "" {
+		return errors.New("download folder is empty")
+	}
+	if err := os.MkdirAll(job.DestDir, 0o755); err != nil {
+		return err
+	}
+
+	client, err := m.ensureClient(job.DestDir, limits, networkConfig)
 	if err != nil {
 		job.Status = "FAILED"
 		job.Error = err.Error()
 		_ = m.store.UpdateTorrentJob(job)
+		m.emitProgress(ToView(job))
+		m.PumpQueue()
 		return err
 	}
 
 	sourceHTTP, err := networkConfig.HTTPClient()
 	if err != nil {
+		job.Status = "FAILED"
+		job.Error = err.Error()
+		_ = m.store.UpdateTorrentJob(job)
+		m.emitProgress(ToView(job))
+		m.PumpQueue()
 		return err
 	}
-	t, err := addSource(client, source, sourceHTTP)
+	torrentHandle, err := addSource(client, job.Source, sourceHTTP)
 	if err != nil {
 		job.Status = "FAILED"
 		job.Error = err.Error()
 		_ = m.store.UpdateTorrentJob(job)
+		m.emitProgress(ToView(job))
+		m.PumpQueue()
+		return err
+	}
+
+	job.Status = "DOWNLOADING"
+	job.Error = ""
+	if err := m.store.UpdateTorrentJob(job); err != nil {
+		torrentHandle.Drop()
 		return err
 	}
 
 	m.mu.Lock()
-	m.current = t
-	m.job = job
-	m.uploadOffset = 0
+	m.sessions[job.ID] = &session{
+		torrent: torrentHandle,
+		job:     job,
+	}
 	m.mu.Unlock()
 
-	go m.run(t, job.ID)
+	go m.run(torrentHandle, job.ID)
+	m.emitProgress(liveView(job))
 	return nil
 }
 
-func (m *Manager) Cancel() error {
-	m.mu.Lock()
-	t := m.current
-	job := m.job
-	m.current = nil
-	if job.ID != 0 && isActiveStatus(job.Status) {
+func (m *Manager) PumpQueue() {
+	for {
+		m.mu.Lock()
+		if m.downloadingCountLocked() >= m.maxConcurrent {
+			m.mu.Unlock()
+			return
+		}
+		limits := m.limits
+		networkConfig := m.networkConfig
+		m.mu.Unlock()
+
+		job, err := m.store.NextQueuedTorrentJob()
+		if errors.Is(err, storage.ErrNotFound) {
+			return
+		}
+		if err != nil {
+			return
+		}
+
+		if activateErr := m.activateJob(job, limits, networkConfig); activateErr != nil {
+			continue
+		}
+	}
+}
+
+func (m *Manager) Cancel(id int64) error {
+	job, err := m.store.TorrentJobByID(id)
+	if err != nil {
+		return err
+	}
+
+	if job.Status == "QUEUED" {
 		job.Status = "CANCELLED"
 		job.Error = "cancelled"
-		m.job = job
+		if err := m.store.UpdateTorrentJob(job); err != nil {
+			return err
+		}
+		m.emitProgress(ToView(job))
+		return nil
 	}
+
+	m.mu.Lock()
+	session, ok := m.sessionByID(id)
+	if !ok {
+		m.mu.Unlock()
+		return errors.New("no active download to cancel")
+	}
+	torrentHandle := session.torrent
+	if isActiveStatus(session.job.Status) {
+		session.job.Status = "CANCELLED"
+		session.job.Error = "cancelled"
+	}
+	job = session.job
+	delete(m.sessions, id)
 	m.mu.Unlock()
 
-	if t != nil {
-		t.Drop()
+	if torrentHandle != nil {
+		torrentHandle.Drop()
 	}
-	if job.ID != 0 {
-		return m.store.UpdateTorrentJob(job)
+	if err := m.store.UpdateTorrentJob(job); err != nil {
+		return err
 	}
+	m.emitProgress(ToView(job))
+	m.PumpQueue()
 	return nil
 }
 
@@ -233,21 +346,21 @@ func (m *Manager) Remove(id int64, deleteFiles bool) error {
 	}
 
 	m.mu.Lock()
-	active := m.current
-	if m.job.ID == id {
-		m.current = nil
-		m.job = storage.TorrentJob{}
-	} else {
-		active = nil
-	}
+	torrentHandle := m.removeSessionLocked(id)
 	m.mu.Unlock()
 
-	if active != nil {
-		active.Drop()
+	if torrentHandle != nil {
+		torrentHandle.Drop()
 	}
 
 	if !deleteFiles {
-		return m.store.DeleteTorrentJob(id)
+		if err := m.store.DeleteTorrentJob(id); err != nil {
+			return err
+		}
+		if job.Status == "DOWNLOADING" || job.Status == "QUEUED" {
+			m.PumpQueue()
+		}
+		return nil
 	}
 
 	destDir := filepath.Clean(job.DestDir)
@@ -260,52 +373,76 @@ func (m *Manager) Remove(id int64, deleteFiles bool) error {
 		}
 	}
 
-	return m.store.DeleteTorrentJob(id)
+	if err := m.store.DeleteTorrentJob(id); err != nil {
+		return err
+	}
+	if job.Status == "DOWNLOADING" || job.Status == "QUEUED" {
+		m.PumpQueue()
+	}
+	return nil
 }
 
-func (m *Manager) Pause() error {
+func (m *Manager) Pause(id int64) error {
 	m.mu.Lock()
-	t := m.current
-	job := m.job
-	if t == nil || job.ID == 0 || (job.Status != "DOWNLOADING" && job.Status != "SEEDING") {
+	session, ok := m.sessionByID(id)
+	if !ok {
+		m.mu.Unlock()
+		return errors.New("no active download to pause")
+	}
+	torrentHandle := session.torrent
+	job := session.job
+	if torrentHandle == nil || job.Status != "DOWNLOADING" && job.Status != "SEEDING" {
 		m.mu.Unlock()
 		return errors.New("no active download to pause")
 	}
 	previous := job.Status
-	m.pausedFrom = previous
+	session.pausedFrom = previous
 	job.Status = "PAUSED"
-	m.job = job
+	session.job = job
 	m.mu.Unlock()
 
 	if previous == "SEEDING" {
-		t.DisallowDataUpload()
-	} else if t.Info() != nil {
-		t.CancelPieces(0, t.NumPieces())
+		torrentHandle.DisallowDataUpload()
+	} else if torrentHandle.Info() != nil {
+		torrentHandle.CancelPieces(0, torrentHandle.NumPieces())
 	}
-	return m.persistAndEmit(job.ID)
+	if err := m.persistAndEmit(job.ID); err != nil {
+		return err
+	}
+	m.PumpQueue()
+	return nil
 }
 
-func (m *Manager) Resume() error {
+func (m *Manager) Resume(id int64) error {
 	m.mu.Lock()
-	t := m.current
-	job := m.job
-	previous := m.pausedFrom
-	if t == nil || job.ID == 0 || job.Status != "PAUSED" {
+	session, ok := m.sessionByID(id)
+	if !ok {
+		m.mu.Unlock()
+		return errors.New("no paused download to resume")
+	}
+	torrentHandle := session.torrent
+	job := session.job
+	previous := session.pausedFrom
+	if torrentHandle == nil || job.Status != "PAUSED" {
 		m.mu.Unlock()
 		return errors.New("no paused download to resume")
 	}
 	if previous == "" {
 		previous = "DOWNLOADING"
 	}
+	if previous == "DOWNLOADING" && m.downloadingCountLocked() >= m.maxConcurrent {
+		m.mu.Unlock()
+		return errors.New("all download slots are in use")
+	}
 	job.Status = previous
-	m.job = job
-	m.pausedFrom = ""
+	session.job = job
+	session.pausedFrom = ""
 	m.mu.Unlock()
 
 	if previous == "SEEDING" {
-		t.AllowDataUpload()
-	} else if t.Info() != nil {
-		t.DownloadAll()
+		torrentHandle.AllowDataUpload()
+	} else if torrentHandle.Info() != nil {
+		torrentHandle.DownloadAll()
 	}
 	return m.persistAndEmit(job.ID)
 }
@@ -316,11 +453,13 @@ func (m *Manager) persistAndEmit(jobID int64) error {
 		return err
 	}
 	m.mu.Lock()
-	cb := m.onProgress
+	_, live := m.sessionByID(jobID)
 	m.mu.Unlock()
-	if cb != nil {
-		cb(liveView(job))
+	if live {
+		m.emitProgress(liveView(job))
+		return nil
 	}
+	m.emitProgress(ToView(job))
 	return nil
 }
 
@@ -332,15 +471,14 @@ func (m *Manager) ResumeSeeding(id int64, limits RateLimits, networkConfig netwo
 	if job.Status != "SEEDING" {
 		return errors.New("download is not waiting to seed")
 	}
-	if m.Busy() {
-		return errors.New("a download is already running")
-	}
 	if job.DestDir == "" {
 		return errors.New("download folder is empty")
 	}
 	if err := os.MkdirAll(job.DestDir, 0o755); err != nil {
 		return err
 	}
+
+	m.rememberConfig(limits, networkConfig)
 
 	client, err := m.ensureClient(job.DestDir, limits, networkConfig)
 	if err != nil {
@@ -350,28 +488,33 @@ func (m *Manager) ResumeSeeding(id int64, limits RateLimits, networkConfig netwo
 	if err != nil {
 		return err
 	}
-	t, err := addSource(client, job.Source, sourceHTTP)
+	torrentHandle, err := addSource(client, job.Source, sourceHTTP)
 	if err != nil {
 		return err
 	}
 
 	m.mu.Lock()
-	m.current = t
-	m.job = job
-	m.uploadOffset = job.BytesUploaded
+	m.sessions[job.ID] = &session{
+		torrent:      torrentHandle,
+		job:          job,
+		uploadOffset: job.BytesUploaded,
+	}
 	m.mu.Unlock()
 
-	go m.run(t, job.ID)
+	go m.run(torrentHandle, job.ID)
 	return nil
 }
 
 func (m *Manager) Finish(id int64) error {
 	m.mu.Lock()
-	live := m.job.ID == id && m.current != nil && m.job.Status == "SEEDING"
-	t := m.current
+	session, live := m.sessionByID(id)
+	var torrentHandle *torrent.Torrent
+	if live && session.job.Status == "SEEDING" {
+		torrentHandle = session.torrent
+	}
 	m.mu.Unlock()
-	if live {
-		m.finish(t, id)
+	if live && torrentHandle != nil {
+		m.finish(torrentHandle, id)
 		return nil
 	}
 
@@ -390,12 +533,9 @@ func (m *Manager) Finish(id int64) error {
 	}
 
 	m.mu.Lock()
-	progress := m.onProgress
 	complete := m.onComplete
 	m.mu.Unlock()
-	if progress != nil {
-		progress(ToView(job))
-	}
+	m.emitProgress(ToView(job))
 	if complete != nil {
 		complete(videoFilesFromDisk(job.DestDir, job.Name))
 	}
@@ -404,25 +544,27 @@ func (m *Manager) Finish(id int64) error {
 
 func (m *Manager) Close() {
 	m.mu.Lock()
-	t := m.current
-	job := m.job
-	client := m.client
-	m.current = nil
-	m.job = storage.TorrentJob{}
-	m.client = nil
-	m.pausedFrom = ""
-	m.uploadOffset = 0
-	if job.ID != 0 && isActiveStatus(job.Status) && job.Status != "SEEDING" {
-		job.Status = "CANCELLED"
-		job.Error = "cancelled"
+	sessions := make([]*session, 0, len(m.sessions))
+	for _, session := range m.sessions {
+		sessions = append(sessions, session)
 	}
+	client := m.client
+	m.sessions = make(map[int64]*session)
+	m.client = nil
+	m.dataDir = ""
+	m.networkKey = ""
 	m.mu.Unlock()
 
-	if t != nil {
-		t.Drop()
-	}
-	if job.ID != 0 {
-		_ = m.store.UpdateTorrentJob(job)
+	for _, session := range sessions {
+		if session.torrent != nil {
+			session.torrent.Drop()
+		}
+		job := session.job
+		if job.ID != 0 && isActiveStatus(job.Status) && job.Status != "SEEDING" {
+			job.Status = "CANCELLED"
+			job.Error = "cancelled"
+			_ = m.store.UpdateTorrentJob(job)
+		}
 	}
 	if client != nil {
 		client.Close()
@@ -432,16 +574,18 @@ func (m *Manager) Close() {
 func (m *Manager) update(jobID int64, fn func(*storage.TorrentJob)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.job.ID == jobID {
-		fn(&m.job)
+	session, ok := m.sessionByID(jobID)
+	if ok {
+		fn(&session.job)
 	}
 }
 
 func (m *Manager) snapshot(jobID int64) storage.TorrentJob {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.job.ID == jobID {
-		return m.job
+	session, ok := m.sessionByID(jobID)
+	if ok {
+		return session.job
 	}
 	return storage.TorrentJob{ID: jobID}
 }

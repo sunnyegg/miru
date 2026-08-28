@@ -222,6 +222,7 @@ export namespace main {
 	    syncThreshold: number;
 	    downloadRateLimit: number;
 	    uploadRateLimit: number;
+	    maxConcurrentDownloads: number;
 	    networkMode: string;
 	    socks5Address: string;
 	
@@ -236,6 +237,7 @@ export namespace main {
 	        this.syncThreshold = source["syncThreshold"];
 	        this.downloadRateLimit = source["downloadRateLimit"];
 	        this.uploadRateLimit = source["uploadRateLimit"];
+	        this.maxConcurrentDownloads = source["maxConcurrentDownloads"];
 	        this.networkMode = source["networkMode"];
 	        this.socks5Address = source["socks5Address"];
 	    }

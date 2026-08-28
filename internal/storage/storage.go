@@ -11,7 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const currentVersion = 4
+const currentVersion = 5
 
 var ErrNotFound = errors.New("not found")
 
@@ -74,6 +74,11 @@ func (s *Store) migrate() error {
 	}
 	if version < 4 {
 		if _, err := tx.Exec(schemaV4); err != nil {
+			return err
+		}
+	}
+	if version < 5 {
+		if _, err := tx.Exec(schemaV5); err != nil {
 			return err
 		}
 	}
@@ -178,6 +183,34 @@ CREATE TABLE IF NOT EXISTS api_cache (
 
 const schemaV4 = `
 ALTER TABLE episode_downloads ADD COLUMN resume_position REAL NOT NULL DEFAULT 0;
+`
+
+const schemaV5 = `
+ALTER TABLE torrent_jobs RENAME TO torrent_jobs_v4;
+
+CREATE TABLE torrent_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    info_hash TEXT,
+    source TEXT NOT NULL,
+    dest_dir TEXT NOT NULL,
+    name TEXT,
+    status TEXT NOT NULL CHECK(status IN ('QUEUED', 'DOWNLOADING', 'PAUSED', 'SEEDING', 'COMPLETED', 'FAILED', 'CANCELLED')),
+    bytes_completed INTEGER DEFAULT 0,
+    bytes_total INTEGER DEFAULT 0,
+    bytes_uploaded INTEGER DEFAULT 0,
+    error TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO torrent_jobs(
+    id, info_hash, source, dest_dir, name, status, bytes_completed, bytes_total, bytes_uploaded, error, created_at, updated_at
+)
+SELECT
+    id, info_hash, source, dest_dir, name, status, bytes_completed, bytes_total, bytes_uploaded, error, created_at, updated_at
+FROM torrent_jobs_v4;
+
+DROP TABLE torrent_jobs_v4;
 `
 
 func (s *Store) GetSetting(key string) (string, error) {

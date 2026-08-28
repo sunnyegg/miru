@@ -7,7 +7,7 @@ export function AnilistStatus():Promise<main.AnilistStatus>;
 
 export function BindEpisode(arg1:number,arg2:number):Promise<void>;
 
-export function CancelDownload():Promise<void>;
+export function CancelDownload(arg1:number):Promise<void>;
 
 export function DetectMpv():Promise<string>;
 
@@ -37,7 +37,7 @@ export function OpenAnilistLogin():Promise<void>;
 
 export function OpenDownloadFolder():Promise<void>;
 
-export function PauseDownload():Promise<void>;
+export function PauseDownload(arg1:number):Promise<void>;
 
 export function PickDownloadDir():Promise<string>;
 
@@ -47,7 +47,7 @@ export function PlayEpisode(arg1:number):Promise<void>;
 
 export function RemoveDownload(arg1:number,arg2:boolean):Promise<void>;
 
-export function ResumeDownload():Promise<void>;
+export function ResumeDownload(arg1:number):Promise<void>;
 
 export function ResumeSeeding(arg1:number):Promise<void>;
 
@@ -57,7 +57,7 @@ export function SaveAnilistToken(arg1:string):Promise<void>;
 
 export function SaveAnimeListEntry(arg1:main.AnimeListEntryInput):Promise<void>;
 
-export function SaveDownloadSettings(arg1:string,arg2:number,arg3:number):Promise<void>;
+export function SaveDownloadSettings(arg1:string,arg2:number,arg3:number,arg4:number):Promise<void>;
 
 export function SaveNetworkSettings(arg1:string,arg2:string):Promise<void>;
 

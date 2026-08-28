@@ -34,8 +34,15 @@ func (m *Manager) run(t *torrent.Torrent, jobID int64) {
 	total := t.Length()
 	hash := t.InfoHash().HexString()
 	m.mu.Lock()
-	status := m.job.Status
+	session, ok := m.sessionByID(jobID)
+	status := ""
+	if ok {
+		status = session.job.Status
+	}
 	m.mu.Unlock()
+	if !ok {
+		return
+	}
 	if status == "DOWNLOADING" {
 		t.DownloadAll()
 	}
@@ -54,7 +61,8 @@ func (m *Manager) run(t *torrent.Torrent, jobID int64) {
 
 	for range ticker.C {
 		m.mu.Lock()
-		if m.current != t || m.job.ID != jobID || !isActiveStatus(m.job.Status) {
+		session, ok = m.sessionByID(jobID)
+		if !ok || session.torrent != t || !isActiveStatus(session.job.Status) {
 			m.mu.Unlock()
 			return
 		}
@@ -66,26 +74,24 @@ func (m *Manager) run(t *torrent.Torrent, jobID int64) {
 		lastBytes = completed
 		lastUploaded = uploaded
 		lastAt = now
-		m.job.BytesCompleted = completed
-		m.job.BytesTotal = total
-		m.job.BytesUploaded = m.uploadOffset + uploaded
-		if info != nil && m.job.Name == "" {
-			m.job.Name = name
+		session.job.BytesCompleted = completed
+		session.job.BytesTotal = total
+		session.job.BytesUploaded = session.uploadOffset + uploaded
+		if info != nil && session.job.Name == "" {
+			session.job.Name = name
 		}
-		view := liveView(m.job)
+		view := liveView(session.job)
 		view.SpeedBytesPerSecond = speed
 		view.UploadSpeedBytesPerSecond = uploadSpeed
-		cb := m.onProgress
-		downloadDone := m.job.Status == "DOWNLOADING" && completed >= total && total > 0
-		seedingDone := m.job.Status == "SEEDING" && seedingComplete(m.job.BytesUploaded, total)
+		downloadDone := session.job.Status == "DOWNLOADING" && completed >= total && total > 0
+		seedingDone := session.job.Status == "SEEDING" && seedingComplete(session.job.BytesUploaded, total)
 		m.mu.Unlock()
 
 		_ = m.store.UpdateTorrentJob(m.snapshot(jobID))
-		if cb != nil {
-			cb(view)
-		}
+		m.emitProgress(view)
 		if downloadDone {
 			m.startSeeding(jobID)
+			m.PumpQueue()
 			continue
 		}
 		if seedingDone {
@@ -101,16 +107,18 @@ func seedingComplete(uploaded, total int64) bool {
 
 func (m *Manager) startSeeding(jobID int64) {
 	m.mu.Lock()
-	if m.job.ID == jobID && m.job.Status == "DOWNLOADING" {
-		m.job.Status = "SEEDING"
+	session, ok := m.sessionByID(jobID)
+	if !ok {
+		m.mu.Unlock()
+		return
 	}
-	job := m.job
-	cb := m.onProgress
+	if session.job.Status == "DOWNLOADING" {
+		session.job.Status = "SEEDING"
+	}
+	job := session.job
 	m.mu.Unlock()
 	_ = m.store.UpdateTorrentJob(job)
-	if cb != nil {
-		cb(liveView(job))
-	}
+	m.emitProgress(liveView(job))
 }
 
 func bytesPerSecond(bytes int64, elapsed time.Duration) int64 {
@@ -130,44 +138,49 @@ func (m *Manager) finish(t *torrent.Torrent, jobID int64) {
 	files := videoFiles(t)
 
 	m.mu.Lock()
-	if m.job.ID == jobID {
-		m.job.Status = "COMPLETED"
-		m.job.BytesCompleted = t.BytesCompleted()
-		m.job.BytesUploaded = m.uploadOffset + uploadedBytes(t)
-		m.job.Error = ""
-		m.current = nil
+	session, ok := m.sessionByID(jobID)
+	if ok {
+		session.job.Status = "COMPLETED"
+		session.job.BytesCompleted = t.BytesCompleted()
+		session.job.BytesUploaded = session.uploadOffset + uploadedBytes(t)
+		session.job.Error = ""
+		delete(m.sessions, jobID)
 	}
-	job := m.job
+	job := storage.TorrentJob{ID: jobID}
+	if ok {
+		job = session.job
+	}
 	complete := m.onComplete
-	progress := m.onProgress
 	m.mu.Unlock()
 
 	_ = m.store.UpdateTorrentJob(job)
-	if progress != nil {
-		progress(ToView(job))
-	}
+	m.emitProgress(ToView(job))
 	if complete != nil {
 		complete(files)
 	}
+	m.PumpQueue()
 }
 
 func (m *Manager) fail(jobID int64, err error) {
 	m.mu.Lock()
-	if m.current != nil {
-		m.current.Drop()
-		m.current = nil
+	session, ok := m.sessionByID(jobID)
+	var torrentHandle *torrent.Torrent
+	if ok {
+		torrentHandle = session.torrent
+		session.job.Status = "FAILED"
+		session.job.Error = err.Error()
+		job := session.job
+		delete(m.sessions, jobID)
+		m.mu.Unlock()
+		if torrentHandle != nil {
+			torrentHandle.Drop()
+		}
+		_ = m.store.UpdateTorrentJob(job)
+		m.emitProgress(ToView(job))
+		m.PumpQueue()
+		return
 	}
-	if m.job.ID == jobID {
-		m.job.Status = "FAILED"
-		m.job.Error = err.Error()
-	}
-	job := m.job
-	cb := m.onProgress
 	m.mu.Unlock()
-	_ = m.store.UpdateTorrentJob(job)
-	if cb != nil {
-		cb(ToView(job))
-	}
 }
 
 func videoFiles(t *torrent.Torrent) []string {

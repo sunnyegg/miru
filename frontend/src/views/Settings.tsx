@@ -28,6 +28,7 @@ const empty: SettingsView = {
   syncThreshold: 85,
   downloadRateLimit: 0,
   uploadRateLimit: 0,
+  maxConcurrentDownloads: 1,
   networkMode: 'system',
   socks5Address: '127.0.0.1:1080',
 }
@@ -56,6 +57,7 @@ export function SettingsView({notice, refreshKey}: Props) {
         syncThreshold: settings?.syncThreshold || 85,
         downloadRateLimit: bytesToKb(settings?.downloadRateLimit ?? 0),
         uploadRateLimit: bytesToKb(settings?.uploadRateLimit ?? 0),
+        maxConcurrentDownloads: settings?.maxConcurrentDownloads ?? 1,
         networkMode: settings?.networkMode ?? 'system',
         socks5Address: settings?.socks5Address ?? '127.0.0.1:1080',
       })
@@ -197,7 +199,13 @@ export function SettingsView({notice, refreshKey}: Props) {
             e.preventDefault()
             void saveSection(
               'downloads',
-              () => SaveDownloadSettings(form.downloadDir, kbToBytes(form.downloadRateLimit), kbToBytes(form.uploadRateLimit)),
+              () =>
+                SaveDownloadSettings(
+                  form.downloadDir,
+                  kbToBytes(form.downloadRateLimit),
+                  kbToBytes(form.uploadRateLimit),
+                  form.maxConcurrentDownloads,
+                ),
               'Downloads saved',
             )
           }}
@@ -241,6 +249,19 @@ export function SettingsView({notice, refreshKey}: Props) {
                 className="w-32 border-border/40 bg-card"
               />
               <p className="mt-1 text-xs text-muted-foreground">0 = unlimited</p>
+            </Field>
+            <Field label="Max concurrent downloads" htmlFor="maxConcurrentDownloads">
+              <Input
+                id="maxConcurrentDownloads"
+                type="number"
+                min={1}
+                max={8}
+                step={1}
+                value={form.maxConcurrentDownloads}
+                onChange={(e) => setForm({...form, maxConcurrentDownloads: Number(e.target.value)})}
+                className="w-32 border-border/40 bg-card"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">Queued torrents start when a slot is free.</p>
             </Field>
             <Button type="submit" disabled={saving === 'downloads'} className="mt-4 w-fit">
               {saving === 'downloads' ? 'Saving…' : 'Save'}

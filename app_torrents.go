@@ -143,25 +143,25 @@ func (a *App) DownloadStatus() (*torrentx.JobView, error) {
 	return &view, nil
 }
 
-func (a *App) CancelDownload() error {
+func (a *App) CancelDownload(id int64) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
-	return a.torrents.Cancel()
+	return a.torrents.Cancel(id)
 }
 
-func (a *App) PauseDownload() error {
+func (a *App) PauseDownload(id int64) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
-	return a.torrents.Pause()
+	return a.torrents.Pause(id)
 }
 
-func (a *App) ResumeDownload() error {
+func (a *App) ResumeDownload(id int64) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
-	return a.torrents.Resume()
+	return a.torrents.Resume(id)
 }
 
 func (a *App) ResumeSeeding(id int64) error {

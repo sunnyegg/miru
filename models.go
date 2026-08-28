@@ -1,13 +1,14 @@
 package main
 
 type SettingsView struct {
-	MpvPath           string  `json:"mpvPath"`
-	DownloadDir       string  `json:"downloadDir"`
-	SyncThreshold     float64 `json:"syncThreshold"`
-	DownloadRateLimit int64   `json:"downloadRateLimit"`
-	UploadRateLimit   int64   `json:"uploadRateLimit"`
-	NetworkMode       string  `json:"networkMode"`
-	Socks5Address     string  `json:"socks5Address"`
+	MpvPath                string  `json:"mpvPath"`
+	DownloadDir            string  `json:"downloadDir"`
+	SyncThreshold          float64 `json:"syncThreshold"`
+	DownloadRateLimit      int64   `json:"downloadRateLimit"`
+	UploadRateLimit        int64   `json:"uploadRateLimit"`
+	MaxConcurrentDownloads int     `json:"maxConcurrentDownloads"`
+	NetworkMode            string  `json:"networkMode"`
+	Socks5Address          string  `json:"socks5Address"`
 }
 
 type EpisodeView struct {
@@ -81,21 +82,21 @@ type AnimeListEntryInput struct {
 }
 
 type WatchingEntryView struct {
-	MediaID       int           `json:"mediaId"`
-	ListStatus    string        `json:"listStatus"`
-	Progress      int           `json:"progress"`
-	ScoreRaw      int           `json:"scoreRaw"`
-	Notes         string        `json:"notes"`
-	Repeat        int           `json:"repeat"`
-	Private       bool          `json:"private"`
-	StartedAt     FuzzyDateView `json:"startedAt"`
-	CompletedAt   FuzzyDateView `json:"completedAt"`
-	TitleRomaji   string        `json:"titleRomaji"`
-	TitleEnglish  string        `json:"titleEnglish"`
-	CoverImage    string        `json:"coverImage"`
-	TotalEpisodes     int    `json:"totalEpisodes"`
-	MediaStatus       string `json:"mediaStatus"`
-	NextAiringEpisode int    `json:"nextAiringEpisode"`
+	MediaID           int           `json:"mediaId"`
+	ListStatus        string        `json:"listStatus"`
+	Progress          int           `json:"progress"`
+	ScoreRaw          int           `json:"scoreRaw"`
+	Notes             string        `json:"notes"`
+	Repeat            int           `json:"repeat"`
+	Private           bool          `json:"private"`
+	StartedAt         FuzzyDateView `json:"startedAt"`
+	CompletedAt       FuzzyDateView `json:"completedAt"`
+	TitleRomaji       string        `json:"titleRomaji"`
+	TitleEnglish      string        `json:"titleEnglish"`
+	CoverImage        string        `json:"coverImage"`
+	TotalEpisodes     int           `json:"totalEpisodes"`
+	MediaStatus       string        `json:"mediaStatus"`
+	NextAiringEpisode int           `json:"nextAiringEpisode"`
 }
 
 type NyaaResultView struct {

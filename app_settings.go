@@ -32,24 +32,33 @@ func (a *App) SavePlaybackSettings(mpvPath string) error {
 	})
 }
 
-func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, uploadRateLimit int64) error {
+func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, uploadRateLimit int64, maxConcurrentDownloads int) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
 	downloadRateLimit = normalizeRateLimit(downloadRateLimit)
 	uploadRateLimit = normalizeRateLimit(uploadRateLimit)
+	maxConcurrentDownloads = torrentx.ClampMaxConcurrent(maxConcurrentDownloads)
 	if err := a.setSettings(map[string]string{
-		"download_dir":        strings.TrimSpace(downloadDir),
-		"download_rate_limit": formatInt64(downloadRateLimit),
-		"upload_rate_limit":   formatInt64(uploadRateLimit),
+		"download_dir":             strings.TrimSpace(downloadDir),
+		"download_rate_limit":      formatInt64(downloadRateLimit),
+		"upload_rate_limit":        formatInt64(uploadRateLimit),
+		"max_concurrent_downloads": strconv.Itoa(maxConcurrentDownloads),
 	}); err != nil {
 		return err
 	}
 	if a.torrents != nil {
-		a.torrents.ApplyRateLimits(torrentx.RateLimits{
+		limits := torrentx.RateLimits{
 			Download: downloadRateLimit,
 			Upload:   uploadRateLimit,
-		})
+		}
+		settings, err := a.loadSettings()
+		if err != nil {
+			return err
+		}
+		a.torrents.SetQueueConfig(limits, networkConfig(settings))
+		a.torrents.ApplyRateLimits(limits)
+		a.torrents.SetMaxConcurrent(maxConcurrentDownloads)
 	}
 	return nil
 }
@@ -161,6 +170,7 @@ func (a *App) loadSettings() (SettingsView, error) {
 	}
 	view.DownloadRateLimit = settingInt64(a.store, "download_rate_limit")
 	view.UploadRateLimit = settingInt64(a.store, "upload_rate_limit")
+	view.MaxConcurrentDownloads = torrentx.ClampMaxConcurrent(settingInt(a.store, "max_concurrent_downloads", 1))
 	view.NetworkMode, _ = a.store.GetSetting("network_mode")
 	if view.NetworkMode == "" {
 		view.NetworkMode = networking.ModeSystem
@@ -200,6 +210,18 @@ func settingInt64(store *storage.Store, key string) int64 {
 func normalizeRateLimit(value int64) int64 {
 	if value < 0 {
 		return 0
+	}
+	return value
+}
+
+func settingInt(store *storage.Store, key string, defaultValue int) int {
+	raw, err := store.GetSetting(key)
+	if err != nil {
+		return defaultValue
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return defaultValue
 	}
 	return value
 }

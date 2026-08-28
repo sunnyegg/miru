@@ -1,6 +1,6 @@
 # Miru
 
-Portable Linux desktop app for playing local anime files in MPV, syncing watch progress to AniList, and downloading one torrent at a time.
+Portable Linux desktop app for playing local anime files in MPV, syncing watch progress to AniList, and downloading torrents with a configurable concurrent limit.
 
 ## Runtime dependencies (Linux)
 

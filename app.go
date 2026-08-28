@@ -21,10 +21,10 @@ import (
 )
 
 const (
-	apiCacheTTL          = 7 * 24 * time.Hour
-	currentListCacheTTL  = time.Hour
-	watchingCacheKey     = "watching"
-	completedCacheKey    = "completed"
+	apiCacheTTL         = 7 * 24 * time.Hour
+	currentListCacheTTL = time.Hour
+	watchingCacheKey    = "watching"
+	completedCacheKey   = "completed"
 )
 
 func animeListCacheKey(status string) string {
@@ -105,7 +105,22 @@ func (a *App) init() error {
 	if err := store.FailInterruptedDownloads(); err != nil {
 		return err
 	}
-	return a.ensureDefaults()
+	if err := a.ensureDefaults(); err != nil {
+		return err
+	}
+	return a.configureTorrents()
+}
+
+func (a *App) configureTorrents() error {
+	settings, err := a.loadSettings()
+	if err != nil {
+		return err
+	}
+	limits := torrentRateLimits(settings)
+	a.torrents.SetQueueConfig(limits, networkConfig(settings))
+	a.torrents.ApplyRateLimits(limits)
+	a.torrents.SetMaxConcurrent(settings.MaxConcurrentDownloads)
+	return nil
 }
 
 func (a *App) ensureDefaults() error {
@@ -120,6 +135,11 @@ func (a *App) ensureDefaults() error {
 			return err
 		}
 		if err := a.store.SetSetting("download_dir", dir); err != nil {
+			return err
+		}
+	}
+	if a.settingMissing("max_concurrent_downloads") {
+		if err := a.store.SetSetting("max_concurrent_downloads", "1"); err != nil {
 			return err
 		}
 	}

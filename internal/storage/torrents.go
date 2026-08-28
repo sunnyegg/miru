@@ -125,6 +125,34 @@ func (s *Store) ListTorrentJobs() ([]TorrentJob, error) {
 	return jobs, rows.Err()
 }
 
+func (s *Store) NextQueuedTorrentJob() (TorrentJob, error) {
+	row := s.db.QueryRow(
+		`SELECT id, COALESCE(info_hash, ''), source, dest_dir, COALESCE(name, ''), status,
+		        bytes_completed, bytes_total, bytes_uploaded, COALESCE(error, '')
+		 FROM torrent_jobs
+		 WHERE status = 'QUEUED'
+		 ORDER BY id ASC
+		 LIMIT 1`,
+	)
+	var job TorrentJob
+	err := row.Scan(
+		&job.ID, &job.InfoHash, &job.Source, &job.DestDir, &job.Name, &job.Status,
+		&job.BytesCompleted, &job.BytesTotal, &job.BytesUploaded, &job.Error,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return TorrentJob{}, ErrNotFound
+	}
+	return job, err
+}
+
+func (s *Store) CountDownloadingTorrentJobs() (int, error) {
+	var count int
+	err := s.db.QueryRow(
+		`SELECT COUNT(1) FROM torrent_jobs WHERE status = 'DOWNLOADING'`,
+	).Scan(&count)
+	return count, err
+}
+
 func (s *Store) FailInterruptedDownloads() error {
 	_, err := s.db.Exec(
 		`UPDATE torrent_jobs

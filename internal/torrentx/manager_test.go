@@ -104,6 +104,41 @@ func TestSeedingComplete(t *testing.T) {
 	}
 }
 
+func TestClampMaxConcurrent(t *testing.T) {
+	if got := ClampMaxConcurrent(0); got != 1 {
+		t.Fatalf("min clamp = %d", got)
+	}
+	if got := ClampMaxConcurrent(99); got != 8 {
+		t.Fatalf("max clamp = %d", got)
+	}
+	if got := ClampMaxConcurrent(3); got != 3 {
+		t.Fatalf("mid clamp = %d", got)
+	}
+}
+
+func TestCancelQueuedJob(t *testing.T) {
+	manager, store := openManager(t)
+	id, err := store.InsertTorrentJob(storage.TorrentJob{
+		Source:  "magnet:?xt=urn:btih:abc",
+		DestDir: t.TempDir(),
+		Name:    "Show",
+		Status:  "QUEUED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Cancel(id); err != nil {
+		t.Fatal(err)
+	}
+	job, err := store.TorrentJobByID(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.Status != "CANCELLED" {
+		t.Fatalf("job = %+v", job)
+	}
+}
+
 func openManager(t *testing.T) (*Manager, *storage.Store) {
 	t.Helper()
 	store, err := storage.Open(filepath.Join(t.TempDir(), "app_data.db"))
@@ -269,7 +304,7 @@ func TestCloseKeepsSeedingJob(t *testing.T) {
 		t.Fatal(err)
 	}
 	manager.mu.Lock()
-	manager.job = job
+	manager.sessions[id] = &session{job: job}
 	manager.mu.Unlock()
 	manager.Close()
 
@@ -297,7 +332,7 @@ func TestCloseCancelsDownloadingJob(t *testing.T) {
 		t.Fatal(err)
 	}
 	manager.mu.Lock()
-	manager.job = job
+	manager.sessions[id] = &session{job: job}
 	manager.mu.Unlock()
 	manager.Close()
 

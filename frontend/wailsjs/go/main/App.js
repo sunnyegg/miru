@@ -10,8 +10,8 @@ export function BindEpisode(arg1, arg2) {
   return window['go']['main']['App']['BindEpisode'](arg1, arg2);
 }
 
-export function CancelDownload() {
-  return window['go']['main']['App']['CancelDownload']();
+export function CancelDownload(arg1) {
+  return window['go']['main']['App']['CancelDownload'](arg1);
 }
 
 export function DetectMpv() {
@@ -70,8 +70,8 @@ export function OpenDownloadFolder() {
   return window['go']['main']['App']['OpenDownloadFolder']();
 }
 
-export function PauseDownload() {
-  return window['go']['main']['App']['PauseDownload']();
+export function PauseDownload(arg1) {
+  return window['go']['main']['App']['PauseDownload'](arg1);
 }
 
 export function PickDownloadDir() {
@@ -90,8 +90,8 @@ export function RemoveDownload(arg1, arg2) {
   return window['go']['main']['App']['RemoveDownload'](arg1, arg2);
 }
 
-export function ResumeDownload() {
-  return window['go']['main']['App']['ResumeDownload']();
+export function ResumeDownload(arg1) {
+  return window['go']['main']['App']['ResumeDownload'](arg1);
 }
 
 export function ResumeSeeding(arg1) {
@@ -110,8 +110,8 @@ export function SaveAnimeListEntry(arg1) {
   return window['go']['main']['App']['SaveAnimeListEntry'](arg1);
 }
 
-export function SaveDownloadSettings(arg1, arg2, arg3) {
-  return window['go']['main']['App']['SaveDownloadSettings'](arg1, arg2, arg3);
+export function SaveDownloadSettings(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SaveDownloadSettings'](arg1, arg2, arg3, arg4);
 }
 
 export function SaveNetworkSettings(arg1, arg2) {
