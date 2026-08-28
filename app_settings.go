@@ -24,12 +24,22 @@ func (a *App) GetSettings() (SettingsView, error) {
 	return a.loadSettings()
 }
 
-func (a *App) SavePlaybackSettings(mpvPath string) error {
+func (a *App) SavePlaybackSettings(mpvPath string, anime4KEnabled bool) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
+	if anime4KEnabled {
+		client, err := a.networkHTTPClient()
+		if err != nil {
+			return err
+		}
+		if err := mpv.EnsureAnime4KShaders(a.ctx, client, a.dirs.Config); err != nil {
+			return fmt.Errorf("Anime4K shaders: %w", err)
+		}
+	}
 	return a.setSettings(map[string]string{
-		"mpv_path": strings.TrimSpace(mpvPath),
+		"mpv_path":        strings.TrimSpace(mpvPath),
+		"anime4k_enabled": strconv.FormatBool(anime4KEnabled),
 	})
 }
 
@@ -186,6 +196,8 @@ func (a *App) DetectMpv() (string, error) {
 func (a *App) loadSettings() (SettingsView, error) {
 	view := SettingsView{SyncThreshold: 85, SeedRatio: torrentx.DefaultSeedRatio}
 	view.MpvPath, _ = a.store.GetSetting("mpv_path")
+	view.Anime4KEnabled = settingBool(a.store, "anime4k_enabled")
+	view.Anime4KShadersReady = mpv.Anime4KInstalled(a.dirs.Config)
 	view.DownloadDir, _ = a.store.GetSetting("download_dir")
 	raw, err := a.store.GetSetting("sync_threshold")
 	threshold, parseErr := strconv.ParseFloat(raw, 64)
@@ -264,4 +276,16 @@ func settingInt(store *storage.Store, key string, defaultValue int) int {
 		return defaultValue
 	}
 	return value
+}
+
+func settingBool(store *storage.Store, key string) bool {
+	raw, err := store.GetSetting(key)
+	if err != nil {
+		return false
+	}
+	parsed, err := strconv.ParseBool(raw)
+	if err != nil {
+		return false
+	}
+	return parsed
 }

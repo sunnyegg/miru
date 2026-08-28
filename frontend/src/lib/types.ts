@@ -2,6 +2,8 @@ export type TabId = 'library' | 'watching' | 'search' | 'downloads' | 'calendar'
 
 export type SettingsView = {
   mpvPath: string
+  anime4kEnabled: boolean
+  anime4kShadersReady: boolean
   downloadDir: string
   syncThreshold: number
   downloadRateLimit: number
