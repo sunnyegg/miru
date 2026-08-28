@@ -11,6 +11,7 @@ export type SettingsView = {
   networkMode: string
   socks5Address: string
   updateChannel: string
+  downloadNotifications: boolean
 }
 
 export type EpisodeView = {

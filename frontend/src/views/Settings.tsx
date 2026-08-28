@@ -34,6 +34,7 @@ const empty: SettingsView = {
   networkMode: 'system',
   socks5Address: '127.0.0.1:1080',
   updateChannel: 'stable',
+  downloadNotifications: true,
 }
 
 type Props = {
@@ -82,6 +83,7 @@ export function SettingsView({
         networkMode: settings?.networkMode ?? 'system',
         socks5Address: settings?.socks5Address ?? '127.0.0.1:1080',
         updateChannel: settings?.updateChannel ?? 'stable',
+        downloadNotifications: settings?.downloadNotifications ?? true,
       })
       setStatus(anilist ?? {connected: false, username: ''})
     } catch (err) {
@@ -243,6 +245,7 @@ export function SettingsView({
                   kbToBytes(form.uploadRateLimit),
                   form.maxConcurrentDownloads,
                   form.seedRatio,
+                  form.downloadNotifications,
                 ),
               'Downloads saved',
             )
@@ -316,6 +319,23 @@ export function SettingsView({
                 Upload ratio before auto-finish (0.5 = half the download size). 0 stops seeding right away.
               </p>
             </Field>
+            <div className="mt-4 flex items-start gap-3">
+              <input
+                id="downloadNotifications"
+                type="checkbox"
+                checked={form.downloadNotifications}
+                onChange={(event) =>
+                  setForm((current) => ({...current, downloadNotifications: event.target.checked}))
+                }
+                className="mt-1 size-4 shrink-0 accent-primary"
+              />
+              <div>
+                <Label htmlFor="downloadNotifications">Desktop notifications</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Show an OS notification when a download you started finishes in the background.
+                </p>
+              </div>
+            </div>
             <Button type="submit" variant="secondary" disabled={saving === 'downloads'} className="mt-4 w-fit">
               {saving === 'downloads' ? 'Saving…' : 'Save'}
             </Button>

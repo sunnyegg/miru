@@ -227,6 +227,7 @@ export namespace main {
 	    networkMode: string;
 	    socks5Address: string;
 	    updateChannel: string;
+	    downloadNotifications: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsView(source);
@@ -244,8 +245,9 @@ export namespace main {
 	        this.networkMode = source["networkMode"];
 	        this.socks5Address = source["socks5Address"];
 	        this.updateChannel = source["updateChannel"];
+	        this.downloadNotifications = source["downloadNotifications"];
 	    }
-	}
+}
 	export class UpdateInfo {
 	    current: string;
 	    latest: string;

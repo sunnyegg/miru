@@ -146,6 +146,38 @@ func TestStartStoresSelectedFiles(t *testing.T) {
 	}
 }
 
+func TestUserStartedTracksSessionStart(t *testing.T) {
+	manager, store := openManager(t)
+	t.Cleanup(manager.Close)
+	destDir := t.TempDir()
+	if err := manager.Start("file.torrent", destDir, nil, RateLimits{}, networking.Config{}); err != nil {
+		t.Fatal(err)
+	}
+	jobs, err := store.ListTorrentJobs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 1 {
+		t.Fatalf("jobs = %+v", jobs)
+	}
+	if !manager.UserStarted(jobs[0].ID) {
+		t.Fatal("expected user-started download to be tracked")
+	}
+
+	recoveredID, err := store.InsertTorrentJob(storage.TorrentJob{
+		Source:  "magnet:?xt=urn:btih:recovered",
+		DestDir: destDir,
+		Name:    "Recovered",
+		Status:  "QUEUED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if manager.UserStarted(recoveredID) {
+		t.Fatal("expected recovered queued job not to be user-started")
+	}
+}
+
 func writeTestTorrent(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()

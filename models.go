@@ -11,6 +11,7 @@ type SettingsView struct {
 	NetworkMode            string  `json:"networkMode"`
 	Socks5Address          string  `json:"socks5Address"`
 	UpdateChannel          string  `json:"updateChannel"`
+	DownloadNotifications  bool    `json:"downloadNotifications"`
 }
 
 type EpisodeView struct {

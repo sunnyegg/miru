@@ -33,7 +33,7 @@ func (a *App) SavePlaybackSettings(mpvPath string) error {
 	})
 }
 
-func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, uploadRateLimit int64, maxConcurrentDownloads int, seedRatio float64) error {
+func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, uploadRateLimit int64, maxConcurrentDownloads int, seedRatio float64, downloadNotifications bool) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
@@ -47,6 +47,7 @@ func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, upload
 		"upload_rate_limit":        formatInt64(uploadRateLimit),
 		"max_concurrent_downloads": strconv.Itoa(maxConcurrentDownloads),
 		"seed_ratio":               strconv.FormatFloat(seedRatio, 'f', -1, 64),
+		"download_notifications":   formatBool(downloadNotifications),
 	}); err != nil {
 		return err
 	}
@@ -177,7 +178,11 @@ func (a *App) DetectMpv() (string, error) {
 }
 
 func (a *App) loadSettings() (SettingsView, error) {
-	view := SettingsView{SyncThreshold: 85, SeedRatio: torrentx.DefaultSeedRatio}
+	view := SettingsView{
+		SyncThreshold:         85,
+		SeedRatio:             torrentx.DefaultSeedRatio,
+		DownloadNotifications: true,
+	}
 	view.MpvPath, _ = a.store.GetSetting("mpv_path")
 	view.DownloadDir, _ = a.store.GetSetting("download_dir")
 	raw, err := a.store.GetSetting("sync_threshold")
@@ -208,6 +213,7 @@ func (a *App) loadSettings() (SettingsView, error) {
 	} else {
 		view.UpdateChannel = parsedChannel
 	}
+	view.DownloadNotifications = settingBool(a.store, "download_notifications", true)
 	return view, nil
 }
 
@@ -222,6 +228,13 @@ func (a *App) setSettings(pairs map[string]string) error {
 
 func formatInt64(v int64) string {
 	return strconv.FormatInt(normalizeRateLimit(v), 10)
+}
+
+func formatBool(value bool) string {
+	if value {
+		return "true"
+	}
+	return "false"
 }
 
 func settingInt64(store *storage.Store, key string) int64 {
@@ -241,6 +254,21 @@ func normalizeRateLimit(value int64) int64 {
 		return 0
 	}
 	return value
+}
+
+func settingBool(store *storage.Store, key string, defaultValue bool) bool {
+	raw, err := store.GetSetting(key)
+	if err != nil {
+		return defaultValue
+	}
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "0", "false", "no", "off":
+		return false
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return defaultValue
+	}
 }
 
 func settingInt(store *storage.Store, key string, defaultValue int) int {
