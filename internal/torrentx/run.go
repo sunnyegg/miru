@@ -2,6 +2,7 @@ package torrentx
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"path/filepath"
 	"strings"
@@ -87,7 +88,7 @@ func (m *Manager) run(t *torrent.Torrent, jobID int64) {
 		seedingDone := session.job.Status == "SEEDING" && seedingComplete(session.job.BytesUploaded, total)
 		m.mu.Unlock()
 
-		_ = m.store.UpdateTorrentJob(m.snapshot(jobID))
+		m.persistProgress(jobID, m.snapshot(jobID))
 		m.emitProgress(view)
 		if downloadDone {
 			m.startSeeding(jobID)
@@ -117,7 +118,7 @@ func (m *Manager) startSeeding(jobID int64) {
 	}
 	job := session.job
 	m.mu.Unlock()
-	_ = m.store.UpdateTorrentJob(job)
+	m.persistJob(job, "torrent persist seeding")
 	m.emitProgress(liveView(job))
 }
 
@@ -153,7 +154,8 @@ func (m *Manager) finish(t *torrent.Torrent, jobID int64) {
 	complete := m.onComplete
 	m.mu.Unlock()
 
-	_ = m.store.UpdateTorrentJob(job)
+	m.persistJob(job, "torrent persist complete")
+	m.clearPersistOnce(jobID)
 	m.emitProgress(ToView(job))
 	if complete != nil {
 		complete(files)
@@ -162,6 +164,7 @@ func (m *Manager) finish(t *torrent.Torrent, jobID int64) {
 }
 
 func (m *Manager) fail(jobID int64, err error) {
+	m.reportError(fmt.Sprintf("torrent job %d failed", jobID), err)
 	m.mu.Lock()
 	session, ok := m.sessionByID(jobID)
 	var torrentHandle *torrent.Torrent
@@ -175,7 +178,8 @@ func (m *Manager) fail(jobID int64, err error) {
 		if torrentHandle != nil {
 			torrentHandle.Drop()
 		}
-		_ = m.store.UpdateTorrentJob(job)
+		m.persistJob(job, "torrent persist failed job")
+		m.clearPersistOnce(jobID)
 		m.emitProgress(ToView(job))
 		m.PumpQueue()
 		return

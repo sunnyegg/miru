@@ -22,14 +22,17 @@ func (a *App) AnilistStatus() (AnilistStatus, error) {
 	}
 	token, err := a.tokens.Get()
 	if err != nil {
+		a.logDebugErr("anilist status token", err)
 		return AnilistStatus{Connected: false}, nil
 	}
 	client, err := a.newAnilist(token)
 	if err != nil {
+		a.logDebugErr("anilist status client", err)
 		return AnilistStatus{Connected: false}, nil
 	}
 	name, err := client.ViewerName()
 	if err != nil {
+		a.logDebugErr("anilist status viewer", err)
 		return AnilistStatus{Connected: false}, nil
 	}
 	return AnilistStatus{Connected: true, Username: name}, nil
@@ -90,7 +93,9 @@ func (a *App) startLoginServer() error {
 	a.loginCancel = cancel
 
 	go func() {
-		_ = srv.Serve(ln)
+		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			a.logDebugErr("anilist login server", err)
+		}
 	}()
 	go func() {
 		<-ctx.Done()
@@ -113,7 +118,9 @@ func (a *App) stopLoginServer() {
 	if srv != nil {
 		ctx, done := context.WithTimeout(context.Background(), 2*time.Second)
 		defer done()
-		_ = srv.Shutdown(ctx)
+		if err := srv.Shutdown(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			a.logDebugErr("anilist login shutdown", err)
+		}
 	}
 }
 
@@ -161,7 +168,7 @@ func (a *App) ListAiringSchedule(start, end int64) ([]AiringScheduleView, error)
 	if start < 0 || end <= start || end-start > 8*24*60*60 {
 		return nil, errors.New("invalid airing schedule range")
 	}
-	return loadCachedJSON(a.store, fmt.Sprintf("airing:%d:%d", start, end), apiCacheTTL, func() ([]AiringScheduleView, error) {
+	return loadCachedJSON(a, fmt.Sprintf("airing:%d:%d", start, end), apiCacheTTL, func() ([]AiringScheduleView, error) {
 		client, err := a.newAnilist("")
 		if err != nil {
 			return nil, err
@@ -207,7 +214,7 @@ func (a *App) ListAnimeList(status string) ([]WatchingEntryView, error) {
 	if status == "CURRENT" {
 		cacheTTL = currentListCacheTTL
 	}
-	return loadCachedJSON(a.store, cacheKey, cacheTTL, func() ([]WatchingEntryView, error) {
+	return loadCachedJSON(a, cacheKey, cacheTTL, func() ([]WatchingEntryView, error) {
 		client, err := a.newAnilist(token)
 		if err != nil {
 			return nil, err
@@ -323,14 +330,15 @@ func toWatchingEntryViews(entries []anilist.CurrentEntry) []WatchingEntryView {
 	return out
 }
 
-func loadCachedJSON[T any](store *storage.Store, key string, ttl time.Duration, fetch func() (T, error)) (T, error) {
-	if cached, ok := cachedJSON[T](store, key, ttl); ok {
+func loadCachedJSON[T any](a *App, key string, ttl time.Duration, fetch func() (T, error)) (T, error) {
+	if cached, ok := cachedJSON[T](a.store, key, ttl); ok {
 		return cached, nil
 	}
 
 	result, err := fetch()
 	if err != nil {
-		if stale, ok := cachedJSON[T](store, key, 0); ok {
+		if stale, ok := cachedJSON[T](a.store, key, 0); ok {
+			a.logDebugErr("api cache stale fallback", err)
 			return stale, nil
 		}
 		var zero T
@@ -338,8 +346,12 @@ func loadCachedJSON[T any](store *storage.Store, key string, ttl time.Duration, 
 	}
 
 	encoded, encodeErr := json.Marshal(result)
-	if encodeErr == nil {
-		_ = store.SetAPICache(key, string(encoded))
+	if encodeErr != nil {
+		a.logDebugErr("api cache encode", encodeErr)
+		return result, nil
+	}
+	if err := a.store.SetAPICache(key, string(encoded)); err != nil {
+		a.logDebugErr("api cache write", err)
 	}
 	return result, nil
 }

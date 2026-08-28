@@ -58,6 +58,7 @@ func (a *App) PlayEpisode(episodeID int64) error {
 		if needsMap {
 			client, err := a.playbackAnilist()
 			if err != nil {
+				a.logPlaybackAnilist(session, err)
 				return
 			}
 			_ = a.ensureSeasonEpisode(session, client)
@@ -74,7 +75,9 @@ func (a *App) onMpvClosed(session *playSession, threshold float64, exitErr error
 
 	if progress.Duration > 0 || progress.Position > 0 {
 		resume := mpv.ResumePosition(progress.Position, progress.Duration, progress.Percent, threshold)
-		_ = a.store.SetResumePosition(session.episodeID, resume)
+		if err := a.store.SetResumePosition(session.episodeID, resume); err != nil {
+			a.logDebugErr("save resume position", err)
+		}
 	}
 	a.maybeSync(session, progress.Percent, threshold)
 
@@ -101,6 +104,7 @@ func (a *App) maybeSync(session *playSession, percent, threshold float64) {
 	if needsMap {
 		client, err := a.playbackAnilist()
 		if err != nil {
+			a.logPlaybackAnilist(session, err)
 			return
 		}
 		if err := a.ensureSeasonEpisode(session, client); err != nil {
@@ -113,12 +117,17 @@ func (a *App) maybeSync(session *playSession, percent, threshold float64) {
 	}
 
 	synced, err := a.store.HasSynced(session.anilistID, session.episodeNum)
-	if err != nil || synced {
+	if err != nil {
+		a.logDebugErr("has synced", err)
+		return
+	}
+	if synced {
 		return
 	}
 
 	client, err := a.playbackAnilist()
 	if err != nil {
+		a.logPlaybackAnilist(session, err)
 		return
 	}
 	current, err := client.ListProgress(session.anilistID)
@@ -153,7 +162,9 @@ func (a *App) maybeSync(session *playSession, percent, threshold float64) {
 		})
 		return
 	}
-	_ = a.store.RecordSync(session.anilistID, session.episodeNum)
+	if err := a.store.RecordSync(session.anilistID, session.episodeNum); err != nil {
+		a.logDebugErr("record sync", err)
+	}
 	a.invalidateAnimeListCache()
 	a.playMu.Lock()
 	session.synced = true
@@ -203,9 +214,26 @@ func (a *App) ensureSeasonEpisode(session *playSession, client *anilist.Client) 
 	a.playMu.Unlock()
 
 	if mapped != parsed {
-		_ = a.store.BindEpisode(episodeID, anilistID, mapped)
+		if err := a.store.BindEpisode(episodeID, anilistID, mapped); err != nil {
+			a.logDebugErr("bind mapped episode", err)
+		}
 		runtime.EventsEmit(a.ctx, "library:changed", true)
 		runtime.LogInfo(a.ctx, fmt.Sprintf("mapped episode %d to season episode %d", parsed, mapped))
 	}
 	return nil
+}
+
+func (a *App) logPlaybackAnilist(session *playSession, err error) {
+	if session == nil {
+		a.logDebugErr("playback anilist client", err)
+		return
+	}
+	a.playMu.Lock()
+	already := session.loggedAnilist
+	session.loggedAnilist = true
+	a.playMu.Unlock()
+	if already {
+		return
+	}
+	a.logDebugErr("playback anilist client", err)
 }

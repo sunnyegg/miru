@@ -44,10 +44,12 @@ func (a *App) applyAnilistProgress(episodes []EpisodeView) {
 	token, _ := a.tokens.Get()
 	client, err := a.newAnilist(token)
 	if err != nil {
+		a.logDebugErr("anilist progress client", err)
 		return
 	}
 	progressByMedia, err := client.ListProgressForMedia(ids)
 	if err != nil {
+		a.logDebugErr("anilist progress fetch", err)
 		return
 	}
 	for index := range episodes {
@@ -123,22 +125,25 @@ func (a *App) BindEpisode(episodeID int64, anilistID int) error {
 		return err
 	}
 	episodeNum := 0
-	if ep.EpisodeNumber.Valid && ep.EpisodeNumber.Int64 > 0 {
+	hasStoredNumber := ep.EpisodeNumber.Valid && ep.EpisodeNumber.Int64 > 0
+	if hasStoredNumber {
 		episodeNum = int(ep.EpisodeNumber.Int64)
-	} else {
-		parsed := media.ParseFilename(ep.FilePath)
-		if number, ok := media.EpisodeOrSingle(parsed, anime.TotalEpisodes); ok {
-			taken, takenErr := a.store.HasEpisodeNumber(anilistID, number, episodeID)
-			if takenErr != nil {
-				return takenErr
-			}
-			if !taken {
-				episodeNum = number
-			}
+	}
+	parsed := media.ParseFilename(ep.FilePath)
+	number, parsedOK := media.EpisodeOrSingle(parsed, anime.TotalEpisodes)
+	if !hasStoredNumber && parsedOK {
+		taken, takenErr := a.store.HasEpisodeNumber(anilistID, number, episodeID)
+		if takenErr != nil {
+			return takenErr
+		}
+		if !taken {
+			episodeNum = number
 		}
 	}
 	mapped, mapErr := client.MapSeasonEpisode(anilistID, episodeNum)
-	if mapErr == nil {
+	if mapErr != nil {
+		a.logDebugErr("bind episode season map", mapErr)
+	} else {
 		episodeNum = mapped
 	}
 	return a.store.BindEpisode(episodeID, anilistID, episodeNum)
@@ -199,12 +204,11 @@ func (a *App) resolveImportMatch(parsed media.Parsed, ep *storage.Episode) ([]An
 	}
 	client, err := a.newAnilist("")
 	if err != nil {
-		runtime.LogError(a.ctx, err.Error())
 		return nil, false, err
 	}
 	found, err := client.Search(parsed.Title)
 	if err != nil {
-		runtime.LogError(a.ctx, err.Error())
+		a.logDebugErr("import anilist search", err)
 		return nil, false, nil
 	}
 	candidates := toAnimeViews(found)
@@ -227,7 +231,9 @@ func (a *App) resolveImportMatch(parsed media.Parsed, ep *storage.Episode) ([]An
 		return candidates, true, nil
 	}
 	mapped, mapErr := client.MapSeasonEpisode(found[0].ID, number)
-	if mapErr == nil {
+	if mapErr != nil {
+		a.logDebugErr("import season map", mapErr)
+	} else {
 		number = mapped
 	}
 	ep.EpisodeNumber = sql.NullInt64{Int64: int64(number), Valid: true}

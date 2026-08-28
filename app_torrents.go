@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -235,18 +236,22 @@ func (a *App) OpenDownloadFolder() error {
 func (a *App) ingestTorrentFiles(files []string) {
 	settings, err := a.loadSettings()
 	if err != nil {
+		a.logDebugErr("ingest torrent settings", err)
 		return
 	}
 	for _, rel := range files {
 		path := torrentx.ResolveDataPath(settings.DownloadDir, rel)
 		if _, err := a.importPath(path); err != nil {
-			runtime.LogError(a.ctx, err.Error())
+			a.logDebugErr("ingest torrent file", err)
 		}
 	}
 	runtime.EventsEmit(a.ctx, "library:changed", true)
 }
 
 func (a *App) emitTorrent(view torrentx.JobView) {
+	if view.Status == "FAILED" && view.Error != "" {
+		a.logErr(fmt.Sprintf("torrent job %d failed", view.ID), errors.New(view.Error))
+	}
 	runtime.EventsEmit(a.ctx, "torrent:progress", view)
 }
 

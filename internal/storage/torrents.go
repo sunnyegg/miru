@@ -153,12 +153,21 @@ func (s *Store) CountDownloadingTorrentJobs() (int, error) {
 	return count, err
 }
 
-func (s *Store) FailInterruptedDownloads() error {
+func (s *Store) RecoverInterruptedDownloads() error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := s.db.Exec(
+		`UPDATE torrent_jobs
+		 SET status = 'QUEUED', error = '', updated_at = ?
+		 WHERE status = 'DOWNLOADING'`,
+		now,
+	); err != nil {
+		return err
+	}
 	_, err := s.db.Exec(
 		`UPDATE torrent_jobs
 		 SET status = 'FAILED', error = 'interrupted by restart', updated_at = ?
-		 WHERE status IN ('DOWNLOADING', 'PAUSED')`,
-		time.Now().UTC().Format(time.RFC3339),
+		 WHERE status = 'PAUSED'`,
+		now,
 	)
 	return err
 }

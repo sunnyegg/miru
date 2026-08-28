@@ -57,6 +57,7 @@ type playSession struct {
 	synced        bool
 	episodeMapped bool
 	mapFailed     bool
+	loggedAnilist bool
 	lastProgress  mpv.Progress
 }
 
@@ -70,7 +71,7 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	if err := a.init(); err != nil {
 		a.initErr = err
-		runtime.LogError(ctx, err.Error())
+		runtime.LogError(ctx, redactError(err))
 	}
 }
 
@@ -84,7 +85,9 @@ func (a *App) shutdown(_ context.Context) {
 		a.torrents = nil
 	}
 	if a.store != nil {
-		_ = a.store.Close()
+		if err := a.store.Close(); err != nil {
+			a.logDebugErr("close database", err)
+		}
 		a.store = nil
 	}
 }
@@ -107,9 +110,9 @@ func (a *App) init() error {
 	a.store = store
 	a.tokens = secrets.New(dirs.TokenFile())
 	a.torrents = torrentx.NewManager(store)
-	a.torrents.SetCallbacks(a.emitTorrent, a.ingestTorrentFiles)
+	a.torrents.SetCallbacks(a.emitTorrent, a.ingestTorrentFiles, a.logDebugErr)
 
-	if err := store.FailInterruptedDownloads(); err != nil {
+	if err := store.RecoverInterruptedDownloads(); err != nil {
 		return err
 	}
 	if err := a.ensureDefaults(); err != nil {
@@ -127,6 +130,7 @@ func (a *App) configureTorrents() error {
 	a.torrents.SetQueueConfig(limits, networkConfig(settings))
 	a.torrents.ApplyRateLimits(limits)
 	a.torrents.SetMaxConcurrent(settings.MaxConcurrentDownloads)
+	a.torrents.PumpQueue()
 	return nil
 }
 
@@ -155,6 +159,7 @@ func (a *App) ensureDefaults() error {
 	}
 	detected, err := mpv.Detect("")
 	if err != nil {
+		a.logDebugErr("detect mpv", err)
 		return nil
 	}
 	return a.store.SetSetting("mpv_path", detected)
