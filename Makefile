@@ -3,18 +3,20 @@ WAILS ?= wails
 WEBKIT_TAG ?= webkit2_41
 GOLANGCI_LINT_VERSION ?= v2.13.1
 
-.PHONY: help deps build dev test fmt lint doctor clean
+.PHONY: help deps build dev test fmt lint lint-fe typecheck doctor clean
 
 help:
 	@printf '%s\n' \
-		'deps    Install Go modules and frontend npm packages' \
-		'build   Build the production binary and embed .env' \
-		'dev     Run the app in development mode' \
-		'test    Run all Go tests' \
-		'fmt     Format Go source files' \
-		'lint    Run golangci-lint (standard + nestif)' \
-		'doctor  Check Wails system dependencies' \
-		'clean   Remove generated build output'
+		'deps      Install Go modules and frontend npm packages' \
+		'build     Build the production binary and embed .env' \
+		'dev       Run the app in development mode' \
+		'test      Run all Go tests' \
+		'fmt       Format Go source files' \
+		'lint      Run golangci-lint (standard + nestif)' \
+		'lint-fe   Run ESLint on the frontend' \
+		'typecheck Run TypeScript type checking on the frontend (frontend/)' \
+		'doctor    Check Wails system dependencies' \
+		'clean     Remove generated build output'
 
 deps:
 	$(GO) mod download
@@ -35,6 +37,12 @@ fmt:
 
 lint:
 	$(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run
+
+lint-fe:
+	npm --prefix frontend run lint
+
+typecheck:
+	npm --prefix frontend run typecheck
 
 doctor:
 	$(WAILS) doctor

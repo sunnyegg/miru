@@ -46,6 +46,16 @@ There is no separate config file. Settings live in the SQLite `settings` table.
 
 `.env` in the repo root is build/dev only (AniList client ID/secret). It is not copied into `~/.config/miru/`.
 
+## After editing
+
+Always run the relevant checks before considering work done.
+
+- Go changes: `make fmt` and `make lint`.
+- Frontend changes: `make typecheck` and `make lint-fe`.
+- Both: `make test` for Go.
+
+Do not leave broken code — if a check fails, fix it before handing off.
+
 ## Git
 
 Do not commit or push unless asked.
