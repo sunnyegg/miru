@@ -8,12 +8,6 @@ import (
 	"runtime"
 )
 
-var commonLinuxPaths = []string{
-	"/usr/bin/mpv",
-	"/usr/local/bin/mpv",
-	"/snap/bin/mpv",
-}
-
 func Detect(manual string) (string, error) {
 	if manual != "" {
 		if isExecutable(manual) {
@@ -25,27 +19,28 @@ func Detect(manual string) (string, error) {
 		return path, nil
 	}
 
-	if runtime.GOOS == "linux" {
-		if home, err := os.UserHomeDir(); err == nil {
-			candidate := filepath.Join(home, ".local", "bin", "mpv")
-			if isExecutable(candidate) {
-				return candidate, nil
-			}
-		}
-		for _, candidate := range commonLinuxPaths {
-			if isExecutable(candidate) {
-				return candidate, nil
-			}
+	for _, candidate := range commonPaths() {
+		if isExecutable(candidate) {
+			return candidate, nil
 		}
 	}
 
 	return "", fmt.Errorf("mpv not found; install it or pick the binary in Settings")
 }
 
-func isExecutable(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil || info.IsDir() {
-		return false
+func commonPaths() []string {
+	switch runtime.GOOS {
+	case "linux":
+		var paths []string
+		if homeDirectory, err := os.UserHomeDir(); err == nil {
+			paths = append(paths, filepath.Join(homeDirectory, ".local", "bin", "mpv"))
+		}
+		return append(paths, commonLinuxPaths...)
+	case "windows":
+		return commonWindowsPaths
+	case "darwin":
+		return commonDarwinPaths
+	default:
+		return nil
 	}
-	return info.Mode()&0o111 != 0
 }
