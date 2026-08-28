@@ -11,6 +11,8 @@ export type SettingsView = {
   networkMode: string
   socks5Address: string
   updateChannel: string
+  discordRpcEnabled: boolean
+  discordAppId: string
 }
 
 export type EpisodeView = {

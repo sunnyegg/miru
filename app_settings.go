@@ -24,13 +24,33 @@ func (a *App) GetSettings() (SettingsView, error) {
 	return a.loadSettings()
 }
 
-func (a *App) SavePlaybackSettings(mpvPath string) error {
+func (a *App) SavePlaybackSettings(mpvPath string, discordRpcEnabled bool, discordAppID string) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
-	return a.setSettings(map[string]string{
-		"mpv_path": strings.TrimSpace(mpvPath),
-	})
+	if err := a.setSettings(map[string]string{
+		"mpv_path":            strings.TrimSpace(mpvPath),
+		"discord_rpc_enabled": strconv.FormatBool(discordRpcEnabled),
+		"discord_app_id":      strings.TrimSpace(discordAppID),
+	}); err != nil {
+		return err
+	}
+	if !discordRpcEnabled {
+		a.clearDiscordPresence()
+		return nil
+	}
+	settings, err := a.loadSettings()
+	if err != nil {
+		return err
+	}
+	a.playMu.Lock()
+	session := a.play
+	a.playMu.Unlock()
+	if session == nil {
+		return nil
+	}
+	a.syncDiscordPresence(settings, session.animeTitle, session.episodeNum, session.lastProgress.Percent)
+	return nil
 }
 
 func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, uploadRateLimit int64, maxConcurrentDownloads int, seedRatio float64) error {
@@ -201,6 +221,11 @@ func (a *App) loadSettings() (SettingsView, error) {
 	if view.Socks5Address == "" {
 		view.Socks5Address = "127.0.0.1:1080"
 	}
+	view.DiscordRpcEnabled = settingBool(a.store, "discord_rpc_enabled", false)
+	view.DiscordAppID, _ = a.store.GetSetting("discord_app_id")
+	if view.DiscordAppID == "" {
+		view.DiscordAppID = envTrim("DISCORD_APP_ID")
+	}
 	storedChannel, _ := a.store.GetSetting("update_channel")
 	parsedChannel, err := update.ParseChannel(storedChannel)
 	if err != nil {
@@ -249,6 +274,18 @@ func settingInt(store *storage.Store, key string, defaultValue int) int {
 		return defaultValue
 	}
 	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return defaultValue
+	}
+	return value
+}
+
+func settingBool(store *storage.Store, key string, defaultValue bool) bool {
+	raw, err := store.GetSetting(key)
+	if err != nil {
+		return defaultValue
+	}
+	value, err := strconv.ParseBool(raw)
 	if err != nil {
 		return defaultValue
 	}

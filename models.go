@@ -11,6 +11,8 @@ type SettingsView struct {
 	NetworkMode            string  `json:"networkMode"`
 	Socks5Address          string  `json:"socks5Address"`
 	UpdateChannel          string  `json:"updateChannel"`
+	DiscordRpcEnabled      bool    `json:"discordRpcEnabled"`
+	DiscordAppID           string  `json:"discordAppId"`
 }
 
 type EpisodeView struct {

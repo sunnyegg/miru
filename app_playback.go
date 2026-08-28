@@ -33,7 +33,10 @@ func (a *App) PlayEpisode(episodeID int64) error {
 		return err
 	}
 
-	session := &playSession{episodeID: episodeID}
+	session := &playSession{
+		episodeID:  episodeID,
+		animeTitle: episodeAnimeTitle(ep),
+	}
 	if ep.AnilistID.Valid {
 		session.anilistID = int(ep.AnilistID.Int64)
 	}
@@ -45,6 +48,8 @@ func (a *App) PlayEpisode(episodeID int64) error {
 	a.play = session
 	a.playMu.Unlock()
 
+	a.syncDiscordPresence(settings, session.animeTitle, session.episodeNum, 0)
+
 	return a.player.Play(mpvPath, ep.FilePath, ep.ResumePosition, func(p mpv.Progress) {
 		a.playMu.Lock()
 		session.lastProgress = p
@@ -55,6 +60,7 @@ func (a *App) PlayEpisode(episodeID int64) error {
 			EpisodeID: episodeID,
 			Percent:   p.Percent,
 		})
+		a.updateDiscordFromProgress(session, p, settings)
 		if needsMap {
 			client, err := a.playbackAnilist()
 			if err != nil {
@@ -64,6 +70,7 @@ func (a *App) PlayEpisode(episodeID int64) error {
 			_ = a.ensureSeasonEpisode(session, client)
 		}
 	}, func(exitErr error) {
+		a.clearDiscordPresence()
 		a.onMpvClosed(session, settings.SyncThreshold, exitErr)
 	})
 }

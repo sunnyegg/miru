@@ -138,8 +138,8 @@ export function SaveNetworkSettings(arg1, arg2) {
   return window['go']['main']['App']['SaveNetworkSettings'](arg1, arg2);
 }
 
-export function SavePlaybackSettings(arg1) {
-  return window['go']['main']['App']['SavePlaybackSettings'](arg1);
+export function SavePlaybackSettings(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SavePlaybackSettings'](arg1, arg2, arg3);
 }
 
 export function SaveUpdateChannel(arg1) {
