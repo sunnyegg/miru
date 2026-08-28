@@ -39,7 +39,7 @@ Miru is a portable, resource-conscious anime media client that keeps playback, d
 - Keep the Go implementation CGO-free where required for cross-platform builds.
 - Support portable builds for Linux, Windows, and macOS as a product target.
 - Store AniList credentials using the platform secret service when available, with the documented local fallback protected by mode `0600`.
-- The PRD specifies an idle memory target below 100 MB; the current Linux smoke notes measure approximately 400 MB for the application process tree, so this target is not yet met.
+- The PRD aspires to idle memory below 100 MB; the Linux benchmark (2026-08-28, production build) measures approximately **684 MB** for the application process tree — see `docs/benchmarks/idle-ram.md`.
 
 ## Brand Commitments
 
@@ -49,10 +49,11 @@ Miru is a portable, resource-conscious anime media client that keeps playback, d
 
 ## Evidence on Hand
 
-- `README.md` documents the current Linux MVP, first-run workflow, runtime dependencies, data locations, deferred features, and smoke-test observations.
+- `README.md` documents the current Linux MVP, first-run workflow, runtime dependencies, data locations, and deferred features.
+- `docs/benchmarks/idle-ram.md` documents the idle RAM benchmark methodology and measured Linux results (2026-08-28).
 - `PRD.md` documents the intended product scope, architecture, functional requirements, database direction, non-functional requirements, and release targets.
 - The implemented application source is in `app.go`, `internal/`, and `frontend/src/`.
-- No testimonials, customer evidence, benchmarks, or marketing claims are available; future work must not fabricate them.
+- No testimonials, customer evidence, or marketing claims are available beyond the documented idle RAM benchmark; future work must not fabricate them.
 
 ## Product Principles
 

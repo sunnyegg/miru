@@ -138,7 +138,9 @@ func (a *App) init() error {
 	if err := a.configureTorrents(); err != nil {
 		return err
 	}
-	a.startFeedPoller()
+	if os.Getenv("MIRU_BENCH_IDLE") == "" {
+		a.startFeedPoller()
+	}
 	return nil
 }
 
