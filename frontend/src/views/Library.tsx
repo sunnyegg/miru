@@ -25,9 +25,10 @@ type Props = {
   authKey: number
   playing: PlaybackEvent | null
   onFindTorrent: (query: string) => void
+  onReady?: () => void
 }
 
-export function LibraryView({notice, refreshKey, authKey, playing, onFindTorrent}: Props) {
+export function LibraryView({notice, refreshKey, authKey, playing, onFindTorrent, onReady}: Props) {
   const [episodes, setEpisodes] = useState<EpisodeView[]>([])
   const [watchingEntries, setWatchingEntries] = useState<WatchingEntryView[]>([])
   const [loading, setLoading] = useState(true)
@@ -41,6 +42,7 @@ export function LibraryView({notice, refreshKey, authKey, playing, onFindTorrent
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [picker, setPicker] = useState<LibraryMatchPicker | null>(null)
   const skippedMatchIds = useRef(new Set<number>())
+  const readySignaled = useRef(false)
 
   const libraryEpisodes = useMemo(() => visibleLibraryEpisodes(episodes), [episodes])
   const shows = useMemo(() => groupEpisodes(libraryEpisodes), [libraryEpisodes])
@@ -96,6 +98,13 @@ export function LibraryView({notice, refreshKey, authKey, playing, onFindTorrent
     void reload()
     void reloadWatching()
   }, [refreshKey, authKey])
+
+  useEffect(() => {
+    if (!loading && !readySignaled.current) {
+      readySignaled.current = true
+      onReady?.()
+    }
+  }, [loading, onReady])
 
   useEffect(() => {
     if (shows.length === 0) {
@@ -336,7 +345,7 @@ export function LibraryView({notice, refreshKey, authKey, playing, onFindTorrent
             />
           </>
         ) : (
-          <>
+          <div className="flex flex-col gap-6">
             <LibraryWatchingSection
               entries={watchingEntries}
               localShows={shows}
@@ -345,6 +354,9 @@ export function LibraryView({notice, refreshKey, authKey, playing, onFindTorrent
               onOpenShow={openWatchingShow}
               onFindTorrent={onFindTorrent}
             />
+            {watchingEntries.length > 0 && (
+              <div className="h-px w-full bg-border/40" aria-hidden="true" />
+            )}
             <LibraryUnlistedSection
               loading={loading}
               loadError={loadError}
@@ -354,7 +366,7 @@ export function LibraryView({notice, refreshKey, authKey, playing, onFindTorrent
               onRetry={retryLoad}
               suppressEmptyState={watchingEntries.length > 0}
             />
-          </>
+          </div>
         )}
       </div>
     </section>

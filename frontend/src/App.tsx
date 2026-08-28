@@ -3,6 +3,7 @@ import {EventsOff, EventsOn} from '../wailsjs/runtime/runtime'
 import {InitError} from '../wailsjs/go/main/App'
 import {errorMessage} from './lib/format'
 import {Sidebar} from './components/Sidebar'
+import {Splash} from './components/Splash'
 import {LibraryView} from './views/Library'
 import {WatchingView} from './views/Watching'
 import {SearchView} from './views/Search'
@@ -21,6 +22,7 @@ export default function App() {
   const [authKey, setAuthKey] = useState(0)
   const [playing, setPlaying] = useState<PlaybackEvent | null>(null)
   const [searchPrefill, setSearchPrefill] = useState('')
+  const [bootDone, setBootDone] = useState(false)
 
   function showNotice(text: string, error = false) {
     toast.add({
@@ -82,7 +84,7 @@ export default function App() {
   return (
     <div className="flex h-full bg-background text-foreground">
       <Sidebar current={tab} onChange={setTab} />
-      <div className="flex min-w-0 flex-1 flex-col bg-background">
+      <div className="relative flex min-w-0 flex-1 flex-col bg-background">
         {initError && (
           <Alert className="border-0 bg-destructive px-4 py-2 text-sm text-destructive-foreground">
             {initError}
@@ -101,6 +103,7 @@ export default function App() {
               authKey={authKey}
               playing={playing}
               onFindTorrent={openSearchForTorrent}
+              onReady={() => setBootDone(true)}
             />
           )}
           {tab === 'watching' && (
@@ -122,6 +125,14 @@ export default function App() {
           {tab === 'calendar' && <CalendarView />}
           {tab === 'settings' && <SettingsView notice={showNotice} refreshKey={authKey} />}
         </main>
+        {tab === 'library' && !bootDone && !initError && (
+          <div
+            className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-background transition-opacity duration-200 motion-reduce:transition-none"
+            aria-hidden="false"
+          >
+            <Splash />
+          </div>
+        )}
       </div>
     </div>
   )

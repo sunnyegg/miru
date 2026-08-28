@@ -18,6 +18,16 @@ function posterCaption(show: ShowGroup): string {
   return `${show.progress} watched`
 }
 
+function posterSubcaption(show: ShowGroup): string | null {
+  if (show.bound && show.totalEpisodes > 0 && show.progress < show.totalEpisodes) {
+    return `Next: Ep ${show.progress + 1}`
+  }
+  if (!show.bound) {
+    return 'Tap to match AniList'
+  }
+  return null
+}
+
 type Props = {
   loading: boolean
   loadError: string
@@ -42,7 +52,7 @@ export function LibraryPosterGrid({
       <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(8.5rem,100%),1fr))] gap-3 p-1" aria-busy="true" aria-label="Loading library">
         {Array.from({length: 8}, (_, index) => (
           <li key={index}>
-            <Skeleton className="aspect-square w-full" />
+            <Skeleton className="aspect-square w-full animate-pulse" />
           </li>
         ))}
       </ul>
@@ -80,13 +90,14 @@ export function LibraryPosterGrid({
     <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(8.5rem,100%),1fr))] gap-3 p-1">
       {shows.map((show) => {
         const active = show.key === highlightedKey
+        const subcaption = posterSubcaption(show)
         return (
           <li key={show.key}>
             <button
               type="button"
               onClick={() => onSelectShow(show.key)}
               aria-pressed={active}
-              className={`group flex w-full cursor-pointer flex-col text-left ${
+              className={`group flex w-full cursor-pointer flex-col text-left transition-colors duration-200 motion-reduce:transition-none ${
                 active ? 'outline-2 outline-offset-2 outline-accent' : ''
               }`}
             >
@@ -106,6 +117,11 @@ export function LibraryPosterGrid({
               <span className="truncate text-xs text-muted-foreground">
                 {posterCaption(show)}
               </span>
+              {subcaption && (
+                <span className="truncate text-xs text-muted-foreground opacity-0 transition-opacity duration-200 group-hover:opacity-100 motion-reduce:opacity-100 motion-reduce:transition-none">
+                  {subcaption}
+                </span>
+              )}
             </button>
           </li>
         )

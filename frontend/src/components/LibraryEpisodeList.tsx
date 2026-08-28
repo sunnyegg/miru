@@ -51,7 +51,7 @@ export function LibraryEpisodeList({show, playing, busyId, onPlay, onFindTorrent
             <li key={slotKey(slot)}>
               <div
                 aria-label={`${label}, ${subtitle}`}
-                className="flex min-h-11 items-center gap-3 bg-card px-3 text-muted-foreground"
+                className="flex min-h-11 items-center gap-3 bg-card px-3 text-muted-foreground transition-colors duration-200 motion-reduce:transition-none"
               >
                 <span className="w-8 shrink-0 tabular-nums text-xs">
                   {slot.number > 0 ? slot.number : '—'}
@@ -68,7 +68,7 @@ export function LibraryEpisodeList({show, playing, busyId, onPlay, onFindTorrent
         if (slot.kind === 'missing' && onFindTorrent && slot.number > 0) {
           return (
             <li key={slotKey(slot)}>
-              <div className="flex min-h-11 items-center gap-3 bg-card px-3">
+              <div className="flex min-h-11 items-center gap-3 bg-card px-3 transition-colors duration-200 motion-reduce:transition-none">
                 <span className="w-8 shrink-0 tabular-nums text-xs text-muted-foreground">
                   {slot.number}
                 </span>
@@ -93,7 +93,7 @@ export function LibraryEpisodeList({show, playing, busyId, onPlay, onFindTorrent
             <li key={slotKey(slot)}>
               <div
                 aria-label={`${label}, ${subtitle}`}
-                className="flex min-h-11 items-center gap-3 bg-card px-3 text-muted-foreground"
+                className="flex min-h-11 items-center gap-3 bg-card px-3 text-muted-foreground transition-colors duration-200 motion-reduce:transition-none"
               >
                 <span className="w-8 shrink-0 tabular-nums text-xs">
                   {slot.number > 0 ? slot.number : '—'}
@@ -121,8 +121,8 @@ export function LibraryEpisodeList({show, playing, busyId, onPlay, onFindTorrent
               onClick={() => onPlay(episode.id)}
               disabled={isBusy}
               aria-label={isBusy ? `Starting ${label}` : `Play ${label}`}
-              className={`relative flex min-h-11 w-full cursor-pointer items-center gap-3 overflow-hidden bg-card px-3 text-left ${
-                isPlaying ? 'border-l-2 border-l-accent' : 'border-l-2 border-l-transparent'
+              className={`relative flex min-h-11 w-full cursor-pointer items-center gap-3 overflow-hidden border-l-2 bg-card px-3 text-left transition-colors duration-200 hover:bg-muted/40 motion-reduce:transition-none ${
+                isPlaying ? 'border-l-accent' : 'border-l-transparent'
               } ${isBusy ? 'cursor-not-allowed opacity-50' : ''}`}
             >
               {isPlaying && (

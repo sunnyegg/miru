@@ -121,6 +121,22 @@ export function watchingPosterCaption(item: WatchingShowItem): {text: string; ac
   }
 }
 
+export function watchingPosterSubcaption(item: WatchingShowItem): string | null {
+  if (item.hasLocalFiles) {
+    return `${item.maxLocalEpisode} local`
+  }
+  if (item.newEpisodeNumber !== null) {
+    return 'Catch up'
+  }
+  if (item.mediaStatus === 'RELEASING') {
+    return 'Airing'
+  }
+  if (item.mediaStatus === 'FINISHED') {
+    return 'Finished'
+  }
+  return null
+}
+
 export function torrentSearchQuery(title: string, episodeNumber: number): string {
   const paddedEpisode = String(episodeNumber).padStart(2, '0')
   return `${title} ${paddedEpisode}`

@@ -37,7 +37,7 @@ function NavButton({
       onClick={() => onChange(id)}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'w-full justify-center gap-3 border-l px-0 sm:justify-start sm:px-3',
+        'w-full justify-center gap-3 border-l px-0 motion-reduce:transition-none sm:justify-start sm:px-3',
         active
           ? 'border-accent bg-muted text-foreground hover:text-foreground'
           : 'border-transparent hover:bg-muted hover:text-foreground',

@@ -283,8 +283,8 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-medium">{item.name || 'Torrent'}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {item.status} · {formatBytes(item.bytesCompleted)} / {formatBytes(item.bytesTotal)}
+                    <p className={`tabular-nums text-sm ${item.percent >= 100 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      {item.percent >= 100 ? 'Completed' : item.status} · {formatBytes(item.bytesCompleted)} / {formatBytes(item.bytesTotal)}
                       {isDownloading && ` · ${formatSpeed(item.speedBytesPerSecond)}`}
                       {isSeeding && ` · ${formatSpeed(item.uploadSpeedBytesPerSecond)} upload · ${Math.round(item.uploadRatio * 100)}% uploaded`}
                     </p>

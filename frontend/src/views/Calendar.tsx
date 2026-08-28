@@ -5,6 +5,7 @@ import type {AiringScheduleView} from '../lib/types'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
+import {Skeleton} from '@/components/ui/skeleton'
 
 const dayFormatter = new Intl.DateTimeFormat(undefined, {
   weekday: 'long',
@@ -110,9 +111,24 @@ export function CalendarView() {
       </p>
 
       {loading ? (
-        <Card className="border border-border/40 p-8" role="status">
-          Loading airing schedule…
-        </Card>
+        <div className="grid gap-4 lg:grid-cols-2" aria-busy="true" aria-label="Loading airing schedule">
+          {Array.from({length: 4}, (_, i) => (
+            <Card key={i}>
+              <Skeleton className="h-4 w-1/3 animate-pulse" />
+              <ul className="mt-3 flex flex-col gap-3">
+                {Array.from({length: 3}, (_, j) => (
+                  <li key={j} className="flex items-center gap-3">
+                    <Skeleton className="h-14 w-10 shrink-0 animate-pulse" />
+                    <div className="flex flex-1 flex-col gap-2">
+                      <Skeleton className="h-3 w-2/3 animate-pulse" />
+                      <Skeleton className="h-3 w-1/3 animate-pulse" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ))}
+        </div>
       ) : error ? (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>

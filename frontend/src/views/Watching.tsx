@@ -7,6 +7,7 @@ import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
 import {Input} from '@/components/ui/input'
+import {Skeleton} from '@/components/ui/skeleton'
 
 type Props = {
   refreshKey: number
@@ -236,9 +237,19 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
       )}
 
       {loading ? (
-        <Card className="border border-border/40 p-8" role="status">
-          Loading your list…
-        </Card>
+        <ul className="grid gap-3 lg:grid-cols-2" aria-busy="true" aria-label="Loading your list">
+          {Array.from({length: 4}, (_, i) => (
+            <li key={i}>
+              <div className="flex flex-row items-center gap-4 bg-card p-3">
+                <Skeleton className="h-16 w-12 shrink-0 animate-pulse" />
+                <div className="flex flex-1 flex-col gap-2">
+                  <Skeleton className="h-4 w-2/3 animate-pulse" />
+                  <Skeleton className="h-3 w-1/3 animate-pulse" />
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
       ) : notConnected ? (
         <Card>
           <h3 className="font-medium">Connect AniList to see your list</h3>

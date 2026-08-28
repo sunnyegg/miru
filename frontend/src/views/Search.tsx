@@ -8,6 +8,7 @@ import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
 import {Input} from '@/components/ui/input'
 import {NativeSelect, NativeSelectOption} from '@/components/ui/native-select'
+import {Skeleton} from '@/components/ui/skeleton'
 
 type Props = {
   notice: (msg: string, isError?: boolean) => void
@@ -145,9 +146,17 @@ export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed
 
       <div ref={resultsScrollRef} className="min-h-0 flex-1 overflow-auto">
         {loading ? (
-          <Card className="border border-border/40 p-8" role="status">
-            Loading {sourceLabel} results…
-          </Card>
+          <ul className="flex flex-col gap-2" aria-busy="true" aria-label={`Loading ${sourceLabel} results`}>
+            {Array.from({length: 5}, (_, i) => (
+              <li key={i} className="flex items-center gap-3 bg-card p-3">
+                <Skeleton className="h-12 w-12 shrink-0 animate-pulse" />
+                <div className="flex flex-1 flex-col gap-2">
+                  <Skeleton className="h-4 w-2/3 animate-pulse" />
+                  <Skeleton className="h-3 w-1/3 animate-pulse" />
+                </div>
+              </li>
+            ))}
+          </ul>
         ) : error ? (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>

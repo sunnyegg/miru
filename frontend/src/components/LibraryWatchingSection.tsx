@@ -2,6 +2,7 @@ import {
   buildWatchingShowItems,
   torrentSearchQuery,
   watchingPosterCaption,
+  watchingPosterSubcaption,
   type WatchingShowItem,
 } from '../lib/libraryWatching'
 import type {ShowGroup} from '../lib/groupEpisodes'
@@ -29,6 +30,7 @@ function WatchingPoster({
   onFindTorrent: (query: string) => void
 }) {
   const caption = watchingPosterCaption(item)
+  const subcaption = watchingPosterSubcaption(item)
 
   function handleClick() {
     if (item.hasLocalFiles && item.localShowKey) {
@@ -44,7 +46,7 @@ function WatchingPoster({
       type="button"
       onClick={handleClick}
       aria-pressed={active}
-      className={`group flex w-full cursor-pointer flex-col text-left ${
+      className={`group flex w-full cursor-pointer flex-col text-left transition-colors duration-200 motion-reduce:transition-none ${
         active ? 'outline-2 outline-offset-2 outline-accent' : ''
       }`}
     >
@@ -66,6 +68,11 @@ function WatchingPoster({
       >
         {caption.text}
       </span>
+      {subcaption && (
+        <span className="truncate text-xs text-muted-foreground opacity-0 transition-opacity duration-200 group-hover:opacity-100 motion-reduce:opacity-100 motion-reduce:transition-none">
+          {subcaption}
+        </span>
+      )}
     </button>
   )
 }
@@ -79,7 +86,14 @@ export function LibraryWatchingSection({
   onFindTorrent,
 }: Props) {
   if (!loading && entries.length === 0) {
-    return null
+    return (
+      <section className="mb-5 shrink-0">
+        <h3 className="mb-3 text-sm font-medium text-muted-foreground">Watching</h3>
+        <p className="border border-dashed border-border/40 p-8 text-sm text-muted-foreground">
+          Nothing on your AniList Watching list yet. Add titles from the Watching tab to track them here.
+        </p>
+      </section>
+    )
   }
 
   const items = buildWatchingShowItems(entries, localShows)
@@ -95,7 +109,7 @@ export function LibraryWatchingSection({
         >
           {Array.from({length: 4}, (_, index) => (
             <li key={index}>
-              <Skeleton className="aspect-square w-full" />
+              <Skeleton className="aspect-square w-full animate-pulse" />
             </li>
           ))}
         </ul>
