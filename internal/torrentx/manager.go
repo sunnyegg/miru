@@ -49,6 +49,8 @@ type Manager struct {
 	networkConfig networking.Config
 	onProgress    func(JobView)
 	onComplete    func([]string)
+	onError       func(string, error)
+	persistLogged map[int64]struct{}
 }
 
 type RateLimits struct {
@@ -60,15 +62,17 @@ func NewManager(store *storage.Store) *Manager {
 	return &Manager{
 		store:         store,
 		sessions:      make(map[int64]*session),
+		persistLogged: make(map[int64]struct{}),
 		maxConcurrent: minConcurrentDownloads,
 	}
 }
 
-func (m *Manager) SetCallbacks(onProgress func(JobView), onComplete func([]string)) {
+func (m *Manager) SetCallbacks(onProgress func(JobView), onComplete func([]string), onError func(string, error)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.onProgress = onProgress
 	m.onComplete = onComplete
+	m.onError = onError
 }
 
 func (m *Manager) SetQueueConfig(limits RateLimits, networkConfig networking.Config) {
@@ -228,7 +232,7 @@ func (m *Manager) activateJob(job storage.TorrentJob, limits RateLimits, network
 	if err != nil {
 		job.Status = "FAILED"
 		job.Error = err.Error()
-		_ = m.store.UpdateTorrentJob(job)
+		m.persistJob(job, "torrent persist failed job")
 		m.emitProgress(ToView(job))
 		m.PumpQueue()
 		return err
@@ -238,7 +242,7 @@ func (m *Manager) activateJob(job storage.TorrentJob, limits RateLimits, network
 	if err != nil {
 		job.Status = "FAILED"
 		job.Error = err.Error()
-		_ = m.store.UpdateTorrentJob(job)
+		m.persistJob(job, "torrent persist failed job")
 		m.emitProgress(ToView(job))
 		m.PumpQueue()
 		return err
@@ -247,7 +251,7 @@ func (m *Manager) activateJob(job storage.TorrentJob, limits RateLimits, network
 	if err != nil {
 		job.Status = "FAILED"
 		job.Error = err.Error()
-		_ = m.store.UpdateTorrentJob(job)
+		m.persistJob(job, "torrent persist failed job")
 		m.emitProgress(ToView(job))
 		m.PumpQueue()
 		return err
@@ -288,6 +292,7 @@ func (m *Manager) PumpQueue() {
 			return
 		}
 		if err != nil {
+			m.reportError("torrent queue read", err)
 			return
 		}
 
@@ -560,14 +565,69 @@ func (m *Manager) Close() {
 			session.torrent.Drop()
 		}
 		job := session.job
-		if job.ID != 0 && isActiveStatus(job.Status) && job.Status != "SEEDING" {
-			job.Status = "CANCELLED"
-			job.Error = "cancelled"
-			_ = m.store.UpdateTorrentJob(job)
+		if job.ID == 0 || !isActiveStatus(job.Status) || job.Status == "SEEDING" {
+			continue
 		}
+		if job.Status == "PAUSED" {
+			job.Status = "FAILED"
+			job.Error = "interrupted by restart"
+		} else {
+			job.Status = "QUEUED"
+			job.Error = ""
+		}
+		m.persistJob(job, "torrent persist on close")
 	}
 	if client != nil {
 		client.Close()
+	}
+}
+
+func (m *Manager) persistJob(job storage.TorrentJob, operation string) {
+	if err := m.store.UpdateTorrentJob(job); err != nil {
+		m.reportError(operation, err)
+	}
+}
+
+func (m *Manager) persistProgress(jobID int64, job storage.TorrentJob) {
+	if err := m.store.UpdateTorrentJob(job); err != nil {
+		m.reportPersistOnce(jobID, err)
+		return
+	}
+	m.clearPersistOnce(jobID)
+}
+
+func (m *Manager) reportPersistOnce(jobID int64, err error) {
+	m.mu.Lock()
+	_, already := m.persistLogged[jobID]
+	if !already {
+		if m.persistLogged == nil {
+			m.persistLogged = make(map[int64]struct{})
+		}
+		m.persistLogged[jobID] = struct{}{}
+	}
+	reporter := m.onError
+	m.mu.Unlock()
+	if already || reporter == nil || err == nil {
+		return
+	}
+	reporter("torrent persist progress", err)
+}
+
+func (m *Manager) clearPersistOnce(jobID int64) {
+	m.mu.Lock()
+	delete(m.persistLogged, jobID)
+	m.mu.Unlock()
+}
+
+func (m *Manager) reportError(operation string, err error) {
+	if err == nil {
+		return
+	}
+	m.mu.Lock()
+	reporter := m.onError
+	m.mu.Unlock()
+	if reporter != nil {
+		reporter(operation, err)
 	}
 }
 

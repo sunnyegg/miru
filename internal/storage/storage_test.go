@@ -56,12 +56,21 @@ func TestSyncEventsUnique(t *testing.T) {
 	}
 }
 
-func TestFailInterruptedDownloads(t *testing.T) {
+func TestRecoverInterruptedDownloads(t *testing.T) {
 	store := openTestStore(t)
 	downloadingID, err := store.InsertTorrentJob(TorrentJob{
 		Source:  "magnet:?xt=urn:btih:abc",
 		DestDir: t.TempDir(),
 		Status:  "DOWNLOADING",
+		Error:   "stale",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pausedID, err := store.InsertTorrentJob(TorrentJob{
+		Source:  "magnet:?xt=urn:btih:ghi",
+		DestDir: t.TempDir(),
+		Status:  "PAUSED",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -75,15 +84,22 @@ func TestFailInterruptedDownloads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := store.FailInterruptedDownloads(); err != nil {
+	if err := store.RecoverInterruptedDownloads(); err != nil {
 		t.Fatal(err)
 	}
 	downloading, err := store.TorrentJobByID(downloadingID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if downloading.Status != "FAILED" {
+	if downloading.Status != "QUEUED" || downloading.Error != "" {
 		t.Fatalf("downloading = %+v", downloading)
+	}
+	paused, err := store.TorrentJobByID(pausedID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if paused.Status != "FAILED" || paused.Error != "interrupted by restart" {
+		t.Fatalf("paused = %+v", paused)
 	}
 	seeding, err := store.TorrentJobByID(seedingID)
 	if err != nil {
@@ -125,7 +141,7 @@ func TestNextQueuedTorrentJob(t *testing.T) {
 	}
 }
 
-func TestFailInterruptedDownloadsKeepsQueued(t *testing.T) {
+func TestRecoverInterruptedDownloadsKeepsQueued(t *testing.T) {
 	store := openTestStore(t)
 	queuedID, err := store.InsertTorrentJob(TorrentJob{
 		Source:  "queued.torrent",
@@ -143,7 +159,7 @@ func TestFailInterruptedDownloadsKeepsQueued(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := store.FailInterruptedDownloads(); err != nil {
+	if err := store.RecoverInterruptedDownloads(); err != nil {
 		t.Fatal(err)
 	}
 	queued, err := store.TorrentJobByID(queuedID)
@@ -157,7 +173,7 @@ func TestFailInterruptedDownloadsKeepsQueued(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if downloading.Status != "FAILED" {
+	if downloading.Status != "QUEUED" {
 		t.Fatalf("downloading = %+v", downloading)
 	}
 }

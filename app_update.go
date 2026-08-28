@@ -74,7 +74,9 @@ func (a *App) ApplyUpdate() error {
 
 	a.shutdown(a.ctx)
 	if err := update.Restart(exe, os.Args, os.Environ()); err != nil {
-		return fmt.Errorf("update installed but restart failed: %w; restart Miru manually", err)
+		restartErr := fmt.Errorf("update installed but restart failed: %w; restart Miru manually", err)
+		a.logDebugErr("restart after update", restartErr)
+		return restartErr
 	}
 	if goruntime.GOOS == "windows" {
 		runtime.Quit(a.ctx)

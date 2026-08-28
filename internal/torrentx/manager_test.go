@@ -317,7 +317,7 @@ func TestCloseKeepsSeedingJob(t *testing.T) {
 	}
 }
 
-func TestCloseCancelsDownloadingJob(t *testing.T) {
+func TestCloseQueuesDownloadingJob(t *testing.T) {
 	manager, store := openManager(t)
 	id, err := store.InsertTorrentJob(storage.TorrentJob{
 		Source:  "magnet:?xt=urn:btih:abc",
@@ -340,7 +340,35 @@ func TestCloseCancelsDownloadingJob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Status != "CANCELLED" {
+	if got.Status != "QUEUED" || got.Error != "" {
+		t.Fatalf("job = %+v", got)
+	}
+}
+
+func TestCloseFailsPausedJob(t *testing.T) {
+	manager, store := openManager(t)
+	id, err := store.InsertTorrentJob(storage.TorrentJob{
+		Source:  "magnet:?xt=urn:btih:abc",
+		DestDir: t.TempDir(),
+		Status:  "PAUSED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err := store.TorrentJobByID(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager.mu.Lock()
+	manager.sessions[id] = &session{job: job}
+	manager.mu.Unlock()
+	manager.Close()
+
+	got, err := store.TorrentJobByID(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != "FAILED" || got.Error != "interrupted by restart" {
 		t.Fatalf("job = %+v", got)
 	}
 }
@@ -369,7 +397,7 @@ func TestFinishStoredSeedingJob(t *testing.T) {
 	var ingested []string
 	manager.SetCallbacks(nil, func(files []string) {
 		ingested = files
-	})
+	}, nil)
 	if err := manager.Finish(id); err != nil {
 		t.Fatal(err)
 	}
@@ -413,5 +441,33 @@ func TestVideoFilesFromDisk(t *testing.T) {
 	}
 	if files := videoFilesFromDisk(destDir, ".."); len(files) != 0 {
 		t.Fatalf("escape = %v", files)
+	}
+}
+
+func TestPersistProgressLogsOnce(t *testing.T) {
+	manager, store := openManager(t)
+	var operations []string
+	manager.SetCallbacks(nil, nil, func(operation string, err error) {
+		operations = append(operations, operation)
+	})
+	_ = store.Close()
+	job := storage.TorrentJob{ID: 9, Source: "magnet:?xt=urn:btih:abc", DestDir: t.TempDir(), Status: "DOWNLOADING"}
+	manager.persistProgress(9, job)
+	manager.persistProgress(9, job)
+	if len(operations) != 1 || operations[0] != "torrent persist progress" {
+		t.Fatalf("operations = %v", operations)
+	}
+}
+
+func TestPumpQueueLogsReadError(t *testing.T) {
+	manager, store := openManager(t)
+	var operations []string
+	manager.SetCallbacks(nil, nil, func(operation string, err error) {
+		operations = append(operations, operation)
+	})
+	_ = store.Close()
+	manager.PumpQueue()
+	if len(operations) != 1 || operations[0] != "torrent queue read" {
+		t.Fatalf("operations = %v", operations)
 	}
 }
