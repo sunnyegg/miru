@@ -100,7 +100,9 @@ export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed
       return
     }
     prefillHandled.current = trimmed
-    setQuery(trimmed)
+    if (!query.trim()) {
+      setQuery(trimmed)
+    }
     void search(trimmed)
     onPrefillConsumed?.()
   }, [prefillQuery])
@@ -137,7 +139,7 @@ export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search anime title"
-          className="min-w-0 flex-1 border-border/40"
+          className="min-w-0 flex-1"
         />
         <Button type="submit" disabled={loading}>
           {loading ? 'Searching…' : 'Search'}

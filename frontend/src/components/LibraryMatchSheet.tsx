@@ -28,6 +28,9 @@ export function LibraryMatchSheet({
   onBind,
   onSkip,
 }: Props) {
+  const englishTitle = picker.episode.animeTitle?.trim() || picker.episode.displayTitle
+  const descriptionCopy = `Bind the local file "${englishTitle}" to one AniList title. Pick the right one, or skip to leave the file unbound.`
+
   return (
     <Dialog.Root
       open
@@ -40,10 +43,11 @@ export function LibraryMatchSheet({
       <Dialog.Portal>
         <Dialog.Backdrop />
         <Dialog.Viewport>
-          <Dialog.Panel aria-labelledby="match-title">
+          <Dialog.Panel>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <Dialog.Title id="match-title">Match AniList title</Dialog.Title>
+                <Dialog.Title>Match AniList title</Dialog.Title>
+                <Dialog.Description>{descriptionCopy}</Dialog.Description>
                 <p className="mt-1 wrap-break-word text-sm text-muted-foreground">
                   {picker.episode.displayTitle}
                 </p>
@@ -70,40 +74,48 @@ export function LibraryMatchSheet({
               </Button>
             </div>
             <ul className="mt-3 flex flex-col gap-1">
-              {picker.candidates.map((anime) => (
-                <li key={anime.id}>
-                  <button
-                    type="button"
-                    onClick={() => onBind(anime.id)}
-                    disabled={bindingAnimeId !== null}
-                    aria-busy={bindingAnimeId === anime.id}
-                    className="flex min-h-11 w-full cursor-pointer items-center gap-3 bg-muted px-3 py-2 text-left transition-colors duration-200 hover:bg-secondary motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {anime.coverImage ? (
-                      <img
-                        src={anime.coverImage}
-                        alt=""
-                        width={40}
-                        height={56}
-                        referrerPolicy="no-referrer"
-                        className="shrink-0 object-cover"
-                        style={{width: 40, height: 56}}
-                      />
-                    ) : (
-                      <span className="shrink-0 bg-muted" style={{width: 40, height: 56}} />
-                    )}
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium" title={anime.titleEnglish || anime.titleRomaji}>
-                        {anime.titleEnglish || anime.titleRomaji}
+              {picker.candidates.map((anime) => {
+                const title = anime.titleEnglish || anime.titleRomaji
+                const isBinding = bindingAnimeId === anime.id
+                return (
+                  <li key={anime.id}>
+                    <div className="flex min-h-11 items-center gap-3 bg-muted px-3 transition-colors duration-200 hover:bg-secondary motion-reduce:transition-none">
+                      {anime.coverImage ? (
+                        <img
+                          src={anime.coverImage}
+                          alt=""
+                          width={40}
+                          height={56}
+                          referrerPolicy="no-referrer"
+                          className="shrink-0 object-cover"
+                          style={{width: 40, height: 56}}
+                        />
+                      ) : (
+                        <span className="shrink-0 bg-muted" style={{width: 40, height: 56}} />
+                      )}
+                      <span className="min-w-0 flex-1 py-2">
+                        <span className="block truncate text-sm font-medium" title={title}>
+                          {title}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground" title={anime.titleRomaji}>
+                          {anime.titleRomaji}
+                        </span>
                       </span>
-                      <span className="block truncate text-xs text-muted-foreground" title={anime.titleRomaji}>
-                        {anime.titleRomaji}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-              {picker.candidates.length === 0 && (
+                      <Button
+                        type="button"
+                        onClick={() => onBind(anime.id)}
+                        disabled={bindingAnimeId !== null}
+                        aria-busy={isBinding}
+                        aria-label={`Bind ${title} to ${englishTitle}`}
+                        style={{gap: 8, paddingInline: 12}}
+                      >
+                        {isBinding ? 'Binding…' : 'Bind'}
+                      </Button>
+                    </div>
+                  </li>
+                )
+              })}
+              {picker.candidates.length === 0 && !searching && (
                 <li className="text-sm text-muted-foreground">No matches. Search with a cleaner title.</li>
               )}
             </ul>

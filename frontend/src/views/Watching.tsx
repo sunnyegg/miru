@@ -135,7 +135,7 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
   }, [refreshKey])
 
   const filterLabel = listStatusLabel(listFilter)
-  const emptyCopy = `Nothing on your ${filterLabel} list.`
+  const emptyCopy = `Nothing on your ${filterLabel} list. Switch filter, or search AniList above to add a title.`
 
   return (
     <section className="flex h-full flex-col gap-6">
@@ -161,7 +161,7 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
       </header>
 
       {!notConnected && (
-        <Card className="border border-border/40 p-4">
+        <Card className="border border-border p-4">
           <h3 className="text-base font-medium">Search AniList</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Find anime and add it to your Currently Watching list.
@@ -174,7 +174,7 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
               id="watching-anilist-search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="min-w-0 flex-1 basis-56 border-border/40"
+              className="min-w-0 flex-1 basis-56"
               placeholder="Anime title"
             />
             <Button

@@ -300,7 +300,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
           })}
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">No torrent jobs yet.</p>
+        <p className="text-sm text-muted-foreground">No torrent jobs yet. Add a magnet or open a .torrent file to start.</p>
       )}
     </section>
   )

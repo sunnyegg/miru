@@ -178,7 +178,7 @@ export function SettingsView({notice, refreshKey}: Props) {
                   id="mpvPath"
                   value={form.mpvPath}
                   onChange={(e) => setForm({...form, mpvPath: e.target.value})}
-                  className="min-w-0 flex-1 border-border/40 bg-card"
+                  className="min-w-0 flex-1 bg-card"
                 />
                 <Button type="button" variant="muted" onClick={() => void detectMpv()}>
                   Detect
@@ -191,6 +191,7 @@ export function SettingsView({notice, refreshKey}: Props) {
             <Button type="submit" disabled={saving === 'playback'} className="mt-4 w-fit">
               {saving === 'playback' ? 'Saving…' : 'Save'}
             </Button>
+            <p className="mt-2 text-xs text-muted-foreground">Requires an MPV restart to take effect.</p>
           </Card>
         </form>
 
@@ -219,7 +220,7 @@ export function SettingsView({notice, refreshKey}: Props) {
                   id="downloadDir"
                   value={form.downloadDir}
                   onChange={(e) => setForm({...form, downloadDir: e.target.value})}
-                  className="min-w-0 flex-1 border-border/40 bg-card"
+                  className="min-w-0 flex-1 bg-card"
                 />
                 <Button type="button" variant="muted" onClick={() => void pickDownloadDir()}>
                   Browse
@@ -234,7 +235,7 @@ export function SettingsView({notice, refreshKey}: Props) {
                 step={1}
                 value={form.downloadRateLimit}
                 onChange={(e) => setForm({...form, downloadRateLimit: Number(e.target.value)})}
-                className="w-32 border-border/40 bg-card"
+                  className="w-32 bg-card"
               />
               <p className="mt-1 text-xs text-muted-foreground">0 = unlimited</p>
             </Field>
@@ -246,7 +247,7 @@ export function SettingsView({notice, refreshKey}: Props) {
                 step={1}
                 value={form.uploadRateLimit}
                 onChange={(e) => setForm({...form, uploadRateLimit: Number(e.target.value)})}
-                className="w-32 border-border/40 bg-card"
+                  className="w-32 bg-card"
               />
               <p className="mt-1 text-xs text-muted-foreground">0 = unlimited</p>
             </Field>
@@ -259,11 +260,11 @@ export function SettingsView({notice, refreshKey}: Props) {
                 step={1}
                 value={form.maxConcurrentDownloads}
                 onChange={(e) => setForm({...form, maxConcurrentDownloads: Number(e.target.value)})}
-                className="w-32 border-border/40 bg-card"
+                  className="w-32 bg-card"
               />
               <p className="mt-1 text-xs text-muted-foreground">Queued torrents start when a slot is free.</p>
             </Field>
-            <Button type="submit" disabled={saving === 'downloads'} className="mt-4 w-fit">
+            <Button type="submit" variant="secondary" disabled={saving === 'downloads'} className="mt-4 w-fit">
               {saving === 'downloads' ? 'Saving…' : 'Save'}
             </Button>
           </Card>
@@ -302,7 +303,7 @@ export function SettingsView({notice, refreshKey}: Props) {
                   value={form.socks5Address}
                   onChange={(e) => setForm({...form, socks5Address: e.target.value})}
                   placeholder="127.0.0.1:1080"
-                  className="border-border/40 bg-card"
+                  className="bg-card"
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
                   Torrent traffic uses TCP through this proxy. UDP, DHT, and inbound peers are disabled.
@@ -310,7 +311,7 @@ export function SettingsView({notice, refreshKey}: Props) {
               </>
             )}
             <div className="mt-4 flex flex-wrap gap-2">
-              <Button type="submit" disabled={saving === 'network'}>
+              <Button type="submit" variant="secondary" disabled={saving === 'network'}>
                 {saving === 'network' ? 'Saving…' : 'Save'}
               </Button>
               <Button type="button" variant="muted" disabled={testingNetwork} onClick={() => void testNetwork()}>
@@ -354,10 +355,10 @@ export function SettingsView({notice, refreshKey}: Props) {
                 max={100}
                 value={form.syncThreshold}
                 onChange={(e) => setForm({...form, syncThreshold: Number(e.target.value)})}
-                className="w-32 border-border/40 bg-card"
+                  className="w-32 bg-card"
               />
             </Field>
-            <Button type="submit" disabled={saving === 'anilist'} className="mt-4 w-fit">
+            <Button type="submit" variant="secondary" disabled={saving === 'anilist'} className="mt-4 w-fit">
               {saving === 'anilist' ? 'Saving…' : 'Save'}
             </Button>
           </Card>

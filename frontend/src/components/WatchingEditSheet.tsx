@@ -133,7 +133,7 @@ export function WatchingEditSheet({entry, saving, onClose, onSave}: Props) {
                     min={0}
                     value={form.progress}
                     onChange={(event) => setForm((current) => ({...current, progress: event.target.value}))}
-                    className="border-border/40"
+                    className=""
                   />
                 </div>
                 <div className="grid gap-2">
@@ -145,7 +145,7 @@ export function WatchingEditSheet({entry, saving, onClose, onSave}: Props) {
                     max={100}
                     value={form.scoreRaw}
                     onChange={(event) => setForm((current) => ({...current, scoreRaw: event.target.value}))}
-                    className="border-border/40"
+                    className=""
                   />
                 </div>
               </div>
@@ -160,7 +160,7 @@ export function WatchingEditSheet({entry, saving, onClose, onSave}: Props) {
                     max={1000}
                     value={form.repeat}
                     onChange={(event) => setForm((current) => ({...current, repeat: event.target.value}))}
-                    className="border-border/40"
+                    className=""
                   />
                 </div>
                 <div className="grid gap-2">
@@ -184,7 +184,7 @@ export function WatchingEditSheet({entry, saving, onClose, onSave}: Props) {
                     type="date"
                     value={form.startedAt}
                     onChange={(event) => setForm((current) => ({...current, startedAt: event.target.value}))}
-                    className="border-border/40"
+                    className=""
                   />
                 </div>
                 <div className="grid gap-2">
@@ -194,7 +194,7 @@ export function WatchingEditSheet({entry, saving, onClose, onSave}: Props) {
                     type="date"
                     value={form.completedAt}
                     onChange={(event) => setForm((current) => ({...current, completedAt: event.target.value}))}
-                    className="border-border/40"
+                    className=""
                   />
                 </div>
               </div>
@@ -207,7 +207,7 @@ export function WatchingEditSheet({entry, saving, onClose, onSave}: Props) {
                   rows={4}
                   maxLength={6000}
                   onChange={(event) => setForm((current) => ({...current, notes: event.target.value}))}
-                  className="border-border/40"
+                  className=""
                 />
               </div>
             </div>
