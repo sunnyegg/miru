@@ -11,7 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const currentVersion = 6
+const currentVersion = 7
 
 var ErrNotFound = errors.New("not found")
 
@@ -84,6 +84,11 @@ func (s *Store) migrate() error {
 	}
 	if version < 6 {
 		if _, err := tx.Exec(schemaV6); err != nil {
+			return err
+		}
+	}
+	if version < 7 {
+		if _, err := tx.Exec(schemaV7); err != nil {
 			return err
 		}
 	}
@@ -220,6 +225,35 @@ DROP TABLE torrent_jobs_v4;
 
 const schemaV6 = `
 ALTER TABLE torrent_jobs ADD COLUMN files_json TEXT NOT NULL DEFAULT '';
+`
+
+const schemaV7 = `
+CREATE TABLE IF NOT EXISTS rss_feeds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    url TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL DEFAULT '',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    last_polled DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS rss_feed_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    feed_id INTEGER NOT NULL,
+    item_key TEXT NOT NULL,
+    title TEXT NOT NULL,
+    link TEXT NOT NULL DEFAULT '',
+    magnet TEXT NOT NULL DEFAULT '',
+    published DATETIME NOT NULL,
+    is_new INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (feed_id) REFERENCES rss_feeds(id) ON DELETE CASCADE,
+    UNIQUE(feed_id, item_key)
+);
+
+CREATE INDEX IF NOT EXISTS rss_feed_items_new_idx
+    ON rss_feed_items(feed_id, is_new)
+    WHERE is_new = 1;
 `
 
 func (s *Store) GetSetting(key string) (string, error) {

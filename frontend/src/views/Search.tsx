@@ -3,6 +3,7 @@ import {InspectTorrent, SearchNyaa, SearchTokyoToshokan, StartTorrent} from '../
 import {errorMessage} from '../lib/format'
 import type {NyaaResultView, TorrentContentsView, TorrentFileView} from '../lib/types'
 import {TorrentFileSheet} from '../components/TorrentFileSheet'
+import {FeedSubscriptions} from '../components/FeedSubscriptions'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Badge} from '@/components/ui/badge'
 import {Button} from '@/components/ui/button'
@@ -19,6 +20,7 @@ type Props = {
 }
 
 type SearchSource = 'nyaa' | 'tokyotosho'
+type SearchMode = 'search' | 'feeds'
 
 const PAGE_SIZE = 10
 
@@ -28,6 +30,7 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 })
 
 export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed}: Props) {
+  const [mode, setMode] = useState<SearchMode>('search')
   const [query, setQuery] = useState('')
   const [source, setSource] = useState<SearchSource>('nyaa')
   const [submittedQuery, setSubmittedQuery] = useState('')
@@ -169,10 +172,32 @@ export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed
       <header className="shrink-0">
         <h2 className="text-2xl font-semibold">Search</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Find English-translated anime torrents from {sourceLabel} RSS results.
+          {mode === 'feeds'
+            ? 'Subscribe to RSS feeds and review new torrents from fansubs and indexers.'
+            : `Find English-translated anime torrents from ${sourceLabel} RSS results.`}
         </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant={mode === 'search' ? 'secondary' : 'muted'}
+            onClick={() => setMode('search')}
+          >
+            Indexer search
+          </Button>
+          <Button
+            type="button"
+            variant={mode === 'feeds' ? 'secondary' : 'muted'}
+            onClick={() => setMode('feeds')}
+          >
+            RSS feeds
+          </Button>
+        </div>
       </header>
 
+      {mode === 'feeds' ? (
+        <FeedSubscriptions notice={notice} onDownloads={onDownloads} />
+      ) : (
+        <>
       <form
         className="flex shrink-0 flex-wrap gap-2 bg-card p-4"
         onSubmit={(event) => {
@@ -313,6 +338,8 @@ export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed
           onClose={() => setPicker(null)}
           onConfirm={(files) => void confirmPicker(files)}
         />
+      )}
+        </>
       )}
     </section>
   )

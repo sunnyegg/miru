@@ -216,6 +216,54 @@ export namespace main {
 	        this.remake = source["remake"];
 	    }
 	}
+	export class RSSFeedItemView {
+	    id: number;
+	    feedId: number;
+	    feedTitle: string;
+	    title: string;
+	    link: string;
+	    magnet: string;
+	    published: string;
+	    isNew: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new RSSFeedItemView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.feedId = source["feedId"];
+	        this.feedTitle = source["feedTitle"];
+	        this.title = source["title"];
+	        this.link = source["link"];
+	        this.magnet = source["magnet"];
+	        this.published = source["published"];
+	        this.isNew = source["isNew"];
+	    }
+	}
+	export class RSSFeedView {
+	    id: number;
+	    url: string;
+	    title: string;
+	    enabled: boolean;
+	    lastPolled: string;
+	    newCount: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new RSSFeedView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.url = source["url"];
+	        this.title = source["title"];
+	        this.enabled = source["enabled"];
+	        this.lastPolled = source["lastPolled"];
+	        this.newCount = source["newCount"];
+	    }
+	}
 	export class SettingsView {
 	    mpvPath: string;
 	    anime4kEnabled: boolean;
@@ -230,6 +278,7 @@ export namespace main {
 	    socks5Address: string;
 	    httpProxyUrl: string;
 	    updateChannel: string;
+	    rssPollIntervalMinutes: number;
 	    discordRpcEnabled: boolean;
 	    discordAppId: string;
 	    downloadNotifications: boolean;
@@ -253,6 +302,7 @@ export namespace main {
 	        this.socks5Address = source["socks5Address"];
 	        this.httpProxyUrl = source["httpProxyUrl"];
 	        this.updateChannel = source["updateChannel"];
+	        this.rssPollIntervalMinutes = source["rssPollIntervalMinutes"];
 	        this.discordRpcEnabled = source["discordRpcEnabled"];
 	        this.discordAppId = source["discordAppId"];
 	        this.downloadNotifications = source["downloadNotifications"];

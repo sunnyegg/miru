@@ -3,6 +3,8 @@
 import {main} from '../models';
 import {torrentx} from '../models';
 
+export function AddRSSFeed(arg1:string,arg2:string):Promise<main.RSSFeedView>;
+
 export function AnilistStatus():Promise<main.AnilistStatus>;
 
 export function AppVersion():Promise<string>;
@@ -14,6 +16,8 @@ export function BindEpisode(arg1:number,arg2:number):Promise<void>;
 export function CancelDownload(arg1:number):Promise<void>;
 
 export function CheckForUpdate():Promise<main.UpdateInfo>;
+
+export function CountNewRSSFeedItems():Promise<number>;
 
 export function DetectMpv():Promise<string>;
 
@@ -39,7 +43,15 @@ export function ListCurrentlyWatching():Promise<Array<main.WatchingEntryView>>;
 
 export function ListEpisodes():Promise<Array<main.EpisodeView>>;
 
+export function ListRSSFeedItems(arg1:boolean):Promise<Array<main.RSSFeedItemView>>;
+
+export function ListRSSFeeds():Promise<Array<main.RSSFeedView>>;
+
 export function LogoutAnilist():Promise<void>;
+
+export function MarkAllRSSFeedItemsSeen():Promise<void>;
+
+export function MarkRSSFeedItemsSeen(arg1:Array<number>):Promise<void>;
 
 export function OpenAnilistLogin():Promise<void>;
 
@@ -55,7 +67,11 @@ export function PickTorrentFile():Promise<string>;
 
 export function PlayEpisode(arg1:number):Promise<void>;
 
+export function PollRSSFeedsNow():Promise<void>;
+
 export function RemoveDownload(arg1:number,arg2:boolean):Promise<void>;
+
+export function RemoveRSSFeed(arg1:number):Promise<void>;
 
 export function ResumeDownload(arg1:number):Promise<void>;
 
@@ -73,6 +89,8 @@ export function SaveNetworkSettings(arg1:string,arg2:string,arg3:string):Promise
 
 export function SavePlaybackSettings(arg1:string,arg2:boolean,arg3:boolean,arg4:string):Promise<void>;
 
+export function SaveRSSPollSettings(arg1:number):Promise<void>;
+
 export function SaveUpdateChannel(arg1:string):Promise<void>;
 
 export function SearchAnime(arg1:string):Promise<Array<main.AnimeView>>;
@@ -82,6 +100,8 @@ export function SearchNyaa(arg1:string):Promise<Array<main.NyaaResultView>>;
 export function SearchTokyoToshokan(arg1:string):Promise<Array<main.NyaaResultView>>;
 
 export function SetAnimeListStatus(arg1:number,arg2:string,arg3:number):Promise<void>;
+
+export function SetRSSFeedEnabled(arg1:number,arg2:boolean):Promise<void>;
 
 export function StartMagnet(arg1:string):Promise<void>;
 

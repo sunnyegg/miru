@@ -14,6 +14,7 @@ export type SettingsView = {
   socks5Address: string
   httpProxyUrl: string
   updateChannel: string
+  rssPollIntervalMinutes: number
   discordRpcEnabled: boolean
   discordAppId: string
   downloadNotifications: boolean
@@ -118,6 +119,26 @@ export type NyaaResultView = {
   downloads: number
   trusted: boolean
   remake: boolean
+}
+
+export type RSSFeedView = {
+  id: number
+  url: string
+  title: string
+  enabled: boolean
+  lastPolled: string
+  newCount: number
+}
+
+export type RSSFeedItemView = {
+  id: number
+  feedId: number
+  feedTitle: string
+  title: string
+  link: string
+  magnet: string
+  published: string
+  isNew: boolean
 }
 
 export type TorrentFileView = {
