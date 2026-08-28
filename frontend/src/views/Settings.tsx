@@ -11,6 +11,7 @@ import {
   SaveDownloadSettings,
   SaveNetworkSettings,
   SavePlaybackSettings,
+  SaveRSSPollSettings,
   SaveUpdateChannel,
   TestNetworkConnection,
 } from '../../wailsjs/go/main/App'
@@ -34,6 +35,7 @@ const empty: SettingsView = {
   networkMode: 'system',
   socks5Address: '127.0.0.1:1080',
   updateChannel: 'stable',
+  rssPollIntervalMinutes: 30,
 }
 
 type Props = {
@@ -82,6 +84,7 @@ export function SettingsView({
         networkMode: settings?.networkMode ?? 'system',
         socks5Address: settings?.socks5Address ?? '127.0.0.1:1080',
         updateChannel: settings?.updateChannel ?? 'stable',
+        rssPollIntervalMinutes: settings?.rssPollIntervalMinutes ?? 30,
       })
       setStatus(anilist ?? {connected: false, username: ''})
     } catch (err) {
@@ -236,14 +239,16 @@ export function SettingsView({
             e.preventDefault()
             void saveSection(
               'downloads',
-              () =>
-                SaveDownloadSettings(
+              async () => {
+                await SaveDownloadSettings(
                   form.downloadDir,
                   kbToBytes(form.downloadRateLimit),
                   kbToBytes(form.uploadRateLimit),
                   form.maxConcurrentDownloads,
                   form.seedRatio,
-                ),
+                )
+                await SaveRSSPollSettings(form.rssPollIntervalMinutes)
+              },
               'Downloads saved',
             )
           }}
@@ -314,6 +319,21 @@ export function SettingsView({
               />
               <p className="mt-1 text-xs text-muted-foreground">
                 Upload ratio before auto-finish (0.5 = half the download size). 0 stops seeding right away.
+              </p>
+            </Field>
+            <Field label="RSS poll interval (minutes)" htmlFor="rssPollIntervalMinutes">
+              <Input
+                id="rssPollIntervalMinutes"
+                type="number"
+                min={5}
+                max={1440}
+                step={5}
+                value={form.rssPollIntervalMinutes}
+                onChange={(e) => setForm({...form, rssPollIntervalMinutes: Number(e.target.value)})}
+                className="w-32 bg-card"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                How often subscribed RSS feeds are checked in the background (5–1440).
               </p>
             </Field>
             <Button type="submit" variant="secondary" disabled={saving === 'downloads'} className="mt-4 w-fit">

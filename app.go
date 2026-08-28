@@ -48,6 +48,9 @@ type App struct {
 	loginMu     sync.Mutex
 	loginSrv    *http.Server
 	loginCancel context.CancelFunc
+
+	feedPollerMu sync.Mutex
+	feedPoller   *feedPoller
 }
 
 type playSession struct {
@@ -76,6 +79,12 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) shutdown(_ context.Context) {
+	a.feedPollerMu.Lock()
+	if a.feedPoller != nil {
+		a.feedPoller.stop()
+		a.feedPoller = nil
+	}
+	a.feedPollerMu.Unlock()
 	a.stopLoginServer()
 	if a.player != nil {
 		a.player.Stop()
@@ -118,7 +127,11 @@ func (a *App) init() error {
 	if err := a.ensureDefaults(); err != nil {
 		return err
 	}
-	return a.configureTorrents()
+	if err := a.configureTorrents(); err != nil {
+		return err
+	}
+	a.startFeedPoller()
+	return nil
 }
 
 func (a *App) configureTorrents() error {
@@ -157,6 +170,11 @@ func (a *App) ensureDefaults() error {
 	}
 	if a.settingMissing("seed_ratio") {
 		if err := a.store.SetSetting("seed_ratio", "0.5"); err != nil {
+			return err
+		}
+	}
+	if a.settingMissing("rss_poll_interval_minutes") {
+		if err := a.store.SetSetting("rss_poll_interval_minutes", "30"); err != nil {
 			return err
 		}
 	}

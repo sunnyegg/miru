@@ -112,6 +112,25 @@ func (a *App) SaveUpdateChannel(channel string) error {
 	})
 }
 
+func (a *App) SaveRSSPollSettings(intervalMinutes int) error {
+	if err := a.ready(); err != nil {
+		return err
+	}
+	if intervalMinutes < 5 {
+		intervalMinutes = 5
+	}
+	if intervalMinutes > 1440 {
+		intervalMinutes = 1440
+	}
+	if err := a.setSettings(map[string]string{
+		"rss_poll_interval_minutes": strconv.Itoa(intervalMinutes),
+	}); err != nil {
+		return err
+	}
+	a.restartFeedPoller()
+	return nil
+}
+
 func (a *App) SaveAnilistSettings(syncThreshold float64) error {
 	if err := a.ready(); err != nil {
 		return err
@@ -207,6 +226,13 @@ func (a *App) loadSettings() (SettingsView, error) {
 		view.UpdateChannel = update.DefaultChannel(version)
 	} else {
 		view.UpdateChannel = parsedChannel
+	}
+	view.RSSPollIntervalMinutes = settingInt(a.store, "rss_poll_interval_minutes", 30)
+	if view.RSSPollIntervalMinutes < 5 {
+		view.RSSPollIntervalMinutes = 5
+	}
+	if view.RSSPollIntervalMinutes > 1440 {
+		view.RSSPollIntervalMinutes = 1440
 	}
 	return view, nil
 }
