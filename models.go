@@ -122,3 +122,12 @@ type SyncEvent struct {
 	OK        bool   `json:"ok"`
 	Message   string `json:"message"`
 }
+
+type UpdateInfo struct {
+	Current    string `json:"current"`
+	Latest     string `json:"latest"`
+	Available  bool   `json:"available"`
+	Notes      string `json:"notes"`
+	ReleaseURL string `json:"releaseUrl"`
+	AssetName  string `json:"assetName"`
+}

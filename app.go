@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/sunnyegg/miru/internal/secrets"
 	"github.com/sunnyegg/miru/internal/storage"
 	"github.com/sunnyegg/miru/internal/torrentx"
+	"github.com/sunnyegg/miru/internal/update"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -79,13 +81,18 @@ func (a *App) shutdown(_ context.Context) {
 	}
 	if a.torrents != nil {
 		a.torrents.Close()
+		a.torrents = nil
 	}
 	if a.store != nil {
 		_ = a.store.Close()
+		a.store = nil
 	}
 }
 
 func (a *App) init() error {
+	if exe, err := os.Executable(); err == nil {
+		update.CleanupOld(exe)
+	}
 	loadDotEnv()
 	dirs, err := paths.Resolve()
 	if err != nil {

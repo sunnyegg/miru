@@ -9,5 +9,11 @@
   "author": {
     "name": "sunnyegg",
     "email": "adilatresna21@gmail.com"
+  },
+  "info": {
+    "companyName": "sunnyegg",
+    "productName": "Miru",
+    "productVersion": "0.0.0",
+    "copyright": "Copyright © sunnyegg"
   }
 }

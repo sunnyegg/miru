@@ -14,7 +14,7 @@ import {
   TestNetworkConnection,
 } from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
-import type {AnilistStatus as Status, SettingsView} from '../lib/types'
+import type {AnilistStatus as Status, SettingsView, UpdateInfo} from '../lib/types'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
@@ -36,11 +36,28 @@ const empty: SettingsView = {
 type Props = {
   notice: (msg: string, isError?: boolean) => void
   refreshKey: number
+  appVersion: string
+  update: UpdateInfo | null
+  checkingUpdate: boolean
+  applyingUpdate: boolean
+  onCheckUpdate: () => void
+  onApplyUpdate: () => void
+  onOpenRelease: () => void
 }
 
 type SettingsSection = 'playback' | 'downloads' | 'network' | 'anilist'
 
-export function SettingsView({notice, refreshKey}: Props) {
+export function SettingsView({
+  notice,
+  refreshKey,
+  appVersion,
+  update,
+  checkingUpdate,
+  applyingUpdate,
+  onCheckUpdate,
+  onApplyUpdate,
+  onOpenRelease,
+}: Props) {
   const [form, setForm] = useState<SettingsView>(empty)
   const [status, setStatus] = useState<Status>({connected: false, username: ''})
   const [saving, setSaving] = useState<SettingsSection | null>(null)
@@ -363,6 +380,34 @@ export function SettingsView({notice, refreshKey}: Props) {
             </Button>
           </Card>
         </form>
+
+        <Card>
+          <h3 className="text-sm font-medium">About</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Version {appVersion || 'dev'}</p>
+          {update?.available ? (
+            <>
+              <p className="mt-3 text-sm">Miru {update.latest} is available.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button type="button" disabled={applyingUpdate} onClick={onApplyUpdate}>
+                  {applyingUpdate ? 'Updating…' : 'Update now'}
+                </Button>
+                <Button type="button" variant="muted" onClick={onOpenRelease}>
+                  Open download page
+                </Button>
+              </div>
+            </>
+          ) : (
+            <Button
+              type="button"
+              variant="secondary"
+              className="mt-4 w-fit"
+              disabled={checkingUpdate}
+              onClick={onCheckUpdate}
+            >
+              {checkingUpdate ? 'Checking…' : 'Check for updates'}
+            </Button>
+          )}
+        </Card>
         </div>
       )}
     </section>

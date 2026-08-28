@@ -5,9 +5,15 @@ import {torrentx} from '../models';
 
 export function AnilistStatus():Promise<main.AnilistStatus>;
 
+export function AppVersion():Promise<string>;
+
+export function ApplyUpdate():Promise<void>;
+
 export function BindEpisode(arg1:number,arg2:number):Promise<void>;
 
 export function CancelDownload(arg1:number):Promise<void>;
+
+export function CheckForUpdate():Promise<main.UpdateInfo>;
 
 export function DetectMpv():Promise<string>;
 

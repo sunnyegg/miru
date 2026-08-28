@@ -6,12 +6,24 @@ export function AnilistStatus() {
   return window['go']['main']['App']['AnilistStatus']();
 }
 
+export function AppVersion() {
+  return window['go']['main']['App']['AppVersion']();
+}
+
+export function ApplyUpdate() {
+  return window['go']['main']['App']['ApplyUpdate']();
+}
+
 export function BindEpisode(arg1, arg2) {
   return window['go']['main']['App']['BindEpisode'](arg1, arg2);
 }
 
 export function CancelDownload(arg1) {
   return window['go']['main']['App']['CancelDownload'](arg1);
+}
+
+export function CheckForUpdate() {
+  return window['go']['main']['App']['CheckForUpdate']();
 }
 
 export function DetectMpv() {

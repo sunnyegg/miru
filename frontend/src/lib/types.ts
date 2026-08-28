@@ -138,3 +138,12 @@ export type SyncEvent = {
   ok: boolean
   message: string
 }
+
+export type UpdateInfo = {
+  current: string
+  latest: string
+  available: boolean
+  notes: string
+  releaseUrl: string
+  assetName: string
+}

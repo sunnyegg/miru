@@ -43,27 +43,49 @@ jobs:
           ANILIST_CLIENT_SECRET=${{ secrets.ANILIST_CLIENT_SECRET }}
           EOF
 
+      - name: Stamp version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME}"
+            PRODUCT="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="dev"
+            PRODUCT="0.0.0"
+          fi
+          echo "MIRU_VERSION=${VERSION}" >> "${GITHUB_ENV}"
+          echo "MIRU_PRODUCT=${PRODUCT}" >> "${GITHUB_ENV}"
+          python3 - "${PRODUCT}" <<'PY'
+          import json, sys
+          product = sys.argv[1]
+          with open("wails.json") as f:
+              data = json.load(f)
+          data.setdefault("info", {})["productVersion"] = product
+          with open("wails.json", "w") as f:
+              json.dump(data, f, indent=2)
+              f.write("\n")
+          PY
+
       - name: Install dependencies
         run: make deps
 
       - name: Build Linux
-        run: wails build -tags webkit2_41 -o miru-linux-amd64 -clean
+        run: wails build -tags webkit2_41 -o miru-${MIRU_PRODUCT}-linux-amd64 -clean -ldflags "-X main.version=${MIRU_VERSION}"
 
       - name: Build Windows
-        run: wails build -tags webkit2_41 -platform windows/amd64 -o miru-windows-amd64.exe -clean -nsis=false
+        run: wails build -tags webkit2_41 -platform windows/amd64 -o miru-${MIRU_PRODUCT}-windows-amd64.exe -clean -nsis=false -ldflags "-X main.version=${MIRU_VERSION}"
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: miru-linux-amd64
-          path: build/bin/miru-linux-amd64
+          path: build/bin/miru-${{ env.MIRU_PRODUCT }}-linux-amd64
           if-no-files-found: error
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: miru-windows-amd64.exe
-          path: build/bin/miru-windows-amd64.exe
+          path: build/bin/miru-${{ env.MIRU_PRODUCT }}-windows-amd64.exe
           if-no-files-found: error
 
   build-macos:
@@ -96,22 +118,44 @@ jobs:
           ANILIST_CLIENT_SECRET=${{ secrets.ANILIST_CLIENT_SECRET }}
           EOF
 
+      - name: Stamp version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME}"
+            PRODUCT="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="dev"
+            PRODUCT="0.0.0"
+          fi
+          echo "MIRU_VERSION=${VERSION}" >> "${GITHUB_ENV}"
+          echo "MIRU_PRODUCT=${PRODUCT}" >> "${GITHUB_ENV}"
+          python3 - "${PRODUCT}" <<'PY'
+          import json, sys
+          product = sys.argv[1]
+          with open("wails.json") as f:
+              data = json.load(f)
+          data.setdefault("info", {})["productVersion"] = product
+          with open("wails.json", "w") as f:
+              json.dump(data, f, indent=2)
+              f.write("\n")
+          PY
+
       - name: Install dependencies
         run: make deps
 
       - name: Build macOS universal
-        run: wails build -platform darwin/universal -o miru-mac-universal -clean
+        run: wails build -platform darwin/universal -o miru-mac-universal -clean -ldflags "-X main.version=${MIRU_VERSION}"
 
       - name: Zip .app bundle
         run: |
           cd build/bin
-          zip -r miru-mac-universal.zip miru-mac-universal.app
+          zip -r miru-${MIRU_PRODUCT}-mac-universal.zip miru-mac-universal.app
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: miru-mac-universal.zip
-          path: build/bin/miru-mac-universal.zip
+          path: build/bin/miru-${{ env.MIRU_PRODUCT }}-mac-universal.zip
           if-no-files-found: error
 
   release:
@@ -138,17 +182,20 @@ jobs:
           name: miru-mac-universal.zip
           path: dist
 
+      - name: Set product version
+        run: echo "MIRU_PRODUCT=${GITHUB_REF_NAME#v}" >> "${GITHUB_ENV}"
+
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/miru-linux-amd64
-            dist/miru-windows-amd64.exe
-            dist/miru-mac-universal.zip
+            dist/miru-${{ env.MIRU_PRODUCT }}-linux-amd64
+            dist/miru-${{ env.MIRU_PRODUCT }}-windows-amd64.exe
+            dist/miru-${{ env.MIRU_PRODUCT }}-mac-universal.zip
           body: |
             ## Miru ${{ github.ref_name }}
 
-            - `miru-linux-amd64` — Linux x86_64 standalone ELF.
-            - `miru-windows-amd64.exe` — Windows x86_64 standalone with embedded WebView2.
-            - `miru-mac-universal.zip` — macOS universal `.app` bundle (Apple Silicon + Intel). **Unsigned** — see README for the Gatekeeper workaround.
+            - `miru-${{ env.MIRU_PRODUCT }}-linux-amd64` — Linux x86_64 standalone ELF.
+            - `miru-${{ env.MIRU_PRODUCT }}-windows-amd64.exe` — Windows x86_64 standalone with embedded WebView2.
+            - `miru-${{ env.MIRU_PRODUCT }}-mac-universal.zip` — macOS universal `.app` bundle (Apple Silicon + Intel). **Unsigned** — see README for the Gatekeeper workaround.
           fail_on_unmatched_files: true

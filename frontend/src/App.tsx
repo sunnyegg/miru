@@ -1,6 +1,6 @@
 import {useEffect, useState} from 'react'
-import {EventsOff, EventsOn} from '../wailsjs/runtime/runtime'
-import {InitError} from '../wailsjs/go/main/App'
+import {BrowserOpenURL, EventsOff, EventsOn} from '../wailsjs/runtime/runtime'
+import {ApplyUpdate, AppVersion, CheckForUpdate, InitError} from '../wailsjs/go/main/App'
 import {errorMessage} from './lib/format'
 import {Sidebar} from './components/Sidebar'
 import {Splash} from './components/Splash'
@@ -11,8 +11,9 @@ import {DownloadsView} from './views/Downloads'
 import {CalendarView} from './views/Calendar'
 import {SettingsView} from './views/Settings'
 import {Alert} from '@/components/ui/alert'
+import {Button} from '@/components/ui/button'
 import {toast} from '@/components/ui/toast'
-import type {DownloadView, PlaybackEvent, SyncEvent, TabId} from './lib/types'
+import type {DownloadView, PlaybackEvent, SyncEvent, TabId, UpdateInfo} from './lib/types'
 
 export default function App() {
   const [tab, setTab] = useState<TabId>('library')
@@ -23,6 +24,11 @@ export default function App() {
   const [playing, setPlaying] = useState<PlaybackEvent | null>(null)
   const [searchPrefill, setSearchPrefill] = useState('')
   const [bootDone, setBootDone] = useState(false)
+  const [appVersion, setAppVersion] = useState('')
+  const [update, setUpdate] = useState<UpdateInfo | null>(null)
+  const [showUpdateBanner, setShowUpdateBanner] = useState(true)
+  const [checkingUpdate, setCheckingUpdate] = useState(false)
+  const [applyingUpdate, setApplyingUpdate] = useState(false)
 
   function showNotice(text: string, error = false) {
     toast.add({
@@ -40,8 +46,70 @@ export default function App() {
     }
   }
 
+  async function checkUpdate(manual: boolean) {
+    setCheckingUpdate(true)
+    try {
+      const info = await CheckForUpdate()
+      setUpdate(info)
+      if (!manual) {
+        return
+      }
+      if (info.available) {
+        showNotice(`Miru ${info.latest} is available`)
+        return
+      }
+      if (info.current === 'dev') {
+        showNotice('Updates are disabled in development builds')
+        return
+      }
+      showNotice('You are on the latest version')
+    } catch (err) {
+      if (manual) {
+        showNotice(errorMessage(err), true)
+      }
+    } finally {
+      setCheckingUpdate(false)
+    }
+  }
+
+  async function applyUpdate() {
+    setApplyingUpdate(true)
+    try {
+      await ApplyUpdate()
+      showNotice('Restarting…')
+    } catch (err) {
+      showNotice(errorMessage(err), true)
+      setApplyingUpdate(false)
+    }
+  }
+
+  function openReleasePage() {
+    if (update?.releaseUrl) {
+      BrowserOpenURL(update.releaseUrl)
+    }
+  }
+
+  async function loadVersion() {
+    try {
+      setAppVersion(await AppVersion())
+    } catch {
+      setAppVersion('')
+    }
+  }
+
   useEffect(() => {
     void loadInitError()
+    void loadVersion()
+    void (async () => {
+      setCheckingUpdate(true)
+      try {
+        setUpdate(await CheckForUpdate())
+      } catch {
+        // startup check is silent
+      } finally {
+        setCheckingUpdate(false)
+      }
+    })()
 
     EventsOn('torrent:progress', (payload: DownloadView) => {
       setJobs((current) => {
@@ -90,6 +158,19 @@ export default function App() {
             {initError}
           </Alert>
         )}
+        {update?.available && showUpdateBanner && (
+          <Alert className="flex flex-wrap items-center gap-2 border-0 border-b border-border bg-card px-4 py-2 text-sm text-foreground">
+            <span className="min-w-0 flex-1">
+              Miru {update.latest} is available (you have {update.current}).
+            </span>
+            <Button type="button" disabled={applyingUpdate} onClick={() => void applyUpdate()}>
+              {applyingUpdate ? 'Updating…' : 'Update'}
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setShowUpdateBanner(false)}>
+              Later
+            </Button>
+          </Alert>
+        )}
         {playing && (
           <div className="border-b border-border bg-bezel px-4 py-2 text-sm" role="status">
             Playing · {Math.round(playing.percent)}%
@@ -123,7 +204,19 @@ export default function App() {
           )}
           {tab === 'downloads' && <DownloadsView notice={showNotice} jobs={jobs} onJobs={setJobs} />}
           {tab === 'calendar' && <CalendarView />}
-          {tab === 'settings' && <SettingsView notice={showNotice} refreshKey={authKey} />}
+          {tab === 'settings' && (
+            <SettingsView
+              notice={showNotice}
+              refreshKey={authKey}
+              appVersion={appVersion}
+              update={update}
+              checkingUpdate={checkingUpdate}
+              applyingUpdate={applyingUpdate}
+              onCheckUpdate={() => void checkUpdate(true)}
+              onApplyUpdate={() => void applyUpdate()}
+              onOpenRelease={openReleasePage}
+            />
+          )}
         </main>
         {tab === 'library' && !bootDone && !initError && (
           <div

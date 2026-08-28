@@ -2,6 +2,8 @@ GO ?= go
 WAILS ?= wails
 WEBKIT_TAG ?= webkit2_41
 GOLANGCI_LINT_VERSION ?= v2.13.1
+VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || echo dev)
+LD_FLAGS ?= -X main.version=$(VERSION)
 
 .PHONY: help deps build dev test fmt lint lint-fe typecheck doctor clean
 
@@ -24,10 +26,10 @@ deps:
 
 build:
 	@test -f .env || (printf '%s\n' 'Error: .env is required for a release build.' >&2; exit 1)
-	$(WAILS) build -tags "$(WEBKIT_TAG)"
+	$(WAILS) build -tags "$(WEBKIT_TAG)" -ldflags "$(LD_FLAGS)"
 
 dev:
-	$(WAILS) dev -tags "$(WEBKIT_TAG)"
+	$(WAILS) dev -tags "$(WEBKIT_TAG)" -ldflags "$(LD_FLAGS)"
 
 test:
 	$(GO) test ./...

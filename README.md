@@ -56,15 +56,17 @@ source, and remove generated output.
 
 ## Releases
 
-Pushing a tag matching `v*` triggers `.github/workflows/release.yml`, which builds and attaches:
+Pushing a tag matching `v*` triggers `.github/workflows/release.yml`, which stamps that tag into the binary and attaches (example for `v1.2.3`):
 
-- `miru-linux-amd64` — Linux x86_64 standalone ELF.
-- `miru-windows-amd64.exe` — Windows x86_64 standalone with embedded WebView2.
-- `miru-mac-universal.zip` — macOS universal `.app` bundle (Apple Silicon + Intel). **Unsigned**; on first launch macOS will block it. To open, remove the quarantine attribute:
+- `miru-1.2.3-linux-amd64` — Linux x86_64 standalone ELF.
+- `miru-1.2.3-windows-amd64.exe` — Windows x86_64 standalone with embedded WebView2.
+- `miru-1.2.3-mac-universal.zip` — macOS universal `.app` bundle (Apple Silicon + Intel). **Unsigned**; on first launch macOS will block it. To open, remove the quarantine attribute:
 
   ```bash
   xattr -d com.apple.quarantine /Applications/miru.app
   ```
+
+A tagged release build checks GitHub for a newer `v*` release at startup and from **Settings → About**. **Update** downloads the matching asset, replaces the running binary, and restarts. Development builds (`dev`, including `make dev`) do not offer updates. If the binary path is not writable, use **Open download page** instead.
 
 The Linux job installs `libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config` to satisfy the `webkit2_41` build tag. AniList credentials are pulled from the `ANILIST_CLIENT_ID` and `ANILIST_CLIENT_SECRET` repository secrets and written to `.env` before the `production` build embeds it.
 

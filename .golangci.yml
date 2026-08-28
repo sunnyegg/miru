@@ -13,3 +13,5 @@ linters:
   exclusions:
     presets:
       - std-error-handling
+    paths:
+      - frontend/node_modules
