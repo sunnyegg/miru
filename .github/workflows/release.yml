@@ -1,0 +1,154 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux-windows:
+    name: Build Linux + Windows
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Linux build deps
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
+
+      - name: Write .env from secrets
+        run: |
+          cat > .env <<EOF
+          ANILIST_CLIENT_ID=${{ secrets.ANILIST_CLIENT_ID }}
+          ANILIST_CLIENT_SECRET=${{ secrets.ANILIST_CLIENT_SECRET }}
+          EOF
+
+      - name: Install dependencies
+        run: make deps
+
+      - name: Build Linux
+        run: wails build -tags webkit2_41 -o miru-linux-amd64 -clean
+
+      - name: Build Windows
+        run: wails build -tags webkit2_41 -platform windows/amd64 -o miru-windows-amd64.exe -clean -nsis=false
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-linux-amd64
+          path: build/bin/miru-linux-amd64
+          if-no-files-found: error
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-windows-amd64.exe
+          path: build/bin/miru-windows-amd64.exe
+          if-no-files-found: error
+
+  build-macos:
+    name: Build macOS (universal)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
+
+      - name: Write .env from secrets
+        run: |
+          cat > .env <<EOF
+          ANILIST_CLIENT_ID=${{ secrets.ANILIST_CLIENT_ID }}
+          ANILIST_CLIENT_SECRET=${{ secrets.ANILIST_CLIENT_SECRET }}
+          EOF
+
+      - name: Install dependencies
+        run: make deps
+
+      - name: Build macOS universal
+        run: wails build -platform darwin/universal -o miru-mac-universal -clean
+
+      - name: Zip .app bundle
+        run: |
+          cd build/bin
+          zip -r miru-mac-universal.zip miru-mac-universal.app
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-mac-universal.zip
+          path: build/bin/miru-mac-universal.zip
+          if-no-files-found: error
+
+  release:
+    name: Attach binaries to release
+    needs: [build-linux-windows, build-macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: miru-linux-amd64
+          path: dist
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: miru-windows-amd64.exe
+          path: dist
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: miru-mac-universal.zip
+          path: dist
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/miru-linux-amd64
+            dist/miru-windows-amd64.exe
+            dist/miru-mac-universal.zip
+          body: |
+            ## Miru ${{ github.ref_name }}
+
+            - `miru-linux-amd64` — Linux x86_64 standalone ELF.
+            - `miru-windows-amd64.exe` — Windows x86_64 standalone with embedded WebView2.
+            - `miru-mac-universal.zip` — macOS universal `.app` bundle (Apple Silicon + Intel). **Unsigned** — see README for the Gatekeeper workaround.
+          fail_on_unmatched_files: true

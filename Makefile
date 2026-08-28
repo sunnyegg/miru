@@ -20,7 +20,7 @@ help:
 
 deps:
 	$(GO) mod download
-	npm --prefix frontend install
+	NODE_ENV=development npm --prefix frontend install
 
 build:
 	@test -f .env || (printf '%s\n' 'Error: .env is required for a release build.' >&2; exit 1)

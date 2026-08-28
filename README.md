@@ -54,11 +54,27 @@ source, and remove generated output.
    - Redirect URL on the AniList app must be `http://127.0.0.1:58496/callback` (click Save on that form).
    - If the port is in use, paste the access token in Settings instead.
 
+## Releases
+
+Pushing a tag matching `v*` triggers `.github/workflows/release.yml`, which builds and attaches:
+
+- `miru-linux-amd64` — Linux x86_64 standalone ELF.
+- `miru-windows-amd64.exe` — Windows x86_64 standalone with embedded WebView2.
+- `miru-mac-universal.zip` — macOS universal `.app` bundle (Apple Silicon + Intel). **Unsigned**; on first launch macOS will block it. To open, remove the quarantine attribute:
+
+  ```bash
+  xattr -d com.apple.quarantine /Applications/miru.app
+  ```
+
+The Linux job installs `libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config` to satisfy the `webkit2_41` build tag. AniList credentials are pulled from the `ANILIST_CLIENT_ID` and `ANILIST_CLIENT_SECRET` repository secrets and written to `.env` before the `production` build embeds it.
+
+Manual runs are also available via the **Run workflow** button for ad-hoc checks; the release-attachment step is skipped in that case.
+
 ## MVP scope
 
 Included: local library, MPV playback, AniList progress at ≥85%, one magnet/`.torrent` download that stops uploading when complete.
 
-Deferred: RSS indexers, airing calendar, bandwidth sliders, 0.5× seeding ratio, Windows/macOS packages.
+Deferred: RSS indexer auto-feed, desktop download-complete notifications, Discord Rich Presence, Anime4K shader injection.
 
 ## Smoke notes (Linux)
 
