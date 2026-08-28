@@ -35,6 +35,8 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
 
   useEffect(() => {
     void refreshHistory()
+    // Mount-only load; refreshHistory is recreated each render but does not depend on it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function refreshHistory() {

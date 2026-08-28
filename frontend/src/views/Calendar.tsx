@@ -82,6 +82,8 @@ export function CalendarView() {
 
   useEffect(() => {
     void loadSchedules()
+    // loadSchedules closes over current weekStart/days; rely on deps to refire.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekStart, days])
 
   return (

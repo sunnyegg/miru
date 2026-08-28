@@ -132,6 +132,8 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
 
   useEffect(() => {
     void loadList()
+    // loadList closes over current listFilter via state setter; refreshKey is the trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey])
 
   const filterLabel = listStatusLabel(listFilter)

@@ -97,6 +97,8 @@ export function LibraryView({notice, refreshKey, authKey, playing, onFindTorrent
   useEffect(() => {
     void reload()
     void reloadWatching()
+    // reload/reloadWatching are local; refreshKey/authKey are the real triggers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey, authKey])
 
   useEffect(() => {
@@ -150,6 +152,8 @@ export function LibraryView({notice, refreshKey, authKey, playing, onFindTorrent
       return
     }
     void openMatcher(unbound)
+    // openMatcher is a local handler; libraryEpisodes/loading/picker/importing are the real triggers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, picker, importing, libraryEpisodes])
 
   async function onImport() {

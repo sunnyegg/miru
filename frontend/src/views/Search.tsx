@@ -105,6 +105,8 @@ export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed
     }
     void search(trimmed)
     onPrefillConsumed?.()
+    // Fires only when prefillQuery changes; query/search/onPrefillConsumed are read but not triggers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefillQuery])
 
   return (
