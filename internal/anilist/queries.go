@@ -69,6 +69,7 @@ func (c *Client) ListMediaList(status string) ([]CurrentEntry, error) {
 	        coverImage { large }
 	        episodes
 	        status
+	        nextAiringEpisode { episode }
 	      }
 	    }
 	  }
@@ -485,27 +486,35 @@ type gqlCurrentEntry struct {
 		CoverImage struct {
 			Large string `json:"large"`
 		} `json:"coverImage"`
-		Episodes int    `json:"episodes"`
-		Status   string `json:"status"`
+		Episodes          int    `json:"episodes"`
+		Status            string `json:"status"`
+		NextAiringEpisode *struct {
+			Episode int `json:"episode"`
+		} `json:"nextAiringEpisode"`
 	} `json:"media"`
 }
 
 func (e gqlCurrentEntry) toCurrentEntry() CurrentEntry {
+	nextAiringEpisode := 0
+	if e.Media.NextAiringEpisode != nil {
+		nextAiringEpisode = e.Media.NextAiringEpisode.Episode
+	}
 	return CurrentEntry{
-		MediaID:       e.Media.ID,
-		ListStatus:    e.Status,
-		Progress:      e.Progress,
-		ScoreRaw:      int(e.Score),
-		Notes:         e.Notes,
-		Repeat:        e.Repeat,
-		Private:       e.Private,
-		StartedAt:     FuzzyDate{Year: e.StartedAt.Year, Month: e.StartedAt.Month, Day: e.StartedAt.Day},
-		CompletedAt:   FuzzyDate{Year: e.CompletedAt.Year, Month: e.CompletedAt.Month, Day: e.CompletedAt.Day},
-		TitleRomaji:   e.Media.Title.Romaji,
-		TitleEnglish:  e.Media.Title.English,
-		CoverImage:    e.Media.CoverImage.Large,
-		TotalEpisodes: e.Media.Episodes,
-		MediaStatus:   e.Media.Status,
+		MediaID:           e.Media.ID,
+		ListStatus:        e.Status,
+		Progress:          e.Progress,
+		ScoreRaw:          int(e.Score),
+		Notes:             e.Notes,
+		Repeat:            e.Repeat,
+		Private:           e.Private,
+		StartedAt:         FuzzyDate{Year: e.StartedAt.Year, Month: e.StartedAt.Month, Day: e.StartedAt.Day},
+		CompletedAt:       FuzzyDate{Year: e.CompletedAt.Year, Month: e.CompletedAt.Month, Day: e.CompletedAt.Day},
+		TitleRomaji:       e.Media.Title.Romaji,
+		TitleEnglish:      e.Media.Title.English,
+		CoverImage:        e.Media.CoverImage.Large,
+		TotalEpisodes:     e.Media.Episodes,
+		MediaStatus:       e.Media.Status,
+		NextAiringEpisode: nextAiringEpisode,
 	}
 }
 

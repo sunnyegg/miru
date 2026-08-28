@@ -2,40 +2,60 @@ import {useEffect, useMemo, useRef, useState} from 'react'
 import {
   BindEpisode,
   ImportLocalFile,
+  ListAnimeList,
   ListEpisodes,
   PlayEpisode,
   SearchAnime,
+  SetAnimeListStatus,
 } from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
 import {groupEpisodes, visibleLibraryEpisodes} from '../lib/groupEpisodes'
-import type {AnimeView, EpisodeView, PlaybackEvent} from '../lib/types'
+import type {AnimeView, EpisodeView, PlaybackEvent, WatchingEntryView} from '../lib/types'
+import {LibraryAddToWatchingBanner} from '../components/LibraryAddToWatchingBanner'
 import {LibraryMatchSheet, type LibraryMatchPicker} from '../components/LibraryMatchSheet'
 import {LibraryEpisodeList} from '../components/LibraryEpisodeList'
-import {LibraryPosterGrid} from '../components/LibraryPosterGrid'
+import {LibraryUnlistedSection} from '../components/LibraryUnlistedSection'
+import {LibraryWatchingSection} from '../components/LibraryWatchingSection'
 import {IconBack} from '../components/Icons'
 import {Button} from '@/components/ui/button'
 
 type Props = {
   notice: (msg: string, isError?: boolean) => void
   refreshKey: number
+  authKey: number
   playing: PlaybackEvent | null
+  onFindTorrent: (query: string) => void
 }
 
-export function LibraryView({notice, refreshKey, playing}: Props) {
+export function LibraryView({notice, refreshKey, authKey, playing, onFindTorrent}: Props) {
   const [episodes, setEpisodes] = useState<EpisodeView[]>([])
+  const [watchingEntries, setWatchingEntries] = useState<WatchingEntryView[]>([])
   const [loading, setLoading] = useState(true)
+  const [watchingLoading, setWatchingLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [busyId, setBusyId] = useState<number | null>(null)
   const [importing, setImporting] = useState(false)
   const [searching, setSearching] = useState(false)
   const [bindingAnimeId, setBindingAnimeId] = useState<number | null>(null)
+  const [addingToWatching, setAddingToWatching] = useState(false)
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [picker, setPicker] = useState<LibraryMatchPicker | null>(null)
   const skippedMatchIds = useRef(new Set<number>())
 
   const libraryEpisodes = useMemo(() => visibleLibraryEpisodes(episodes), [episodes])
   const shows = useMemo(() => groupEpisodes(libraryEpisodes), [libraryEpisodes])
+  const watchingKeys = useMemo(
+    () => new Set(watchingEntries.map((entry) => `anilist:${entry.mediaId}`)),
+    [watchingEntries],
+  )
+  const gridShows = useMemo(
+    () => shows.filter((show) => !watchingKeys.has(show.key)),
+    [shows, watchingKeys],
+  )
   const selectedShow = shows.find((show) => show.key === selectedKey) ?? null
+  const selectedShowIsUnlisted = Boolean(
+    selectedShow && !watchingKeys.has(selectedShow.key),
+  )
   const playingShowKey = useMemo(() => {
     if (!playing) {
       return null
@@ -43,6 +63,18 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
     const owner = shows.find((show) => show.episodes.some((episode) => episode.id === playing.episodeId))
     return owner?.key ?? null
   }, [shows, playing])
+
+  async function reloadWatching() {
+    setWatchingLoading(true)
+    try {
+      const result = await ListAnimeList('CURRENT')
+      setWatchingEntries(result ?? [])
+    } catch {
+      setWatchingEntries([])
+    } finally {
+      setWatchingLoading(false)
+    }
+  }
 
   async function reload() {
     setLoadError('')
@@ -62,7 +94,8 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
 
   useEffect(() => {
     void reload()
-  }, [refreshKey])
+    void reloadWatching()
+  }, [refreshKey, authKey])
 
   useEffect(() => {
     if (shows.length === 0) {
@@ -196,6 +229,43 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
     }
   }
 
+  function openWatchingShow(localShowKey: string) {
+    selectShow(localShowKey)
+  }
+
+  async function addSelectedToWatching() {
+    if (!selectedShow || addingToWatching) {
+      return
+    }
+    const match = selectedShow.key.match(/^anilist:(\d+)$/)
+    if (!match) {
+      return
+    }
+    const mediaId = Number(match[1])
+    setAddingToWatching(true)
+    try {
+      await SetAnimeListStatus(mediaId, 'CURRENT', selectedShow.totalEpisodes)
+      notice('Added to Watching')
+      await reloadWatching()
+    } catch (err) {
+      notice(errorMessage(err), true)
+    } finally {
+      setAddingToWatching(false)
+    }
+  }
+
+  function openMatcherForSelectedShow() {
+    if (!selectedShow) {
+      return
+    }
+    const episode = selectedShow.episodes[0]
+    if (!episode) {
+      return
+    }
+    skippedMatchIds.current.delete(episode.id)
+    void openMatcher(episode)
+  }
+
   function backToGrid() {
     setSelectedKey(null)
   }
@@ -248,21 +318,43 @@ export function LibraryView({notice, refreshKey, playing}: Props) {
 
       <div className="min-h-0 flex-1 overflow-auto px-5 pt-2 pb-4">
         {selectedShow ? (
-          <LibraryEpisodeList
-            show={selectedShow}
-            playing={playing}
-            busyId={busyId}
-            onPlay={(episodeId) => void onPlay(episodeId)}
-          />
+          <>
+            {selectedShowIsUnlisted && (
+              <LibraryAddToWatchingBanner
+                show={selectedShow}
+                saving={addingToWatching}
+                onAddToWatching={() => void addSelectedToWatching()}
+                onMatchAnilist={openMatcherForSelectedShow}
+              />
+            )}
+            <LibraryEpisodeList
+              show={selectedShow}
+              playing={playing}
+              busyId={busyId}
+              onPlay={(episodeId) => void onPlay(episodeId)}
+              onFindTorrent={onFindTorrent}
+            />
+          </>
         ) : (
-          <LibraryPosterGrid
-            loading={loading}
-            loadError={loadError}
-            shows={shows}
-            highlightedKey={playingShowKey}
-            onSelectShow={selectShow}
-            onRetry={retryLoad}
-          />
+          <>
+            <LibraryWatchingSection
+              entries={watchingEntries}
+              localShows={shows}
+              loading={watchingLoading}
+              highlightedKey={playingShowKey}
+              onOpenShow={openWatchingShow}
+              onFindTorrent={onFindTorrent}
+            />
+            <LibraryUnlistedSection
+              loading={loading}
+              loadError={loadError}
+              shows={gridShows}
+              highlightedKey={playingShowKey}
+              onSelectShow={selectShow}
+              onRetry={retryLoad}
+              suppressEmptyState={watchingEntries.length > 0}
+            />
+          </>
         )}
       </div>
     </section>

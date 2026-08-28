@@ -21,13 +21,14 @@ import (
 )
 
 const (
-	apiCacheTTL       = 7 * 24 * time.Hour
-	watchingCacheKey  = "watching"
-	completedCacheKey = "completed"
+	apiCacheTTL          = 7 * 24 * time.Hour
+	currentListCacheTTL  = time.Hour
+	watchingCacheKey     = "watching"
+	completedCacheKey    = "completed"
 )
 
 func animeListCacheKey(status string) string {
-	return "anilist:list:" + strings.ToLower(strings.TrimSpace(status))
+	return "anilist:list:v2:" + strings.ToLower(strings.TrimSpace(status))
 }
 
 type App struct {

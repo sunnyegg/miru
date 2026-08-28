@@ -1,4 +1,4 @@
-import {useRef, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {SearchNyaa, SearchTokyoToshokan, StartTorrentURL} from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
 import type {NyaaResultView} from '../lib/types'
@@ -12,6 +12,8 @@ import {NativeSelect, NativeSelectOption} from '@/components/ui/native-select'
 type Props = {
   notice: (msg: string, isError?: boolean) => void
   onDownloads: () => void
+  prefillQuery?: string
+  onPrefillConsumed?: () => void
 }
 
 type SearchSource = 'nyaa' | 'tokyotosho'
@@ -23,7 +25,7 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: 'short',
 })
 
-export function SearchView({notice, onDownloads}: Props) {
+export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed}: Props) {
   const [query, setQuery] = useState('')
   const [source, setSource] = useState<SearchSource>('nyaa')
   const [submittedQuery, setSubmittedQuery] = useState('')
@@ -33,6 +35,7 @@ export function SearchView({notice, onDownloads}: Props) {
   const [error, setError] = useState('')
   const [starting, setStarting] = useState<number | null>(null)
   const resultsScrollRef = useRef<HTMLDivElement>(null)
+  const prefillHandled = useRef('')
 
   const sourceLabel = source === 'tokyotosho' ? 'Tokyo Toshokan' : 'Nyaa'
   const pageStart = (page - 1) * PAGE_SIZE
@@ -89,6 +92,17 @@ export function SearchView({notice, onDownloads}: Props) {
     setPage(nextPage)
     resultsScrollRef.current?.scrollTo({top: 0})
   }
+
+  useEffect(() => {
+    const trimmed = prefillQuery?.trim()
+    if (!trimmed || prefillHandled.current === trimmed) {
+      return
+    }
+    prefillHandled.current = trimmed
+    setQuery(trimmed)
+    void search(trimmed)
+    onPrefillConsumed?.()
+  }, [prefillQuery])
 
   return (
     <section className="flex h-full min-h-0 flex-col gap-6 overflow-hidden">

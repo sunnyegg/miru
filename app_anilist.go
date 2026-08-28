@@ -203,7 +203,11 @@ func (a *App) ListAnimeList(status string) ([]WatchingEntryView, error) {
 		return nil, errors.New("AniList not connected")
 	}
 	cacheKey := animeListCacheKey(status)
-	return loadCachedJSON(a.store, cacheKey, apiCacheTTL, func() ([]WatchingEntryView, error) {
+	cacheTTL := apiCacheTTL
+	if status == "CURRENT" {
+		cacheTTL = currentListCacheTTL
+	}
+	return loadCachedJSON(a.store, cacheKey, cacheTTL, func() ([]WatchingEntryView, error) {
 		client, err := a.newAnilist(token)
 		if err != nil {
 			return nil, err
@@ -311,8 +315,9 @@ func toWatchingEntryViews(entries []anilist.CurrentEntry) []WatchingEntryView {
 			TitleRomaji:   entry.TitleRomaji,
 			TitleEnglish:  entry.TitleEnglish,
 			CoverImage:    entry.CoverImage,
-			TotalEpisodes: entry.TotalEpisodes,
-			MediaStatus:   entry.MediaStatus,
+			TotalEpisodes:     entry.TotalEpisodes,
+			MediaStatus:       entry.MediaStatus,
+			NextAiringEpisode: entry.NextAiringEpisode,
 		})
 	}
 	return out

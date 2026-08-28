@@ -25,6 +25,7 @@ type Props = {
   highlightedKey: string | null
   onSelectShow: (key: string) => void
   onRetry: () => void
+  suppressEmptyState?: boolean
 }
 
 export function LibraryPosterGrid({
@@ -34,6 +35,7 @@ export function LibraryPosterGrid({
   highlightedKey,
   onSelectShow,
   onRetry,
+  suppressEmptyState = false,
 }: Props) {
   if (loading) {
     return (
@@ -62,6 +64,9 @@ export function LibraryPosterGrid({
   }
 
   if (shows.length === 0) {
+    if (suppressEmptyState) {
+      return null
+    }
     return (
       <div className="flex h-full min-h-48 items-end">
         <p className="max-w-md text-sm text-muted-foreground">

@@ -199,7 +199,8 @@ func TestListCurrent(t *testing.T) {
 			return
 		}
 		if !strings.Contains(body.Query, "mediaList") ||
-			!strings.Contains(body.Query, "UPDATED_TIME_DESC") {
+			!strings.Contains(body.Query, "UPDATED_TIME_DESC") ||
+			!strings.Contains(body.Query, "nextAiringEpisode") {
 			t.Fatalf("query missing media list fields: %s", body.Query)
 		}
 		if body.Variables.UserID != 42 {
@@ -210,7 +211,7 @@ func TestListCurrent(t *testing.T) {
 		}
 		pages = append(pages, body.Variables.Page)
 		if body.Variables.Page == 1 {
-			_, _ = w.Write([]byte(`{"data":{"Page":{"pageInfo":{"hasNextPage":true},"mediaList":[{"status":"CURRENT","progress":3,"score":85,"notes":"great","repeat":1,"private":false,"startedAt":{"year":2024,"month":1,"day":2},"completedAt":{"year":0,"month":0,"day":0},"media":{"id":21,"title":{"romaji":"One Piece","english":"One Piece"},"coverImage":{"large":"cover"},"episodes":12,"status":"RELEASING"}}]}}}`))
+			_, _ = w.Write([]byte(`{"data":{"Page":{"pageInfo":{"hasNextPage":true},"mediaList":[{"status":"CURRENT","progress":3,"score":85,"notes":"great","repeat":1,"private":false,"startedAt":{"year":2024,"month":1,"day":2},"completedAt":{"year":0,"month":0,"day":0},"media":{"id":21,"title":{"romaji":"One Piece","english":"One Piece"},"coverImage":{"large":"cover"},"episodes":12,"status":"RELEASING","nextAiringEpisode":{"episode":8}}}]}}}`))
 			return
 		}
 		_, _ = w.Write([]byte(`{"data":{"Page":{"pageInfo":{"hasNextPage":false},"mediaList":[{"progress":7,"media":{"id":22,"title":{"romaji":"Another","english":null},"coverImage":{"large":""},"episodes":null,"status":"FINISHED"}}]}}}`))
@@ -235,6 +236,9 @@ func TestListCurrent(t *testing.T) {
 	}
 	if entries[0].StartedAt.Year != 2024 || entries[0].StartedAt.Month != 1 || entries[0].StartedAt.Day != 2 {
 		t.Fatalf("startedAt = %+v", entries[0].StartedAt)
+	}
+	if entries[0].NextAiringEpisode != 8 {
+		t.Fatalf("nextAiringEpisode = %d", entries[0].NextAiringEpisode)
 	}
 	if entries[1].TotalEpisodes != 0 || entries[1].MediaStatus != "FINISHED" {
 		t.Fatalf("ongoing mapping = %+v", entries[1])

@@ -95,6 +95,7 @@ export type WatchingEntryView = {
   coverImage: string
   totalEpisodes: number
   mediaStatus: string
+  nextAiringEpisode: number
 }
 
 export type NyaaResultView = {

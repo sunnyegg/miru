@@ -255,6 +255,7 @@ export namespace main {
 	    coverImage: string;
 	    totalEpisodes: number;
 	    mediaStatus: string;
+	    nextAiringEpisode: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new WatchingEntryView(source);
@@ -276,6 +277,7 @@ export namespace main {
 	        this.coverImage = source["coverImage"];
 	        this.totalEpisodes = source["totalEpisodes"];
 	        this.mediaStatus = source["mediaStatus"];
+	        this.nextAiringEpisode = source["nextAiringEpisode"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

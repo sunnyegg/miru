@@ -20,6 +20,7 @@ export default function App() {
   const [libraryKey, setLibraryKey] = useState(0)
   const [authKey, setAuthKey] = useState(0)
   const [playing, setPlaying] = useState<PlaybackEvent | null>(null)
+  const [searchPrefill, setSearchPrefill] = useState('')
 
   function showNotice(text: string, error = false) {
     toast.add({
@@ -73,6 +74,11 @@ export default function App() {
     }
   }, [])
 
+  function openSearchForTorrent(query: string) {
+    setSearchPrefill(query)
+    setTab('search')
+  }
+
   return (
     <div className="flex h-full bg-background text-foreground">
       <Sidebar current={tab} onChange={setTab} />
@@ -88,7 +94,15 @@ export default function App() {
           </div>
         )}
         <main className={`min-h-0 flex-1 ${tab === 'library' ? 'overflow-hidden' : 'overflow-auto p-6'}`}>
-          {tab === 'library' && <LibraryView notice={showNotice} refreshKey={libraryKey} playing={playing} />}
+          {tab === 'library' && (
+            <LibraryView
+              notice={showNotice}
+              refreshKey={libraryKey}
+              authKey={authKey}
+              playing={playing}
+              onFindTorrent={openSearchForTorrent}
+            />
+          )}
           {tab === 'watching' && (
             <WatchingView
               refreshKey={authKey}
@@ -96,7 +110,14 @@ export default function App() {
               onSettings={() => setTab('settings')}
             />
           )}
-          {tab === 'search' && <SearchView notice={showNotice} onDownloads={() => setTab('downloads')} />}
+          {tab === 'search' && (
+            <SearchView
+              notice={showNotice}
+              onDownloads={() => setTab('downloads')}
+              prefillQuery={searchPrefill}
+              onPrefillConsumed={() => setSearchPrefill('')}
+            />
+          )}
           {tab === 'downloads' && <DownloadsView notice={showNotice} jobs={jobs} onJobs={setJobs} />}
           {tab === 'calendar' && <CalendarView />}
           {tab === 'settings' && <SettingsView notice={showNotice} refreshKey={authKey} />}

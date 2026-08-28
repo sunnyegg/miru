@@ -1,12 +1,15 @@
 import {episodeSlots, type ShowGroup} from '../lib/groupEpisodes'
+import {torrentSearchQuery} from '../lib/libraryWatching'
 import type {PlaybackEvent} from '../lib/types'
 import {IconPlay} from './Icons'
+import {Button} from '@/components/ui/button'
 
 type Props = {
   show: ShowGroup
   playing: PlaybackEvent | null
   busyId: number | null
   onPlay: (episodeId: number) => void
+  onFindTorrent?: (query: string) => void
 }
 
 function slotKey(slot: ReturnType<typeof episodeSlots>[number]): string {
@@ -23,8 +26,15 @@ function episodeLabel(number: number, displayTitle?: string): string {
   return displayTitle || 'Episode'
 }
 
-export function LibraryEpisodeList({show, playing, busyId, onPlay}: Props) {
+export function LibraryEpisodeList({show, playing, busyId, onPlay, onFindTorrent}: Props) {
   const slots = episodeSlots(show)
+
+  function findTorrentForEpisode(episodeNumber: number) {
+    if (!onFindTorrent || episodeNumber <= 0) {
+      return
+    }
+    onFindTorrent(torrentSearchQuery(show.title, episodeNumber))
+  }
 
   return (
     <ul className="flex flex-col gap-1" aria-label={`Episodes for ${show.title}`}>
@@ -35,6 +45,48 @@ export function LibraryEpisodeList({show, playing, busyId, onPlay}: Props) {
           : slot.kind === 'missing'
             ? 'No file'
             : slot.file?.filePath.split(/[\\/]/).pop() || slot.file?.displayTitle || ''
+
+        if (slot.kind === 'upcoming') {
+          return (
+            <li key={slotKey(slot)}>
+              <div
+                aria-label={`${label}, ${subtitle}`}
+                className="flex min-h-11 items-center gap-3 bg-card px-3 text-muted-foreground"
+              >
+                <span className="w-8 shrink-0 tabular-nums text-xs">
+                  {slot.number > 0 ? slot.number : '—'}
+                </span>
+                <span className="min-w-0 flex-1 py-2">
+                  <span className="block truncate text-sm">{label}</span>
+                  <span className="block truncate text-xs">{subtitle}</span>
+                </span>
+              </div>
+            </li>
+          )
+        }
+
+        if (slot.kind === 'missing' && onFindTorrent && slot.number > 0) {
+          return (
+            <li key={slotKey(slot)}>
+              <div className="flex min-h-11 items-center gap-3 bg-card px-3">
+                <span className="w-8 shrink-0 tabular-nums text-xs text-muted-foreground">
+                  {slot.number}
+                </span>
+                <span className="min-w-0 flex-1 py-2">
+                  <span className="block truncate text-sm">{label}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>
+                </span>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => findTorrentForEpisode(slot.number)}
+                >
+                  Find torrent
+                </Button>
+              </div>
+            </li>
+          )
+        }
 
         if (slot.kind !== 'available' || !slot.file) {
           return (
