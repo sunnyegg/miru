@@ -71,15 +71,15 @@ jobs:
       - name: Build Linux
         run: wails build -tags webkit2_41 -o miru-${MIRU_PRODUCT}-linux-amd64 -clean -ldflags "-X main.version=${MIRU_VERSION}"
 
-      - name: Build Windows
-        run: wails build -tags webkit2_41 -platform windows/amd64 -o miru-${MIRU_PRODUCT}-windows-amd64.exe -clean -nsis=false -ldflags "-X main.version=${MIRU_VERSION}"
-
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: miru-linux-amd64
           path: build/bin/miru-${{ env.MIRU_PRODUCT }}-linux-amd64
           if-no-files-found: error
+
+      - name: Build Windows
+        run: wails build -tags webkit2_41 -platform windows/amd64 -o miru-${MIRU_PRODUCT}-windows-amd64.exe -clean -nsis=false -ldflags "-X main.version=${MIRU_VERSION}"
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -149,7 +149,7 @@ jobs:
       - name: Zip .app bundle
         run: |
           cd build/bin
-          zip -r miru-${MIRU_PRODUCT}-mac-universal.zip miru-mac-universal.app
+          zip -r miru-${MIRU_PRODUCT}-mac-universal.zip miru.app
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
