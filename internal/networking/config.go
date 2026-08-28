@@ -14,14 +14,16 @@ import (
 )
 
 const (
-	ModeSystem = "system"
-	ModeDirect = "direct"
-	ModeSOCKS5 = "socks5"
+	ModeSystem    = "system"
+	ModeDirect    = "direct"
+	ModeSOCKS5    = "socks5"
+	ModeHTTPProxy = "http_proxy"
 )
 
 type Config struct {
-	Mode    string
-	Address string
+	Mode     string
+	Address  string
+	ProxyURL string
 }
 
 func (c Config) Normalized() (Config, error) {
@@ -41,6 +43,22 @@ func (c Config) Normalized() (Config, error) {
 			return Config{}, fmt.Errorf("invalid SOCKS5 proxy address: %w", err)
 		}
 		return Config{Mode: mode, Address: address}, nil
+	case ModeHTTPProxy:
+		proxyURL := strings.TrimSpace(c.ProxyURL)
+		if proxyURL == "" {
+			return Config{}, errors.New("HTTP proxy URL is empty")
+		}
+		parsed, err := url.Parse(proxyURL)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HTTP proxy URL: %w", err)
+		}
+		if parsed.Scheme != "http" && parsed.Scheme != "https" {
+			return Config{}, errors.New("HTTP proxy URL must use http or https scheme")
+		}
+		if parsed.Host == "" {
+			return Config{}, errors.New("HTTP proxy URL must include host and port")
+		}
+		return Config{Mode: mode, ProxyURL: proxyURL}, nil
 	default:
 		return Config{}, fmt.Errorf("unsupported network mode %q", c.Mode)
 	}
@@ -61,6 +79,12 @@ func (c Config) HTTPClient() (*http.Client, error) {
 	case ModeSOCKS5:
 		transport.Proxy = nil
 		transport.DialContext = normalized.DialContext
+	case ModeHTTPProxy:
+		parsed, err := url.Parse(normalized.ProxyURL)
+		if err != nil {
+			return nil, err
+		}
+		transport.Proxy = http.ProxyURL(parsed)
 	}
 	return &http.Client{
 		Transport: transport,
@@ -90,6 +114,25 @@ func (c Config) SOCKS5Enabled() bool {
 	return strings.EqualFold(strings.TrimSpace(c.Mode), ModeSOCKS5)
 }
 
+func (c Config) HTTPProxyEnabled() bool {
+	return strings.EqualFold(strings.TrimSpace(c.Mode), ModeHTTPProxy)
+}
+
+func (c Config) NetworkKey() (string, error) {
+	normalized, err := c.Normalized()
+	if err != nil {
+		return "", err
+	}
+	switch normalized.Mode {
+	case ModeSOCKS5:
+		return normalized.Mode + ":" + normalized.Address, nil
+	case ModeHTTPProxy:
+		return normalized.Mode + ":" + normalized.ProxyURL, nil
+	default:
+		return normalized.Mode, nil
+	}
+}
+
 func (c Config) URL() (*url.URL, error) {
 	normalized, err := c.Normalized()
 	if err != nil {
@@ -99,4 +142,15 @@ func (c Config) URL() (*url.URL, error) {
 		return nil, errors.New("SOCKS5 proxy is not enabled")
 	}
 	return &url.URL{Scheme: ModeSOCKS5, Host: normalized.Address}, nil
+}
+
+func (c Config) ParsedHTTPProxyURL() (*url.URL, error) {
+	normalized, err := c.Normalized()
+	if err != nil {
+		return nil, err
+	}
+	if normalized.Mode != ModeHTTPProxy {
+		return nil, errors.New("HTTP proxy is not enabled")
+	}
+	return url.Parse(normalized.ProxyURL)
 }

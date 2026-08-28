@@ -67,13 +67,14 @@ func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, upload
 	return nil
 }
 
-func (a *App) SaveNetworkSettings(networkMode, socks5Address string) error {
+func (a *App) SaveNetworkSettings(networkMode, socks5Address, httpProxyURL string) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
 	normalizedNetwork, err := (networking.Config{
-		Mode:    networkMode,
-		Address: socks5Address,
+		Mode:     networkMode,
+		Address:  socks5Address,
+		ProxyURL: httpProxyURL,
 	}).Normalized()
 	if err != nil {
 		return err
@@ -84,18 +85,23 @@ func (a *App) SaveNetworkSettings(networkMode, socks5Address string) error {
 			return loadErr
 		}
 		currentNetwork, currentErr := (networking.Config{
-			Mode:    current.NetworkMode,
-			Address: current.Socks5Address,
+			Mode:     current.NetworkMode,
+			Address:  current.Socks5Address,
+			ProxyURL: current.HttpProxyURL,
 		}).Normalized()
-		if currentErr != nil ||
-			currentNetwork.Mode != normalizedNetwork.Mode ||
-			currentNetwork.Address != normalizedNetwork.Address {
+		if currentErr != nil {
+			return currentErr
+		}
+		currentKey, currentKeyErr := currentNetwork.NetworkKey()
+		newKey, newKeyErr := normalizedNetwork.NetworkKey()
+		if currentKeyErr != nil || newKeyErr != nil || currentKey != newKey {
 			return errors.New("stop the active download before changing networking")
 		}
 	}
 	return a.setSettings(map[string]string{
 		"network_mode":   normalizedNetwork.Mode,
 		"socks5_address": normalizedNetwork.Address,
+		"http_proxy_url": normalizedNetwork.ProxyURL,
 	})
 }
 
@@ -124,13 +130,14 @@ func (a *App) SaveAnilistSettings(syncThreshold float64) error {
 	})
 }
 
-func (a *App) TestNetworkConnection(mode, socks5Address string) error {
+func (a *App) TestNetworkConnection(mode, socks5Address, httpProxyURL string) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
 	client, err := (networking.Config{
-		Mode:    mode,
-		Address: socks5Address,
+		Mode:     mode,
+		Address:  socks5Address,
+		ProxyURL: httpProxyURL,
 	}).HTTPClient()
 	if err != nil {
 		return err
@@ -200,6 +207,10 @@ func (a *App) loadSettings() (SettingsView, error) {
 	view.Socks5Address, _ = a.store.GetSetting("socks5_address")
 	if view.Socks5Address == "" {
 		view.Socks5Address = "127.0.0.1:1080"
+	}
+	view.HttpProxyURL, _ = a.store.GetSetting("http_proxy_url")
+	if view.HttpProxyURL == "" {
+		view.HttpProxyURL = "http://127.0.0.1:8080"
 	}
 	storedChannel, _ := a.store.GetSetting("update_channel")
 	parsedChannel, err := update.ParseChannel(storedChannel)

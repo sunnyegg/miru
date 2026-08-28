@@ -226,6 +226,7 @@ export namespace main {
 	    seedRatio: number;
 	    networkMode: string;
 	    socks5Address: string;
+	    httpProxyUrl: string;
 	    updateChannel: string;
 	
 	    static createFrom(source: any = {}) {
@@ -243,6 +244,7 @@ export namespace main {
 	        this.seedRatio = source["seedRatio"];
 	        this.networkMode = source["networkMode"];
 	        this.socks5Address = source["socks5Address"];
+	        this.httpProxyUrl = source["httpProxyUrl"];
 	        this.updateChannel = source["updateChannel"];
 	    }
 	}

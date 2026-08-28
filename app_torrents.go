@@ -272,8 +272,9 @@ func (a *App) emitTorrent(view torrentx.JobView) {
 
 func networkConfig(settings SettingsView) networking.Config {
 	return networking.Config{
-		Mode:    settings.NetworkMode,
-		Address: settings.Socks5Address,
+		Mode:     settings.NetworkMode,
+		Address:  settings.Socks5Address,
+		ProxyURL: settings.HttpProxyURL,
 	}
 }
 

@@ -34,6 +34,103 @@ func TestConfigRejectsInvalidSOCKS5(t *testing.T) {
 	}
 }
 
+func TestConfigNormalizesHTTPProxy(t *testing.T) {
+	got, err := (Config{Mode: " HTTP_PROXY ", ProxyURL: " http://127.0.0.1:8080 "}).
+		Normalized()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Mode != ModeHTTPProxy || got.ProxyURL != "http://127.0.0.1:8080" {
+		t.Fatalf("config = %+v", got)
+	}
+}
+
+func TestConfigRejectsInvalidHTTPProxy(t *testing.T) {
+	for _, config := range []Config{
+		{Mode: ModeHTTPProxy},
+		{Mode: ModeHTTPProxy, ProxyURL: "127.0.0.1:8080"},
+		{Mode: ModeHTTPProxy, ProxyURL: "ftp://127.0.0.1:8080"},
+		{Mode: ModeHTTPProxy, ProxyURL: "http://"},
+	} {
+		if _, err := config.Normalized(); err == nil {
+			t.Fatalf("expected error for %+v", config)
+		}
+	}
+}
+
+func TestHTTPClientHTTPProxyMode(t *testing.T) {
+	client, err := (Config{
+		Mode:     ModeHTTPProxy,
+		ProxyURL: "http://127.0.0.1:8080",
+	}).HTTPClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("transport type = %T", client.Transport)
+	}
+	if transport.Proxy == nil {
+		t.Fatal("http_proxy mode must set transport.Proxy")
+	}
+	request, err := http.NewRequest(http.MethodGet, "http://example.com/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyURL, err := transport.Proxy(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if proxyURL.String() != "http://127.0.0.1:8080" {
+		t.Fatalf("proxy URL = %q", proxyURL)
+	}
+}
+
+func TestHTTPProxyClientRoutesRequestThroughProxy(t *testing.T) {
+	var proxyHits atomic.Int32
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer origin.Close()
+
+	proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxyHits.Add(1)
+		response, err := http.DefaultTransport.RoundTrip(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		defer response.Body.Close()
+		for key, values := range response.Header {
+			for _, value := range values {
+				w.Header().Add(key, value)
+			}
+		}
+		w.WriteHeader(response.StatusCode)
+		_, _ = io.Copy(w, response.Body)
+	}))
+	defer proxyServer.Close()
+
+	client, err := (Config{
+		Mode:     ModeHTTPProxy,
+		ProxyURL: "http://" + proxyServer.Listener.Addr().String(),
+	}).HTTPClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := client.Get(origin.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusNoContent {
+		t.Fatalf("status = %d", response.StatusCode)
+	}
+	if got := proxyHits.Load(); got != 1 {
+		t.Fatalf("proxy hits = %d", got)
+	}
+}
+
 func TestHTTPClientModes(t *testing.T) {
 	for _, mode := range []string{ModeSystem, ModeDirect} {
 		client, err := (Config{Mode: mode}).HTTPClient()
