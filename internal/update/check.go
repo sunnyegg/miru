@@ -14,7 +14,9 @@ import (
 const (
 	ChannelStable     = "stable"
 	ChannelPrerelease = "prerelease"
-	ReleasesFeed      = "https://github.com/sunnyegg/miru/releases.atom"
+	RepoPage          = "https://github.com/sunnyegg/miru"
+	latestReleasePath = "/releases/latest"
+	releasesFeedPath  = "/releases.atom"
 	userAgent         = "miru"
 )
 
@@ -33,9 +35,8 @@ type atomFeed struct {
 }
 
 type atomEntry struct {
-	Title   string     `xml:"title"`
-	Content string     `xml:"content"`
-	Links   []atomLink `xml:"link"`
+	Title string     `xml:"title"`
+	Links []atomLink `xml:"link"`
 }
 
 type atomLink struct {
@@ -110,12 +111,12 @@ func Newer(current, latest string) bool {
 	return semver.Compare(currentCanonical, latestCanonical) < 0
 }
 
-func Check(ctx context.Context, client *http.Client, current, feedURL, channel, goos, goarch string) (Info, error) {
+func Check(ctx context.Context, client *http.Client, current, repoBase, channel, goos, goarch string) (Info, error) {
 	info := Info{Current: current}
 	if IsDev(current) {
 		return info, nil
 	}
-	release, err := FetchLatest(ctx, client, feedURL, channel, goos, goarch)
+	release, err := FetchLatest(ctx, client, repoBase, channel, goos, goarch)
 	if err != nil {
 		return Info{}, err
 	}
@@ -128,7 +129,7 @@ func Check(ctx context.Context, client *http.Client, current, feedURL, channel, 
 	return info, nil
 }
 
-func FetchLatest(ctx context.Context, client *http.Client, feedURL, channel, goos, goarch string) (Info, error) {
+func FetchLatest(ctx context.Context, client *http.Client, repoBase, channel, goos, goarch string) (Info, error) {
 	if _, err := AssetName(goos, goarch, "0.0.0"); err != nil {
 		return Info{}, err
 	}
@@ -136,8 +137,55 @@ func FetchLatest(ctx context.Context, client *http.Client, feedURL, channel, goo
 	if err != nil {
 		return Info{}, err
 	}
+	base := strings.TrimSuffix(repoBase, "/")
+	if parsedChannel == ChannelStable {
+		return fetchStable(ctx, client, base, goos, goarch)
+	}
+	return fetchPrerelease(ctx, client, base, goos, goarch)
+}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feedURL, nil)
+func fetchStable(ctx context.Context, client *http.Client, repoBase, goos, goarch string) (Info, error) {
+	pageClient := *client
+	pageClient.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, repoBase+latestReleasePath, nil)
+	if err != nil {
+		return Info{}, err
+	}
+	req.Header.Set("User-Agent", userAgent)
+
+	resp, err := pageClient.Do(req)
+	if err != nil {
+		return Info{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 300 || resp.StatusCode >= 400 {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		return Info{}, fmt.Errorf("github releases: %s", resp.Status)
+	}
+
+	location := resp.Header.Get("Location")
+	if location == "" {
+		return Info{}, fmt.Errorf("github releases: missing Location")
+	}
+	resolved, err := resp.Request.URL.Parse(location)
+	if err != nil {
+		return Info{}, fmt.Errorf("github releases: %w", err)
+	}
+	tag, ok := tagFromPath(resolved.Path)
+	if !ok {
+		return Info{}, fmt.Errorf("github releases: no stable release")
+	}
+	if semver.Prerelease(canonical(tag)) != "" {
+		return Info{}, fmt.Errorf("github releases: no stable release")
+	}
+	return releaseInfo(repoBase, tag, resolved.String(), goos, goarch)
+}
+
+func fetchPrerelease(ctx context.Context, client *http.Client, repoBase, goos, goarch string) (Info, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, repoBase+releasesFeedPath, nil)
 	if err != nil {
 		return Info{}, err
 	}
@@ -162,26 +210,28 @@ func FetchLatest(ctx context.Context, client *http.Client, feedURL, channel, goo
 		return Info{}, fmt.Errorf("github releases: empty feed")
 	}
 
-	chosen, tag, err := pickRelease(feed.Entries, parsedChannel)
+	chosen, tag, err := pickRelease(feed.Entries)
 	if err != nil {
 		return Info{}, err
 	}
+	return releaseInfo(repoBase, tag, releaseURL(chosen, repoBase, tag), goos, goarch)
+}
+
+func releaseInfo(repoBase, tag, pageURL, goos, goarch string) (Info, error) {
 	wanted, err := AssetName(goos, goarch, tag)
 	if err != nil {
 		return Info{}, err
 	}
-
-	repoBase := strings.TrimSuffix(strings.TrimSuffix(feedURL, "/"), "/releases.atom")
 	return Info{
 		Latest:     tag,
-		Notes:      strings.TrimSpace(chosen.Title),
-		ReleaseURL: releaseURL(chosen, repoBase, tag),
+		Notes:      tag,
+		ReleaseURL: pageURL,
 		AssetName:  wanted,
 		AssetURL:   repoBase + "/releases/download/" + tag + "/" + wanted,
 	}, nil
 }
 
-func pickRelease(entries []atomEntry, channel string) (atomEntry, string, error) {
+func pickRelease(entries []atomEntry) (atomEntry, string, error) {
 	var chosen atomEntry
 	var chosenTag string
 	for _, entry := range entries {
@@ -193,18 +243,12 @@ func pickRelease(entries []atomEntry, channel string) (atomEntry, string, error)
 		if canonicalTag == "" {
 			continue
 		}
-		if channel == ChannelStable && semver.Prerelease(canonicalTag) != "" {
-			continue
-		}
 		if chosenTag == "" || semver.Compare(canonicalTag, canonical(chosenTag)) > 0 {
 			chosen = entry
 			chosenTag = tag
 		}
 	}
 	if chosenTag == "" {
-		if channel == ChannelStable {
-			return atomEntry{}, "", fmt.Errorf("github releases: no stable release")
-		}
 		return atomEntry{}, "", fmt.Errorf("github releases: no matching release")
 	}
 	return chosen, chosenTag, nil

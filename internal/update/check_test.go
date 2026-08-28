@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 )
 
@@ -101,8 +100,7 @@ func TestCheckParsesAtomFeed(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	feedURL := server.URL + "/releases.atom"
-	info, err := Check(context.Background(), server.Client(), "v0.0.8", feedURL, ChannelPrerelease, "linux", "amd64")
+	info, err := Check(context.Background(), server.Client(), "v0.0.8", server.URL, ChannelPrerelease, "linux", "amd64")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,37 +113,36 @@ func TestCheckParsesAtomFeed(t *testing.T) {
 	}
 }
 
-func TestCheckStableSkipsPrerelease(t *testing.T) {
+func TestCheckStableUsesLatestRedirect(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/atom+xml")
-		_, _ = w.Write([]byte(atomFeedXML))
+		if r.URL.Path == "/releases.atom" {
+			t.Error("stable channel must not fetch the atom feed")
+		}
+		if r.URL.Path != "/releases/latest" {
+			t.Errorf("path %s", r.URL.Path)
+		}
+		http.Redirect(w, r, "/sunnyegg/miru/releases/tag/v0.0.9", http.StatusFound)
 	}))
 	t.Cleanup(server.Close)
 
-	feedURL := server.URL + "/releases.atom"
-	info, err := Check(context.Background(), server.Client(), "v0.0.8", feedURL, ChannelStable, "linux", "amd64")
+	info, err := Check(context.Background(), server.Client(), "v0.0.8", server.URL, ChannelStable, "linux", "amd64")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !info.Available || info.Latest != "v0.0.9" {
+	if !info.Available || info.Latest != "v0.0.9" || info.AssetName != "miru-0.0.9-linux-amd64" {
 		t.Fatalf("got %+v", info)
 	}
 }
 
 func TestCheckStableEmptyWhenOnlyPrerelease(t *testing.T) {
 	t.Parallel()
-	onlyAlpha := strings.ReplaceAll(atomFeedXML, `<entry>
-    <title>v0.0.9</title>
-    <link rel="alternate" href="https://github.com/sunnyegg/miru/releases/tag/v0.0.9"/>
-  </entry>`, "")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/atom+xml")
-		_, _ = w.Write([]byte(onlyAlpha))
+		http.Redirect(w, r, "/sunnyegg/miru/releases", http.StatusFound)
 	}))
 	t.Cleanup(server.Close)
 
-	_, err := Check(context.Background(), server.Client(), "v0.0.8", server.URL+"/releases.atom", ChannelStable, "linux", "amd64")
+	_, err := Check(context.Background(), server.Client(), "v0.0.8", server.URL, ChannelStable, "linux", "amd64")
 	if err == nil || err.Error() != "github releases: no stable release" {
 		t.Fatalf("got %v", err)
 	}
@@ -159,7 +156,7 @@ func TestCheckForbiddenIsShort(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	_, err := Check(context.Background(), server.Client(), "v1.0.0", server.URL+"/releases.atom", ChannelStable, "linux", "amd64")
+	_, err := Check(context.Background(), server.Client(), "v1.0.0", server.URL, ChannelStable, "linux", "amd64")
 	if err == nil {
 		t.Fatal("expected error")
 	}

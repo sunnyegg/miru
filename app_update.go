@@ -28,7 +28,7 @@ func (a *App) CheckForUpdate() (UpdateInfo, error) {
 	if err != nil {
 		return UpdateInfo{}, err
 	}
-	result, err := update.Check(a.ctx, client, version, update.ReleasesFeed, channel, goruntime.GOOS, goruntime.GOARCH)
+	result, err := update.Check(a.ctx, client, version, update.RepoPage, channel, goruntime.GOOS, goruntime.GOARCH)
 	if err != nil {
 		return UpdateInfo{}, err
 	}
@@ -53,7 +53,7 @@ func (a *App) ApplyUpdate() error {
 		return err
 	}
 
-	release, err := update.FetchLatest(a.ctx, client, update.ReleasesFeed, channel, goruntime.GOOS, goruntime.GOARCH)
+	release, err := update.FetchLatest(a.ctx, client, update.RepoPage, channel, goruntime.GOOS, goruntime.GOARCH)
 	if err != nil {
 		return err
 	}
