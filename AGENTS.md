@@ -56,6 +56,17 @@ Always run the relevant checks before considering work done.
 
 Do not leave broken code — if a check fails, fix it before handing off.
 
+## Verifying PRs
+
+Verify pull requests yourself. Do not ask the user to run manual test-plan checkboxes when automated coverage already exists.
+
+1. Fetch and checkout the PR branch (`gh pr checkout N` or `git fetch origin pull/N/head:pr-N && git checkout pr-N`).
+2. Run the checks above for the changed areas. Shell commands that download Go modules or run golangci-lint may need unrestricted permissions (`required_permissions: ["all"]`) — the default sandbox can block the Go sumdb cache.
+3. Read the PR diff and map each test-plan item to a unit test or an explicit gap. Prefer `go test -v -run 'Pattern' ./...` for targeted runs.
+4. Report pass/fail with command output. Only mark something as “needs manual verification” when no test or static check covers it (e.g. visual UI polish, real torrent network behavior).
+
+When the PR body lists manual steps, search `_test.go` for the behavior (status transitions, callbacks, redaction) before treating them as blockers.
+
 ## Git
 
 Do not commit or push unless asked.
