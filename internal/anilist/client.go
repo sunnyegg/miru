@@ -64,21 +64,21 @@ type FuzzyDate struct {
 }
 
 type CurrentEntry struct {
-	MediaID       int       `json:"mediaId"`
-	ListStatus    string    `json:"listStatus"`
-	Progress      int       `json:"progress"`
-	ScoreRaw      int       `json:"scoreRaw"`
-	Notes         string    `json:"notes"`
-	Repeat        int       `json:"repeat"`
-	Private       bool      `json:"private"`
-	StartedAt     FuzzyDate `json:"startedAt"`
-	CompletedAt   FuzzyDate `json:"completedAt"`
-	TitleRomaji   string    `json:"titleRomaji"`
-	TitleEnglish  string    `json:"titleEnglish"`
-	CoverImage    string    `json:"coverImage"`
-	TotalEpisodes     int    `json:"totalEpisodes"`
-	MediaStatus       string `json:"mediaStatus"`
-	NextAiringEpisode int    `json:"nextAiringEpisode"`
+	MediaID           int       `json:"mediaId"`
+	ListStatus        string    `json:"listStatus"`
+	Progress          int       `json:"progress"`
+	ScoreRaw          int       `json:"scoreRaw"`
+	Notes             string    `json:"notes"`
+	Repeat            int       `json:"repeat"`
+	Private           bool      `json:"private"`
+	StartedAt         FuzzyDate `json:"startedAt"`
+	CompletedAt       FuzzyDate `json:"completedAt"`
+	TitleRomaji       string    `json:"titleRomaji"`
+	TitleEnglish      string    `json:"titleEnglish"`
+	CoverImage        string    `json:"coverImage"`
+	TotalEpisodes     int       `json:"totalEpisodes"`
+	MediaStatus       string    `json:"mediaStatus"`
+	NextAiringEpisode int       `json:"nextAiringEpisode"`
 }
 
 type ListEntrySave struct {
