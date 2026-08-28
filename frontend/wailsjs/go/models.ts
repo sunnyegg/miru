@@ -329,6 +329,26 @@ export namespace main {
 
 export namespace torrentx {
 	
+	export class FileView {
+	    path: string;
+	    length: number;
+	    bytesCompleted: number;
+	    selected: boolean;
+	    isVideo: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.length = source["length"];
+	        this.bytesCompleted = source["bytesCompleted"];
+	        this.selected = source["selected"];
+	        this.isVideo = source["isVideo"];
+	    }
+	}
 	export class ContentsView {
 	    name: string;
 	    bytesTotal: number;
@@ -363,26 +383,7 @@ export namespace torrentx {
 		    return a;
 		}
 	}
-	export class FileView {
-	    path: string;
-	    length: number;
-	    bytesCompleted: number;
-	    selected: boolean;
-	    isVideo: boolean;
 	
-	    static createFrom(source: any = {}) {
-	        return new FileView(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.path = source["path"];
-	        this.length = source["length"];
-	        this.bytesCompleted = source["bytesCompleted"];
-	        this.selected = source["selected"];
-	        this.isVideo = source["isVideo"];
-	    }
-	}
 	export class JobView {
 	    id: number;
 	    name: string;
