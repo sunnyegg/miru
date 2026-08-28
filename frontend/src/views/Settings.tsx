@@ -42,6 +42,8 @@ const empty: SettingsView = {
   discordRpcEnabled: false,
   discordAppId: '',
   downloadNotifications: true,
+  rssAutoDownload: false,
+  rssAutoDownloadLibraryOnly: true,
 }
 
 type Props = {
@@ -97,6 +99,8 @@ export function SettingsView({
         discordRpcEnabled: settings?.discordRpcEnabled ?? false,
         discordAppId: settings?.discordAppId ?? '',
         downloadNotifications: settings?.downloadNotifications ?? true,
+        rssAutoDownload: settings?.rssAutoDownload ?? false,
+        rssAutoDownloadLibraryOnly: settings?.rssAutoDownloadLibraryOnly ?? true,
       })
       setStatus(anilist ?? {connected: false, username: ''})
     } catch (err) {
@@ -324,6 +328,8 @@ export function SettingsView({
                   form.maxConcurrentDownloads,
                   form.seedRatio,
                   form.downloadNotifications,
+                  form.rssAutoDownload,
+                  form.rssAutoDownloadLibraryOnly,
                 )
                 await SaveRSSPollSettings(form.rssPollIntervalMinutes)
               },
@@ -414,6 +420,45 @@ export function SettingsView({
                 How often subscribed RSS feeds are checked in the background (5–1440).
               </p>
             </Field>
+            <div className="mt-4 flex items-start gap-3">
+              <input
+                id="rssAutoDownload"
+                type="checkbox"
+                checked={form.rssAutoDownload}
+                onChange={(event) =>
+                  setForm((current) => ({...current, rssAutoDownload: event.target.checked}))
+                }
+                className="mt-1 size-4 shrink-0 accent-primary"
+              />
+              <div>
+                <Label htmlFor="rssAutoDownload">Auto-download new RSS items</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Queue torrent downloads when subscribed feeds publish new items with magnet links.
+                </p>
+              </div>
+            </div>
+            {form.rssAutoDownload && (
+              <div className="mt-4 flex items-start gap-3">
+                <input
+                  id="rssAutoDownloadLibraryOnly"
+                  type="checkbox"
+                  checked={form.rssAutoDownloadLibraryOnly}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      rssAutoDownloadLibraryOnly: event.target.checked,
+                    }))
+                  }
+                  className="mt-1 size-4 shrink-0 accent-primary"
+                />
+                <div>
+                  <Label htmlFor="rssAutoDownloadLibraryOnly">Library matches only</Label>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Only auto-download when the item title matches an anime in your local library.
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="mt-4 flex items-start gap-3">
               <input
                 id="downloadNotifications"

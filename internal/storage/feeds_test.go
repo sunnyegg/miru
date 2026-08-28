@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"database/sql"
 	"testing"
 	"time"
 )
@@ -81,5 +82,41 @@ func TestRSSFeedLifecycle(t *testing.T) {
 	feeds, err = store.ListRSSFeeds()
 	if err != nil || len(feeds) != 0 {
 		t.Fatalf("feeds after delete = %+v, err = %v", feeds, err)
+	}
+}
+
+func TestListLibraryAnimeTitles(t *testing.T) {
+	store := openTestStore(t)
+
+	titles, err := store.ListLibraryAnimeTitles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(titles) != 0 {
+		t.Fatalf("empty library titles = %+v", titles)
+	}
+
+	if err := store.UpsertAnime(Anime{
+		AnilistID:    42,
+		TitleRomaji:  "Frieren",
+		TitleEnglish: "Frieren: Beyond Journey's End",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	episodeID, err := store.InsertEpisode(Episode{
+		AnilistID: sql.NullInt64{Int64: 42, Valid: true},
+		FilePath:  "/tmp/frieren.mkv",
+		Status:    "COMPLETED",
+	})
+	if err != nil || episodeID == 0 {
+		t.Fatalf("insert episode = %d, %v", episodeID, err)
+	}
+
+	titles, err = store.ListLibraryAnimeTitles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(titles) != 2 {
+		t.Fatalf("titles = %+v", titles)
 	}
 }

@@ -282,6 +282,8 @@ export namespace main {
 	    discordRpcEnabled: boolean;
 	    discordAppId: string;
 	    downloadNotifications: boolean;
+	    rssAutoDownload: boolean;
+	    rssAutoDownloadLibraryOnly: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsView(source);
@@ -306,8 +308,10 @@ export namespace main {
 	        this.discordRpcEnabled = source["discordRpcEnabled"];
 	        this.discordAppId = source["discordAppId"];
 	        this.downloadNotifications = source["downloadNotifications"];
+	        this.rssAutoDownload = source["rssAutoDownload"];
+	        this.rssAutoDownloadLibraryOnly = source["rssAutoDownloadLibraryOnly"];
 	    }
-}
+	}
 	export class UpdateInfo {
 	    current: string;
 	    latest: string;

@@ -133,6 +133,11 @@ export default function App() {
       setAuthKey((n) => n + 1)
       showNotice('AniList connected')
     })
+    EventsOn('rss:auto_queued', (payload: {count: number}) => {
+      const count = payload?.count ?? 1
+      const label = count === 1 ? '1 RSS item' : `${count} RSS items`
+      showNotice(`Auto-queued ${label} for download`)
+    })
 
     return () => {
       EventsOff('torrent:progress')
@@ -141,6 +146,7 @@ export default function App() {
       EventsOff('mpv:ended')
       EventsOff('sync:result')
       EventsOff('anilist:connected')
+      EventsOff('rss:auto_queued')
     }
   }, [])
 

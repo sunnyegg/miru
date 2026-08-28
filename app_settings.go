@@ -63,7 +63,13 @@ func (a *App) SavePlaybackSettings(mpvPath string, anime4KEnabled, discordRpcEna
 	return nil
 }
 
-func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, uploadRateLimit int64, maxConcurrentDownloads int, seedRatio float64, downloadNotifications bool) error {
+func (a *App) SaveDownloadSettings(
+	downloadDir string,
+	downloadRateLimit, uploadRateLimit int64,
+	maxConcurrentDownloads int,
+	seedRatio float64,
+	downloadNotifications, rssAutoDownload, rssAutoDownloadLibraryOnly bool,
+) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
@@ -72,12 +78,14 @@ func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, upload
 	maxConcurrentDownloads = torrentx.ClampMaxConcurrent(maxConcurrentDownloads)
 	seedRatio = torrentx.ClampSeedRatio(seedRatio)
 	if err := a.setSettings(map[string]string{
-		"download_dir":             strings.TrimSpace(downloadDir),
-		"download_rate_limit":      formatInt64(downloadRateLimit),
-		"upload_rate_limit":        formatInt64(uploadRateLimit),
-		"max_concurrent_downloads": strconv.Itoa(maxConcurrentDownloads),
-		"seed_ratio":               strconv.FormatFloat(seedRatio, 'f', -1, 64),
-		"download_notifications":   formatBool(downloadNotifications),
+		"download_dir":                   strings.TrimSpace(downloadDir),
+		"download_rate_limit":            formatInt64(downloadRateLimit),
+		"upload_rate_limit":              formatInt64(uploadRateLimit),
+		"max_concurrent_downloads":       strconv.Itoa(maxConcurrentDownloads),
+		"seed_ratio":                     strconv.FormatFloat(seedRatio, 'f', -1, 64),
+		"download_notifications":         formatBool(downloadNotifications),
+		"rss_auto_download":              formatBool(rssAutoDownload),
+		"rss_auto_download_library_only": formatBool(rssAutoDownloadLibraryOnly),
 	}); err != nil {
 		return err
 	}
@@ -288,6 +296,8 @@ func (a *App) loadSettings() (SettingsView, error) {
 		view.RSSPollIntervalMinutes = 1440
 	}
 	view.DownloadNotifications = settingBool(a.store, "download_notifications", true)
+	view.RSSAutoDownload = settingBool(a.store, "rss_auto_download", false)
+	view.RSSAutoDownloadLibraryOnly = settingBool(a.store, "rss_auto_download_library_only", true)
 	return view, nil
 }
 
