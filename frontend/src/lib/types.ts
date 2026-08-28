@@ -7,6 +7,7 @@ export type SettingsView = {
   downloadRateLimit: number
   uploadRateLimit: number
   maxConcurrentDownloads: number
+  seedRatio: number
   networkMode: string
   socks5Address: string
   updateChannel: string

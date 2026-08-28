@@ -130,6 +130,7 @@ func (a *App) configureTorrents() error {
 	a.torrents.SetQueueConfig(limits, networkConfig(settings))
 	a.torrents.ApplyRateLimits(limits)
 	a.torrents.SetMaxConcurrent(settings.MaxConcurrentDownloads)
+	a.torrents.SetSeedRatio(settings.SeedRatio)
 	a.torrents.PumpQueue()
 	return nil
 }
@@ -151,6 +152,11 @@ func (a *App) ensureDefaults() error {
 	}
 	if a.settingMissing("max_concurrent_downloads") {
 		if err := a.store.SetSetting("max_concurrent_downloads", "1"); err != nil {
+			return err
+		}
+	}
+	if a.settingMissing("seed_ratio") {
+		if err := a.store.SetSetting("seed_ratio", "0.5"); err != nil {
 			return err
 		}
 	}

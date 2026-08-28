@@ -223,6 +223,7 @@ export namespace main {
 	    downloadRateLimit: number;
 	    uploadRateLimit: number;
 	    maxConcurrentDownloads: number;
+	    seedRatio: number;
 	    networkMode: string;
 	    socks5Address: string;
 	    updateChannel: string;
@@ -239,6 +240,7 @@ export namespace main {
 	        this.downloadRateLimit = source["downloadRateLimit"];
 	        this.uploadRateLimit = source["uploadRateLimit"];
 	        this.maxConcurrentDownloads = source["maxConcurrentDownloads"];
+	        this.seedRatio = source["seedRatio"];
 	        this.networkMode = source["networkMode"];
 	        this.socks5Address = source["socks5Address"];
 	        this.updateChannel = source["updateChannel"];

@@ -30,6 +30,7 @@ const empty: SettingsView = {
   downloadRateLimit: 0,
   uploadRateLimit: 0,
   maxConcurrentDownloads: 1,
+  seedRatio: 0.5,
   networkMode: 'system',
   socks5Address: '127.0.0.1:1080',
   updateChannel: 'stable',
@@ -77,6 +78,7 @@ export function SettingsView({
         downloadRateLimit: bytesToKb(settings?.downloadRateLimit ?? 0),
         uploadRateLimit: bytesToKb(settings?.uploadRateLimit ?? 0),
         maxConcurrentDownloads: settings?.maxConcurrentDownloads ?? 1,
+        seedRatio: settings?.seedRatio ?? 0.5,
         networkMode: settings?.networkMode ?? 'system',
         socks5Address: settings?.socks5Address ?? '127.0.0.1:1080',
         updateChannel: settings?.updateChannel ?? 'stable',
@@ -240,6 +242,7 @@ export function SettingsView({
                   kbToBytes(form.downloadRateLimit),
                   kbToBytes(form.uploadRateLimit),
                   form.maxConcurrentDownloads,
+                  form.seedRatio,
                 ),
               'Downloads saved',
             )
@@ -297,6 +300,21 @@ export function SettingsView({
                   className="w-32 bg-card"
               />
               <p className="mt-1 text-xs text-muted-foreground">Queued torrents start when a slot is free.</p>
+            </Field>
+            <Field label="Seed ratio" htmlFor="seedRatio">
+              <Input
+                id="seedRatio"
+                type="number"
+                min={0}
+                max={10}
+                step={0.1}
+                value={form.seedRatio}
+                onChange={(e) => setForm({...form, seedRatio: Number(e.target.value)})}
+                className="w-32 bg-card"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Upload ratio before auto-finish (0.5 = half the download size). 0 stops seeding right away.
+              </p>
             </Field>
             <Button type="submit" variant="secondary" disabled={saving === 'downloads'} className="mt-4 w-fit">
               {saving === 'downloads' ? 'Saving…' : 'Save'}

@@ -33,18 +33,20 @@ func (a *App) SavePlaybackSettings(mpvPath string) error {
 	})
 }
 
-func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, uploadRateLimit int64, maxConcurrentDownloads int) error {
+func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, uploadRateLimit int64, maxConcurrentDownloads int, seedRatio float64) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
 	downloadRateLimit = normalizeRateLimit(downloadRateLimit)
 	uploadRateLimit = normalizeRateLimit(uploadRateLimit)
 	maxConcurrentDownloads = torrentx.ClampMaxConcurrent(maxConcurrentDownloads)
+	seedRatio = torrentx.ClampSeedRatio(seedRatio)
 	if err := a.setSettings(map[string]string{
 		"download_dir":             strings.TrimSpace(downloadDir),
 		"download_rate_limit":      formatInt64(downloadRateLimit),
 		"upload_rate_limit":        formatInt64(uploadRateLimit),
 		"max_concurrent_downloads": strconv.Itoa(maxConcurrentDownloads),
+		"seed_ratio":               strconv.FormatFloat(seedRatio, 'f', -1, 64),
 	}); err != nil {
 		return err
 	}
@@ -60,6 +62,7 @@ func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, upload
 		a.torrents.SetQueueConfig(limits, networkConfig(settings))
 		a.torrents.ApplyRateLimits(limits)
 		a.torrents.SetMaxConcurrent(maxConcurrentDownloads)
+		a.torrents.SetSeedRatio(seedRatio)
 	}
 	return nil
 }
@@ -174,7 +177,7 @@ func (a *App) DetectMpv() (string, error) {
 }
 
 func (a *App) loadSettings() (SettingsView, error) {
-	view := SettingsView{SyncThreshold: 85}
+	view := SettingsView{SyncThreshold: 85, SeedRatio: torrentx.DefaultSeedRatio}
 	view.MpvPath, _ = a.store.GetSetting("mpv_path")
 	view.DownloadDir, _ = a.store.GetSetting("download_dir")
 	raw, err := a.store.GetSetting("sync_threshold")
@@ -185,6 +188,11 @@ func (a *App) loadSettings() (SettingsView, error) {
 	view.DownloadRateLimit = settingInt64(a.store, "download_rate_limit")
 	view.UploadRateLimit = settingInt64(a.store, "upload_rate_limit")
 	view.MaxConcurrentDownloads = torrentx.ClampMaxConcurrent(settingInt(a.store, "max_concurrent_downloads", 1))
+	rawSeedRatio, err := a.store.GetSetting("seed_ratio")
+	seedRatio, parseSeedErr := strconv.ParseFloat(rawSeedRatio, 64)
+	if err == nil && parseSeedErr == nil {
+		view.SeedRatio = torrentx.ClampSeedRatio(seedRatio)
+	}
 	view.NetworkMode, _ = a.store.GetSetting("network_mode")
 	if view.NetworkMode == "" {
 		view.NetworkMode = networking.ModeSystem
