@@ -37,6 +37,8 @@ const empty: SettingsView = {
   socks5Address: '127.0.0.1:1080',
   httpProxyUrl: 'http://127.0.0.1:8080',
   updateChannel: 'stable',
+  discordRpcEnabled: false,
+  discordAppId: '',
   downloadNotifications: true,
 }
 
@@ -89,6 +91,8 @@ export function SettingsView({
         socks5Address: settings?.socks5Address ?? '127.0.0.1:1080',
         httpProxyUrl: settings?.httpProxyUrl ?? 'http://127.0.0.1:8080',
         updateChannel: settings?.updateChannel ?? 'stable',
+        discordRpcEnabled: settings?.discordRpcEnabled ?? false,
+        discordAppId: settings?.discordAppId ?? '',
         downloadNotifications: settings?.downloadNotifications ?? true,
       })
       setStatus(anilist ?? {connected: false, username: ''})
@@ -213,7 +217,12 @@ export function SettingsView({
             void saveSection(
               'playback',
               async () => {
-                await SavePlaybackSettings(form.mpvPath, form.anime4kEnabled)
+                await SavePlaybackSettings(
+                  form.mpvPath,
+                  form.anime4kEnabled,
+                  form.discordRpcEnabled,
+                  form.discordAppId,
+                )
                 await reload()
               },
               'Playback saved',
@@ -263,10 +272,39 @@ export function SettingsView({
                 <p className="mt-2 text-xs text-muted-foreground">Anime4K shaders are installed.</p>
               )}
             </div>
+            <div className="mt-4 flex items-start gap-3">
+              <input
+                id="discordRpcEnabled"
+                type="checkbox"
+                checked={form.discordRpcEnabled}
+                onChange={(e) => setForm({...form, discordRpcEnabled: e.target.checked})}
+                className="mt-1 size-4 shrink-0 accent-primary"
+              />
+              <div>
+                <Label htmlFor="discordRpcEnabled">Discord Rich Presence</Label>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Show the anime you are watching on your Discord profile while MPV is playing.
+                </p>
+              </div>
+            </div>
+            {form.discordRpcEnabled && (
+              <Field label="Discord application ID" htmlFor="discordAppId">
+                <Input
+                  id="discordAppId"
+                  value={form.discordAppId}
+                  onChange={(e) => setForm({...form, discordAppId: e.target.value})}
+                  placeholder="From the Discord Developer Portal"
+                  className="bg-card"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Leave empty to use DISCORD_APP_ID from the build .env file.
+                </p>
+              </Field>
+            )}
             <Button type="submit" disabled={saving === 'playback'} className="mt-4 w-fit">
               {saving === 'playback' ? 'Saving…' : 'Save'}
             </Button>
-            <p className="mt-2 text-xs text-muted-foreground">Requires an MPV restart to take effect.</p>
+            <p className="mt-2 text-xs text-muted-foreground">Requires Discord desktop running. MPV path needs a restart.</p>
           </Card>
         </form>
 

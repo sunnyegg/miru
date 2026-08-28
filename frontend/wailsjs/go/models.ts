@@ -230,6 +230,8 @@ export namespace main {
 	    socks5Address: string;
 	    httpProxyUrl: string;
 	    updateChannel: string;
+	    discordRpcEnabled: boolean;
+	    discordAppId: string;
 	    downloadNotifications: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -251,6 +253,8 @@ export namespace main {
 	        this.socks5Address = source["socks5Address"];
 	        this.httpProxyUrl = source["httpProxyUrl"];
 	        this.updateChannel = source["updateChannel"];
+	        this.discordRpcEnabled = source["discordRpcEnabled"];
+	        this.discordAppId = source["discordAppId"];
 	        this.downloadNotifications = source["downloadNotifications"];
 	    }
 }

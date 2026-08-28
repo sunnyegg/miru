@@ -14,6 +14,8 @@ type SettingsView struct {
 	Socks5Address          string  `json:"socks5Address"`
 	HttpProxyURL           string  `json:"httpProxyUrl"`
 	UpdateChannel          string  `json:"updateChannel"`
+	DiscordRpcEnabled      bool    `json:"discordRpcEnabled"`
+	DiscordAppID           string  `json:"discordAppId"`
 	DownloadNotifications  bool    `json:"downloadNotifications"`
 }
 

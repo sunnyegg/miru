@@ -24,7 +24,7 @@ func (a *App) GetSettings() (SettingsView, error) {
 	return a.loadSettings()
 }
 
-func (a *App) SavePlaybackSettings(mpvPath string, anime4KEnabled bool) error {
+func (a *App) SavePlaybackSettings(mpvPath string, anime4KEnabled, discordRpcEnabled bool, discordAppID string) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
@@ -37,10 +37,30 @@ func (a *App) SavePlaybackSettings(mpvPath string, anime4KEnabled bool) error {
 			return fmt.Errorf("Anime4K shaders: %w", err)
 		}
 	}
-	return a.setSettings(map[string]string{
-		"mpv_path":        strings.TrimSpace(mpvPath),
-		"anime4k_enabled": strconv.FormatBool(anime4KEnabled),
-	})
+	if err := a.setSettings(map[string]string{
+		"mpv_path":            strings.TrimSpace(mpvPath),
+		"anime4k_enabled":     strconv.FormatBool(anime4KEnabled),
+		"discord_rpc_enabled": strconv.FormatBool(discordRpcEnabled),
+		"discord_app_id":      strings.TrimSpace(discordAppID),
+	}); err != nil {
+		return err
+	}
+	if !discordRpcEnabled {
+		a.clearDiscordPresence()
+		return nil
+	}
+	settings, err := a.loadSettings()
+	if err != nil {
+		return err
+	}
+	a.playMu.Lock()
+	session := a.play
+	a.playMu.Unlock()
+	if session == nil {
+		return nil
+	}
+	a.syncDiscordPresence(settings, session.animeTitle, session.episodeNum, session.lastProgress.Percent)
+	return nil
 }
 
 func (a *App) SaveDownloadSettings(downloadDir string, downloadRateLimit, uploadRateLimit int64, maxConcurrentDownloads int, seedRatio float64, downloadNotifications bool) error {
@@ -201,7 +221,7 @@ func (a *App) loadSettings() (SettingsView, error) {
 		DownloadNotifications: true,
 	}
 	view.MpvPath, _ = a.store.GetSetting("mpv_path")
-	view.Anime4KEnabled = settingBool(a.store, "anime4k_enabled")
+	view.Anime4KEnabled = settingBool(a.store, "anime4k_enabled", false)
 	view.Anime4KShadersReady = mpv.Anime4KInstalled(a.dirs.Config)
 	view.DownloadDir, _ = a.store.GetSetting("download_dir")
 	raw, err := a.store.GetSetting("sync_threshold")
@@ -228,6 +248,11 @@ func (a *App) loadSettings() (SettingsView, error) {
 	view.HttpProxyURL, _ = a.store.GetSetting("http_proxy_url")
 	if view.HttpProxyURL == "" {
 		view.HttpProxyURL = "http://127.0.0.1:8080"
+	}
+	view.DiscordRpcEnabled = settingBool(a.store, "discord_rpc_enabled", false)
+	view.DiscordAppID, _ = a.store.GetSetting("discord_app_id")
+	if view.DiscordAppID == "" {
+		view.DiscordAppID = envTrim("DISCORD_APP_ID")
 	}
 	storedChannel, _ := a.store.GetSetting("update_channel")
 	parsedChannel, err := update.ParseChannel(storedChannel)
@@ -304,16 +329,4 @@ func settingInt(store *storage.Store, key string, defaultValue int) int {
 		return defaultValue
 	}
 	return value
-}
-
-func settingBool(store *storage.Store, key string) bool {
-	raw, err := store.GetSetting(key)
-	if err != nil {
-		return false
-	}
-	parsed, err := strconv.ParseBool(raw)
-	if err != nil {
-		return false
-	}
-	return parsed
 }

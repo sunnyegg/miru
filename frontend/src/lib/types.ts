@@ -14,6 +14,8 @@ export type SettingsView = {
   socks5Address: string
   httpProxyUrl: string
   updateChannel: string
+  discordRpcEnabled: boolean
+  discordAppId: string
   downloadNotifications: boolean
 }
 

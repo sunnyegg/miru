@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sunnyegg/miru/internal/anilist"
+	"github.com/sunnyegg/miru/internal/discordrpc"
 	"github.com/sunnyegg/miru/internal/mpv"
 	"github.com/sunnyegg/miru/internal/networking"
 	"github.com/sunnyegg/miru/internal/paths"
@@ -40,6 +41,7 @@ type App struct {
 	store    *storage.Store
 	tokens   secrets.Store
 	player   *mpv.Player
+	discord  *discordrpc.Client
 	torrents *torrentx.Manager
 
 	playMu sync.Mutex
@@ -54,6 +56,7 @@ type playSession struct {
 	episodeID     int64
 	anilistID     int
 	episodeNum    int
+	animeTitle    string
 	synced        bool
 	episodeMapped bool
 	mapFailed     bool
@@ -63,7 +66,8 @@ type playSession struct {
 
 func NewApp() *App {
 	return &App{
-		player: &mpv.Player{},
+		player:  &mpv.Player{},
+		discord: discordrpc.New(),
 	}
 }
 
@@ -77,6 +81,9 @@ func (a *App) startup(ctx context.Context) {
 
 func (a *App) shutdown(_ context.Context) {
 	a.stopLoginServer()
+	if a.discord != nil {
+		a.discord.Clear()
+	}
 	if a.player != nil {
 		a.player.Stop()
 	}
