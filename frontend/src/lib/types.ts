@@ -10,6 +10,7 @@ export type SettingsView = {
   seedRatio: number
   networkMode: string
   socks5Address: string
+  httpProxyUrl: string
   updateChannel: string
 }
 

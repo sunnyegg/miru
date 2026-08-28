@@ -24,7 +24,10 @@ func (m *Manager) ensureClient(dataDir string, limits RateLimits, networkConfig 
 	if err != nil {
 		return nil, err
 	}
-	networkKey := normalizedNetwork.Mode + ":" + normalizedNetwork.Address
+	networkKey, err := normalizedNetwork.NetworkKey()
+	if err != nil {
+		return nil, err
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.client != nil && len(m.sessions) > 0 {
@@ -53,6 +56,13 @@ func (m *Manager) ensureClient(dataDir string, limits RateLimits, networkConfig 
 	cfg.DownloadRateLimiter = downloadRate
 	if normalizedNetwork.Mode == networking.ModeSystem {
 		cfg.HTTPProxy = http.ProxyFromEnvironment
+	}
+	if normalizedNetwork.Mode == networking.ModeHTTPProxy {
+		proxyURL, parseErr := normalizedNetwork.ParsedHTTPProxyURL()
+		if parseErr != nil {
+			return nil, parseErr
+		}
+		cfg.HTTPProxy = http.ProxyURL(proxyURL)
 	}
 	if normalizedNetwork.Mode == networking.ModeSOCKS5 {
 		cfg.HTTPDialContext = normalizedNetwork.DialContext

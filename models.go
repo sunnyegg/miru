@@ -10,6 +10,7 @@ type SettingsView struct {
 	SeedRatio              float64 `json:"seedRatio"`
 	NetworkMode            string  `json:"networkMode"`
 	Socks5Address          string  `json:"socks5Address"`
+	HttpProxyURL           string  `json:"httpProxyUrl"`
 	UpdateChannel          string  `json:"updateChannel"`
 }
 

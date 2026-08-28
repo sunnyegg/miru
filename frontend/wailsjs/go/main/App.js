@@ -134,8 +134,8 @@ export function SaveDownloadSettings(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['SaveDownloadSettings'](arg1, arg2, arg3, arg4, arg5);
 }
 
-export function SaveNetworkSettings(arg1, arg2) {
-  return window['go']['main']['App']['SaveNetworkSettings'](arg1, arg2);
+export function SaveNetworkSettings(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SaveNetworkSettings'](arg1, arg2, arg3);
 }
 
 export function SavePlaybackSettings(arg1) {
@@ -178,6 +178,6 @@ export function StartTorrentURL(arg1) {
   return window['go']['main']['App']['StartTorrentURL'](arg1);
 }
 
-export function TestNetworkConnection(arg1, arg2) {
-  return window['go']['main']['App']['TestNetworkConnection'](arg1, arg2);
+export function TestNetworkConnection(arg1, arg2, arg3) {
+  return window['go']['main']['App']['TestNetworkConnection'](arg1, arg2, arg3);
 }

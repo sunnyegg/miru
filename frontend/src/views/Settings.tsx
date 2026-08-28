@@ -33,6 +33,7 @@ const empty: SettingsView = {
   seedRatio: 0.5,
   networkMode: 'system',
   socks5Address: '127.0.0.1:1080',
+  httpProxyUrl: 'http://127.0.0.1:8080',
   updateChannel: 'stable',
 }
 
@@ -81,6 +82,7 @@ export function SettingsView({
         seedRatio: settings?.seedRatio ?? 0.5,
         networkMode: settings?.networkMode ?? 'system',
         socks5Address: settings?.socks5Address ?? '127.0.0.1:1080',
+        httpProxyUrl: settings?.httpProxyUrl ?? 'http://127.0.0.1:8080',
         updateChannel: settings?.updateChannel ?? 'stable',
       })
       setStatus(anilist ?? {connected: false, username: ''})
@@ -141,7 +143,7 @@ export function SettingsView({
   async function testNetwork() {
     setTestingNetwork(true)
     try {
-      await TestNetworkConnection(form.networkMode, form.socks5Address)
+      await TestNetworkConnection(form.networkMode, form.socks5Address, form.httpProxyUrl)
       notice('Network connection succeeded')
     } catch (err) {
       notice(errorMessage(err), true)
@@ -327,7 +329,7 @@ export function SettingsView({
             e.preventDefault()
             void saveSection(
               'network',
-              () => SaveNetworkSettings(form.networkMode, form.socks5Address),
+              () => SaveNetworkSettings(form.networkMode, form.socks5Address, form.httpProxyUrl),
               'Networking saved',
             )
           }}
@@ -346,6 +348,7 @@ export function SettingsView({
               <NativeSelectOption value="system">System proxy / VPN</NativeSelectOption>
               <NativeSelectOption value="direct">Direct connection</NativeSelectOption>
               <NativeSelectOption value="socks5">SOCKS5 proxy</NativeSelectOption>
+              <NativeSelectOption value="http_proxy">HTTP/HTTPS proxy</NativeSelectOption>
             </NativeSelect>
             {form.networkMode === 'socks5' && (
               <>
@@ -359,6 +362,21 @@ export function SettingsView({
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
                   Torrent traffic uses TCP through this proxy. UDP, DHT, and inbound peers are disabled.
+                </p>
+              </>
+            )}
+            {form.networkMode === 'http_proxy' && (
+              <>
+                <Label htmlFor="httpProxyUrl" className="mt-4 mb-2">Proxy URL</Label>
+                <Input
+                  id="httpProxyUrl"
+                  value={form.httpProxyUrl}
+                  onChange={(e) => setForm({...form, httpProxyUrl: e.target.value})}
+                  placeholder="http://127.0.0.1:8080"
+                  className="bg-card"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  HTTP and HTTPS traffic routes through this proxy. Use http:// or https:// with host and port.
                 </p>
               </>
             )}
