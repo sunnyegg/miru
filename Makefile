@@ -5,7 +5,7 @@ GOLANGCI_LINT_VERSION ?= v2.13.1
 VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || echo dev)
 LD_FLAGS ?= -X main.version=$(VERSION)
 
-.PHONY: help deps build dev test fmt lint lint-fe typecheck doctor clean
+.PHONY: help deps build dev test fmt lint lint-fe typecheck doctor clean bench-idle-ram
 
 help:
 	@printf '%s\n' \
@@ -18,7 +18,8 @@ help:
 		'lint-fe   Run ESLint on the frontend' \
 		'typecheck Run TypeScript type checking on the frontend (frontend/)' \
 		'doctor    Check Wails system dependencies' \
-		'clean     Remove generated build output'
+		'clean     Remove generated build output' \
+		'bench-idle-ram  Measure idle RAM on Linux (requires built binary)'
 
 deps:
 	$(GO) mod download
@@ -51,3 +52,7 @@ doctor:
 
 clean:
 	rm -rf build/bin frontend/dist
+
+bench-idle-ram:
+	@chmod +x scripts/bench-idle-ram.sh
+	@scripts/bench-idle-ram.sh

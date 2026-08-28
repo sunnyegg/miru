@@ -1,0 +1,1 @@
+{"platform":"linux","binary":"/home/adila/Documents/Projects/miru/build/bin/miru-linux-amd64","warmupSec":20,"sampleCount":6,"sampleIntervalSec":5,"avgRssKb":699876,"minRssKb":699872,"maxRssKb":699900,"targetKb":102400,"samplesKb":[699900,699872,699872,699872,699872,699872]}

@@ -1,11 +1,11 @@
 # Product Requirement Document (PRD)
 
-> **Status audit:** 2026-08-28 — ~~dicoret~~ = sudah ada di codebase. Entri tanpa coretan = belum / sebagian. Teks yang diperbarui mencerminkan implementasi aktual.
+> **Status audit:** 2026-08-28 (post-merge roadmap) — ~~dicoret~~ = sudah ada di codebase. Entri tanpa coretan = belum / sebagian. Teks yang diperbarui mencerminkan implementasi aktual.
 
 ## 1. Executive Summary
-**Miru (見る)** adalah aplikasi pemutar dan pengunduh media anime desktop berbasis *portable*, serba guna, dan berkinerja tinggi. Aplikasi ini dibangun menggunakan kombinasi **Wails (Go + React)** untuk memberikan pengalaman pengguna yang responsif dengan konsumsi memori (RAM & CPU) yang sangat efisien.
+**Miru (見る)** adalah aplikasi pemutar dan pengunduh media anime desktop berbasis *portable*, serba guna, dan berkinerja tinggi. Aplikasi ini dibangun menggunakan kombinasi **Wails (Go + React)** untuk memberikan pengalaman pengguna yang responsif; backend Go ringan, dengan trade-off footprint RAM dari WebKitGTK (webview) di desktop Linux.
 
-Tidak seperti aplikasi media manager anime konvensional yang memerlukan *client* eksternal rumit, **Miru** menyediakan modul BitTorrent bawaan secara *native*, deteksi otomatis pemutar MPV eksternal (dengan opsi *custom file picker*), serta penyinkronan riwayat tontonan ke **AniList** saat sesi MPV berakhir.
+Tidak seperti aplikasi media manager anime konvensional yang memerlukan *client* eksternal rumit, **Miru** menyediakan modul BitTorrent bawaan secara *native*, deteksi otomatis pemutar MPV eksternal (dengan opsi *custom file picker*), serta penyinkronan riwayat tontonan ke **AniList** saat progress pemutaran mencapai threshold (dengan retry saat MPV ditutup).
 
 ---
 
@@ -53,6 +53,8 @@ Tidak seperti aplikasi media manager anime konvensional yang memerlukan *client*
 * ~~**Custom File Picker:** Menyediakan dialog *file picker* OS untuk pengguna yang menempatkan biner MPV portabel di folder khusus.~~
 * ~~**JSON-IPC Integration:** Mengendalikan MPV, memantau *watch progress* (persentase durasi tonton), dan membaca status *playback*.~~
   * **Implementasi:** MPV diluncurkan dengan jendela sendiri (`--force-window=yes`), bukan headless. Progress dipoll via IPC; posisi resume disimpan ke SQLite saat MPV ditutup.
+* ~~**Shader Injection (Anime4K):** Opsi upscaling shader MPV via `--glsl-shader`.~~
+  * **Implementasi:** Mode A (HQ) di-cache di folder config; toggle di Settings → Playback; shader diunduh saat pertama kali diaktifkan.
 
 ### 3.2 Integrated Torrent & Seeding Management
 
@@ -62,8 +64,7 @@ Tidak seperti aplikasi media manager anime konvensional yang memerlukan *client*
   * **Implementasi:** Rasio bisa diatur di Settings → Downloads (`seed_ratio`, rentang 0–10). 0 = stop seeding segera setelah unduh selesai.
 * ~~**Bandwidth Throttling:** Kontrol batas kecepatan unduh dan unggah langsung melalui UI.~~
   * **Implementasi:** Juga ada batas **maksimum unduhan bersamaan** dan antrian `QUEUED`.
-* **Multi-Source RSS Indexing:** Pencarian on-demand dari Nyaa.si dan Tokyo Toshokan (RSS sebagai API pencarian).
-  * ~~Nyaa.si~~ dan ~~Tokyo Toshokan~~ sudah ada.
+* ~~**Multi-Source RSS Indexing:** Pencarian on-demand dari Nyaa.si dan Tokyo Toshokan (RSS sebagai API pencarian).~~
   * ~~**Feed RSS otomatis:** Langganan & polling feed di background (Search → RSS feeds).~~
     * **Implementasi:** SQLite `rss_feeds` / `rss_feed_items`, poller interval di Settings → Downloads (default 30 menit). URL http/https fansub/Nyaa/Tokyo Toshokan via AddRSSFeed. **Auto-queue unduh:** Settings → Downloads (`rss_auto_download`, opsional filter library-only). Notifikasi toast saat auto-queue jika desktop notifications aktif.
 
@@ -81,19 +82,22 @@ Tidak seperti aplikasi media manager anime konvensional yang memerlukan *client*
 * ~~Tab **Watching** — kelola entri AniList (CURRENT/COMPLETED/PLANNING/…), edit skor & progress manual.~~
 * ~~**Library lokal** — impor file video, bind ke AniList (manual atau auto-match), poster grid, daftar episode, auto-ingest dari torrent selesai.~~
 * ~~Overlay progress AniList pada episode lokal; strip "Watching" di Library.~~
+* ~~**Discord Rich Presence:** Status anime yang sedang diputar di profil Discord.~~
+  * **Implementasi:** Toggle + App ID di Settings → Playback; update progress via MPV IPC poll.
+* ~~**Desktop Notifications:** Notifikasi OS saat unduhan selesai atau RSS auto-queue.~~
+  * **Implementasi:** Toggle di Settings → Downloads; OS notification via `beeep`.
 
 ### 3.4 Customization & Portable Experience
 
 * ~~**Zero-Installation Portable Binary:** Berjalan tanpa pemasangan sistem, cocok di USB atau folder lokal.~~
-* ~~**Comprehensive Settings UI:** Folder download, batas kecepatan, rasio seeding, threshold sync AniList, path MPV, jaringan (system/direct/SOCKS5), pembaruan otomatis.~~
-  * **Belum di Settings:** proxy HTTP/HTTPS (hanya SOCKS5).
+* ~~**Comprehensive Settings UI:** Folder download, batas kecepatan, rasio seeding, threshold sync AniList, path MPV, jaringan (system/direct/SOCKS5/**HTTP-HTTPS proxy**), pembaruan otomatis, Anime4K, Discord RPC, notifikasi unduh, interval RSS & auto-queue.~~
 * ~~**In-App Splashscreen:** Splash React saat bootstrap database dan modul backend.~~
 
 ---
 
 ## 4. Local Database Schema (SQLite)
 
-Database disimpan di direktori konfigurasi lokal (`%LOCALAPPDATA%\miru\app_data.db` pada Windows atau `~/.config/miru/app_data.db` pada Linux/macOS). Schema aktual (v6):
+Database disimpan di direktori konfigurasi lokal (`%LOCALAPPDATA%\miru\app_data.db` pada Windows atau `~/.config/miru/app_data.db` pada Linux/macOS). Schema aktual (v7):
 
 ```sql
 -- Pengaturan aplikasi (key-value)
@@ -166,6 +170,30 @@ CREATE TABLE IF NOT EXISTS api_cache (
     payload TEXT NOT NULL,
     fetched_at INTEGER NOT NULL
 );
+
+-- Langganan RSS (v7)
+CREATE TABLE IF NOT EXISTS rss_feeds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    url TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL DEFAULT '',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    last_polled DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS rss_feed_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    feed_id INTEGER NOT NULL,
+    item_key TEXT NOT NULL,
+    title TEXT NOT NULL,
+    link TEXT NOT NULL DEFAULT '',
+    magnet TEXT NOT NULL DEFAULT '',
+    published DATETIME NOT NULL,
+    is_new INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (feed_id) REFERENCES rss_feeds(id) ON DELETE CASCADE,
+    UNIQUE(feed_id, item_key)
+);
 ```
 
 **Perilaku restart:** `DOWNLOADING`/`QUEUED` dipulihkan ke antrian; job `PAUSED` ditandai `FAILED`. Seeding yang tersimpan perlu **Resume** manual di tab Downloads.
@@ -174,9 +202,34 @@ CREATE TABLE IF NOT EXISTS api_cache (
 
 ## 5. Non-Functional Requirements
 
-* **Performance:** Penggunaan memori (RAM) saat idle di bawah 100 MB — **belum diverifikasi** (tidak ada benchmark di repo).
+### 5.1 Memory (RAM)
+
+**Target realistis:** idle **< 800 MB** process tree RSS pada Linux amd64 (build produksi). Target awal **< 100 MB** tidak realistis untuk stack Wails + WebKitGTK + React — baseline renderer WebKit saja sering 250–400 MB terpisah dari proses utama.
+
+**Pengukuran:** jumlah `VmRSS` proses Miru **dan seluruh child** (`WebKitWebProcess`, `WebKitNetworkProcess`, …). System monitor yang hanya menampilkan baris `miru-linux-amd64` (~165 MiB) **bukan** total aplikasi. Metodologi: `docs/benchmarks/idle-ram.md`, `make bench-idle-ram`.
+
+**Baseline terverifikasi (2026-08-28, Linux amd64):** rata-rata **~684 MB** idle RSS (process tree); stabil ±30 KB antar sample. **Memenuhi target < 800 MB.**
+
+| Proses | Peran | Perkiraan RSS |
+| --- | --- | --- |
+| `miru-linux-amd64` | Go backend + Wails/GTK | ~165–210 MB |
+| `WebKitWebProcess` | Render React UI | ~250–400 MB |
+| `WebKitNetworkProcess` | Network stack WebKit | ~60 MB |
+
+**Saran optimasi** (urutan prioritas; gain estimasi kecil–sedang, tidak mendekati 100 MB tanpa ganti stack UI):
+
+1. **Lazy init backend** — tunda `torrentx` client dan RSS poller sampai tab Downloads / Search pertama kali dipakai (hemat RAM Go-side saat idle).
+2. **Code splitting frontend** — `React.lazy` + dynamic `import()` per tab; kurangi parse/heap JS awal (bundle sudah ~580 KB, impact terbatas).
+3. **Virtualisasi Library** — poster grid & episode list untuk library besar; kurangi DOM nodes di `WebKitWebProcess`.
+4. **Poster/cache images** — lazy load cover, batasi resolusi cache disk/RAM saat library penuh.
+5. **Regression tracking** — jalankan `make bench-idle-ram` sebelum release; commit JSON hasil jika baseline bergeser > 10%.
+
+Optimasi di atas **tidak** mengubah arsitektur multi-process WebKit. Target < 100 MB hanya layak jika UI ditulis native (GTK/Qt) — di luar scope v1.
+
+### 5.2 Lainnya
+
 * ~~**Cross-Platform Building:** Kode Go bebas CGO; target Windows (amd64), macOS (universal), Linux (amd64).~~
-* ~~**Network Efficiency:** Rate limiter unduh/unggah torrent; mode jaringan system/direct/SOCKS5.~~
+* ~~**Network Efficiency:** Rate limiter unduh/unggah torrent; mode jaringan system/direct/SOCKS5/**HTTP-HTTPS proxy**.~~
 
 ---
 
@@ -202,20 +255,23 @@ CREATE TABLE IF NOT EXISTS api_cache (
 | --- | --- | --- |
 | Library | ~~done~~ | Poster grid, episode list, impor lokal, bind AniList, play |
 | Watching | ~~done~~ | Kelola list AniList, edit skor/progress |
-| Search | ~~done~~ | Nyaa / Tokyo Toshokan, inspect & pilih file |
+| Search | ~~done~~ | Nyaa / Tokyo Toshokan, **RSS feeds**, inspect & pilih file |
 | Downloads | ~~done~~ | Magnet, `.torrent`, antrian, pause/resume, seeding |
 | Airing | ~~done~~ | Kalender rilis mingguan |
-| Settings | ~~done~~ | MPV, download, AniList, jaringan, updates |
+| Settings | ~~done~~ | MPV, Anime4K, Discord RPC, download, AniList, jaringan, updates |
 
 ---
 
 ## 8. Future Roadmap (Post-v1.0)
 
-* **Discord Rich Presence (RPC):** Menampilkan status anime yang sedang diputar di profil Discord.
-* **Shader Injection (Anime4K):** Opsi otomatisasi pengaktifan shader upscaling video pada MPV.
-* **Desktop Notifications:** Notifikasi lokal OS ketika unduhan episode selesai di latar belakang.
-* **Feed RSS otomatis:** Langganan & polling feed fansub/indexer di background.
+* ~~**Discord Rich Presence (RPC):** Menampilkan status anime yang sedang diputar di profil Discord.~~
+* ~~**Shader Injection (Anime4K):** Opsi otomatisasi pengaktifan shader upscaling video pada MPV.~~
+* ~~**Desktop Notifications:** Notifikasi lokal OS ketika unduhan episode selesai di latar belakang.~~
+* ~~**Feed RSS otomatis:** Langganan & polling feed fansub/indexer di background.~~
 * ~~**MPV detection Windows/macOS:** Scan path instalasi umum (Program Files, Homebrew).~~
-* **Proxy HTTP/HTTPS** selain SOCKS5.
-* **Sync AniList real-time** (mutasi saat threshold tercapai, tanpa menunggu MPV ditutup).
-* **Benchmark RAM idle** & dokumentasi hasil.
+* ~~**Proxy HTTP/HTTPS** selain SOCKS5.~~
+* ~~**Sync AniList real-time** (mutasi saat threshold tercapai, tanpa menunggu MPV ditutup).~~
+* ~~**Endpoint fansub langsung & auto-queue unduh dari RSS** (perluasan feed subscriptions).~~
+* ~~**Benchmark RAM idle** & dokumentasi hasil.~~
+  * **Hasil Linux (2026-08-28):** ~684 MB idle RSS (process tree); target realistis < 800 MB. Lihat `docs/benchmarks/idle-ram.md`.
+* **Optimasi RAM:** lazy init torrent/RSS, code splitting tab, virtualisasi Library, tracking benchmark antar release (§5.1).
