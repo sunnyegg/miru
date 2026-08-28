@@ -231,6 +231,44 @@ func (s *Store) SetResumePosition(id int64, seconds float64) error {
 	return err
 }
 
+func (s *Store) ListLibraryAnimeTitles() ([]string, error) {
+	rows, err := s.db.Query(
+		`SELECT DISTINCT a.title_romaji, a.title_english
+		 FROM episode_downloads e
+		 JOIN anime_cache a ON a.anilist_id = e.anilist_id
+		 WHERE e.anilist_id IS NOT NULL`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	titles := []string{}
+	seen := map[string]struct{}{}
+	for rows.Next() {
+		var titleRomaji, titleEnglish string
+		if err := rows.Scan(&titleRomaji, &titleEnglish); err != nil {
+			return nil, err
+		}
+		for _, title := range []string{titleRomaji, titleEnglish} {
+			title = strings.TrimSpace(title)
+			if title == "" {
+				continue
+			}
+			key := strings.ToLower(title)
+			if _, exists := seen[key]; exists {
+				continue
+			}
+			seen[key] = struct{}{}
+			titles = append(titles, title)
+		}
+	}
+	if titles == nil {
+		titles = []string{}
+	}
+	return titles, rows.Err()
+}
+
 func (s *Store) HasSynced(anilistID int, episodeNumber int) (bool, error) {
 	var n int
 	err := s.db.QueryRow(

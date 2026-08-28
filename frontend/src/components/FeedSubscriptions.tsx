@@ -226,9 +226,12 @@ export function FeedSubscriptions({notice, onDownloads}: Props) {
             id="feed-url"
             value={feedURL}
             onChange={(event) => setFeedURL(event.target.value)}
-            placeholder="https://nyaa.si/?page=rss&..."
+            placeholder="https://…/feed.xml or Nyaa/Tokyo Toshokan RSS"
             className="bg-background"
           />
+          <p className="text-xs text-muted-foreground">
+            Any http/https RSS feed works — Nyaa, Tokyo Toshokan, or a fansub site feed URL.
+          </p>
         </div>
         <div className="w-full min-w-48 space-y-2 sm:w-auto sm:flex-1">
           <Label htmlFor="feed-title">Title (optional)</Label>

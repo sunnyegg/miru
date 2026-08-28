@@ -49,7 +49,7 @@ Tidak seperti aplikasi media manager anime konvensional yang memerlukan *client*
 ### 3.1 MPV Execution & Detection Engine
 
 * ~~**Automated Multi-Path Detection:** Memindai biner MPV di `PATH` sistem, lokasi instalasi umum (Program Files, Homebrew, `/usr/bin`), dan konfigurasi manual.~~
-  * **Implementasi:** `PATH` + lokasi umum **Linux** (`/usr/bin`, `/usr/local/bin`, `~/.local/bin`, Snap). Windows/macOS mengandalkan `PATH` + path manual di Settings.
+  * **Implementasi:** `PATH` + lokasi umum per platform: **Linux** (`/usr/bin`, `/usr/local/bin`, `~/.local/bin`, Snap); **Windows** (Program Files, Chocolatey, Scoop); **macOS** (Homebrew `/opt/homebrew` & `/usr/local`, `mpv.app`). Path manual di Settings tetap didukung.
 * ~~**Custom File Picker:** Menyediakan dialog *file picker* OS untuk pengguna yang menempatkan biner MPV portabel di folder khusus.~~
 * ~~**JSON-IPC Integration:** Mengendalikan MPV, memantau *watch progress* (persentase durasi tonton), dan membaca status *playback*.~~
   * **Implementasi:** MPV diluncurkan dengan jendela sendiri (`--force-window=yes`), bukan headless. Progress dipoll via IPC; posisi resume disimpan ke SQLite saat MPV ditutup.
@@ -214,7 +214,7 @@ CREATE TABLE IF NOT EXISTS api_cache (
 * **Shader Injection (Anime4K):** Opsi otomatisasi pengaktifan shader upscaling video pada MPV.
 * **Desktop Notifications:** Notifikasi lokal OS ketika unduhan episode selesai di latar belakang.
 * **Feed RSS otomatis:** Langganan & polling feed fansub/indexer di background.
-* **MPV detection Windows/macOS:** Scan path instalasi umum (Program Files, Homebrew).
+* ~~**MPV detection Windows/macOS:** Scan path instalasi umum (Program Files, Homebrew).~~
 * **Proxy HTTP/HTTPS** selain SOCKS5.
 * **Sync AniList real-time** (mutasi saat threshold tercapai, tanpa menunggu MPV ditutup).
 * **Benchmark RAM idle** & dokumentasi hasil.

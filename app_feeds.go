@@ -277,6 +277,12 @@ func (a *App) pollFeed(feedID int64) {
 		return
 	}
 	newCount := 0
+	autoQueued := 0
+	settings, settingsErr := a.loadSettings()
+	var libraryTitles []string
+	if settingsErr == nil && settings.RSSAutoDownload && settings.RSSAutoDownloadLibraryOnly {
+		libraryTitles, _ = a.store.ListLibraryAnimeTitles()
+	}
 	for _, item := range items {
 		inserted, upsertErr := a.store.UpsertRSSFeedItem(feed.ID, storage.RSSFeedItem{
 			ItemKey:   item.Key,
@@ -289,15 +295,37 @@ func (a *App) pollFeed(feedID int64) {
 			a.logDebugErr("store rss feed item", upsertErr)
 			continue
 		}
-		if inserted {
-			newCount++
+		if !inserted {
+			continue
 		}
+		newCount++
+		if settingsErr != nil || !settings.RSSAutoDownload {
+			continue
+		}
+		source := rssfeed.TorrentSource(item.Magnet, item.Link)
+		if !rssfeed.ShouldAutoDownload(
+			settings.RSSAutoDownload,
+			settings.RSSAutoDownloadLibraryOnly,
+			item.Title,
+			source != "",
+			libraryTitles,
+		) {
+			continue
+		}
+		if err := a.startTorrent(source, nil); err != nil {
+			a.logDebugErr(fmt.Sprintf("auto-queue rss item %q", item.Title), err)
+			continue
+		}
+		autoQueued++
 	}
 	if err := a.store.UpdateRSSFeedLastPolled(feed.ID, time.Now().UTC()); err != nil {
 		a.logDebugErr("update rss feed last polled", err)
 	}
 	if newCount > 0 {
 		a.emitFeedsUpdated()
+	}
+	if autoQueued > 0 {
+		a.emitRSSAutoQueued(autoQueued, settings.DownloadNotifications)
 	}
 }
 
@@ -306,6 +334,19 @@ func (a *App) emitFeedsUpdated() {
 		return
 	}
 	runtime.EventsEmit(a.ctx, "feeds:updated", true)
+}
+
+type rssAutoQueuedEvent struct {
+	Count int `json:"count"`
+}
+
+func (a *App) emitRSSAutoQueued(count int, notify bool) {
+	if a.ctx == nil || count <= 0 {
+		return
+	}
+	if notify {
+		runtime.EventsEmit(a.ctx, "rss:auto_queued", rssAutoQueuedEvent{Count: count})
+	}
 }
 
 func feedItemView(item storage.RSSFeedItem) RSSFeedItemView {

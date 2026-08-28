@@ -18,6 +18,8 @@ export type SettingsView = {
   discordRpcEnabled: boolean
   discordAppId: string
   downloadNotifications: boolean
+  rssAutoDownload: boolean
+  rssAutoDownloadLibraryOnly: boolean
 }
 
 export type EpisodeView = {
