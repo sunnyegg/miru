@@ -203,8 +203,9 @@ func (a *App) networkHTTPClient() (*http.Client, error) {
 		return nil, err
 	}
 	return (networking.Config{
-		Mode:    settings.NetworkMode,
-		Address: settings.Socks5Address,
+		Mode:     settings.NetworkMode,
+		Address:  settings.Socks5Address,
+		ProxyURL: settings.HttpProxyURL,
 	}).HTTPClient()
 }
 

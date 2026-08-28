@@ -2,6 +2,8 @@ export type TabId = 'library' | 'watching' | 'search' | 'downloads' | 'calendar'
 
 export type SettingsView = {
   mpvPath: string
+  anime4kEnabled: boolean
+  anime4kShadersReady: boolean
   downloadDir: string
   syncThreshold: number
   downloadRateLimit: number
@@ -10,9 +12,11 @@ export type SettingsView = {
   seedRatio: number
   networkMode: string
   socks5Address: string
+  httpProxyUrl: string
   updateChannel: string
   discordRpcEnabled: boolean
   discordAppId: string
+  downloadNotifications: boolean
 }
 
 export type EpisodeView = {

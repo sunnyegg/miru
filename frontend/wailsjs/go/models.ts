@@ -218,6 +218,8 @@ export namespace main {
 	}
 	export class SettingsView {
 	    mpvPath: string;
+	    anime4kEnabled: boolean;
+	    anime4kShadersReady: boolean;
 	    downloadDir: string;
 	    syncThreshold: number;
 	    downloadRateLimit: number;
@@ -226,9 +228,11 @@ export namespace main {
 	    seedRatio: number;
 	    networkMode: string;
 	    socks5Address: string;
+	    httpProxyUrl: string;
 	    updateChannel: string;
 	    discordRpcEnabled: boolean;
 	    discordAppId: string;
+	    downloadNotifications: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsView(source);
@@ -237,6 +241,8 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.mpvPath = source["mpvPath"];
+	        this.anime4kEnabled = source["anime4kEnabled"];
+	        this.anime4kShadersReady = source["anime4kShadersReady"];
 	        this.downloadDir = source["downloadDir"];
 	        this.syncThreshold = source["syncThreshold"];
 	        this.downloadRateLimit = source["downloadRateLimit"];
@@ -245,11 +251,13 @@ export namespace main {
 	        this.seedRatio = source["seedRatio"];
 	        this.networkMode = source["networkMode"];
 	        this.socks5Address = source["socks5Address"];
+	        this.httpProxyUrl = source["httpProxyUrl"];
 	        this.updateChannel = source["updateChannel"];
 	        this.discordRpcEnabled = source["discordRpcEnabled"];
 	        this.discordAppId = source["discordAppId"];
+	        this.downloadNotifications = source["downloadNotifications"];
 	    }
-	}
+}
 	export class UpdateInfo {
 	    current: string;
 	    latest: string;

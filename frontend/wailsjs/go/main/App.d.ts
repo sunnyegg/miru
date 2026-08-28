@@ -67,11 +67,11 @@ export function SaveAnilistToken(arg1:string):Promise<void>;
 
 export function SaveAnimeListEntry(arg1:main.AnimeListEntryInput):Promise<void>;
 
-export function SaveDownloadSettings(arg1:string,arg2:number,arg3:number,arg4:number,arg5:number):Promise<void>;
+export function SaveDownloadSettings(arg1:string,arg2:number,arg3:number,arg4:number,arg5:number,arg6:boolean):Promise<void>;
 
-export function SaveNetworkSettings(arg1:string,arg2:string):Promise<void>;
+export function SaveNetworkSettings(arg1:string,arg2:string,arg3:string):Promise<void>;
 
-export function SavePlaybackSettings(arg1:string,arg2:boolean,arg3:string):Promise<void>;
+export function SavePlaybackSettings(arg1:string,arg2:boolean,arg3:boolean,arg4:string):Promise<void>;
 
 export function SaveUpdateChannel(arg1:string):Promise<void>;
 
@@ -91,4 +91,4 @@ export function StartTorrentFile():Promise<void>;
 
 export function StartTorrentURL(arg1:string):Promise<void>;
 
-export function TestNetworkConnection(arg1:string,arg2:string):Promise<void>;
+export function TestNetworkConnection(arg1:string,arg2:string,arg3:string):Promise<void>;

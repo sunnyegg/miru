@@ -50,7 +50,15 @@ func (a *App) PlayEpisode(episodeID int64) error {
 
 	a.syncDiscordPresence(settings, session.animeTitle, session.episodeNum, 0)
 
-	return a.player.Play(mpvPath, ep.FilePath, ep.ResumePosition, func(p mpv.Progress) {
+	var glslShaders []string
+	if settings.Anime4KEnabled {
+		glslShaders, err = mpv.Anime4KShaderPaths(a.dirs.Config)
+		if err != nil {
+			return err
+		}
+	}
+
+	return a.player.Play(mpvPath, ep.FilePath, ep.ResumePosition, glslShaders, func(p mpv.Progress) {
 		a.playMu.Lock()
 		session.lastProgress = p
 		needsMap := !session.episodeMapped && !session.mapFailed
