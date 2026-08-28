@@ -14,6 +14,7 @@ export type SettingsView = {
   socks5Address: string
   httpProxyUrl: string
   updateChannel: string
+  downloadNotifications: boolean
 }
 
 export type EpisodeView = {
