@@ -20,19 +20,20 @@ const (
 )
 
 type JobView struct {
-	ID                        int64   `json:"id"`
-	Name                      string  `json:"name"`
-	Status                    string  `json:"status"`
-	BytesCompleted            int64   `json:"bytesCompleted"`
-	BytesTotal                int64   `json:"bytesTotal"`
-	BytesUploaded             int64   `json:"bytesUploaded"`
-	Percent                   float64 `json:"percent"`
-	UploadRatio               float64 `json:"uploadRatio"`
-	SpeedBytesPerSecond       int64   `json:"speedBytesPerSecond"`
-	UploadSpeedBytesPerSecond int64   `json:"uploadSpeedBytesPerSecond"`
-	Error                     string  `json:"error"`
-	Source                    string  `json:"source"`
-	Live                      bool    `json:"live"`
+	ID                        int64      `json:"id"`
+	Name                      string     `json:"name"`
+	Status                    string     `json:"status"`
+	BytesCompleted            int64      `json:"bytesCompleted"`
+	BytesTotal                int64      `json:"bytesTotal"`
+	BytesUploaded             int64      `json:"bytesUploaded"`
+	Percent                   float64    `json:"percent"`
+	UploadRatio               float64    `json:"uploadRatio"`
+	SpeedBytesPerSecond       int64      `json:"speedBytesPerSecond"`
+	UploadSpeedBytesPerSecond int64      `json:"uploadSpeedBytesPerSecond"`
+	Error                     string     `json:"error"`
+	Source                    string     `json:"source"`
+	Live                      bool       `json:"live"`
+	Files                     []FileView `json:"files"`
 }
 
 type Manager struct {
@@ -114,17 +115,26 @@ func JobPercent(completed, total int64) float64 {
 }
 
 func ToView(job storage.TorrentJob) JobView {
+	files := decodeFiles(job.FilesJSON)
+	if files == nil {
+		files = []FileView{}
+	}
+	bytesTotal := job.BytesTotal
+	if bytesTotal <= 0 {
+		bytesTotal = selectedBytesTotal(files)
+	}
 	return JobView{
 		ID:             job.ID,
 		Name:           job.Name,
 		Status:         job.Status,
 		BytesCompleted: job.BytesCompleted,
-		BytesTotal:     job.BytesTotal,
+		BytesTotal:     bytesTotal,
 		BytesUploaded:  job.BytesUploaded,
-		Percent:        JobPercent(job.BytesCompleted, job.BytesTotal),
-		UploadRatio:    UploadRatio(job.BytesUploaded, job.BytesTotal),
+		Percent:        JobPercent(job.BytesCompleted, bytesTotal),
+		UploadRatio:    UploadRatio(job.BytesUploaded, bytesTotal),
 		Error:          job.Error,
 		Source:         job.Source,
+		Files:          files,
 	}
 }
 
@@ -132,6 +142,32 @@ func liveView(job storage.TorrentJob) JobView {
 	view := ToView(job)
 	view.Live = true
 	return view
+}
+
+func liveViewWithTorrent(job storage.TorrentJob, t *torrent.Torrent) JobView {
+	view := liveView(job)
+	if t == nil || t.Info() == nil {
+		return view
+	}
+	files := fileViewsFromTorrent(t, decodeFiles(job.FilesJSON))
+	view.Files = files
+	completed, total := completedAndTotal(files)
+	if total > 0 {
+		view.BytesTotal = total
+		view.BytesCompleted = completed
+		view.Percent = JobPercent(completed, total)
+		view.UploadRatio = UploadRatio(job.BytesUploaded, total)
+	}
+	return view
+}
+
+func completedAndTotal(files []FileView) (int64, int64) {
+	var completed, total int64
+	for _, file := range files {
+		completed += file.BytesCompleted
+		total += file.Length
+	}
+	return completed, total
 }
 
 func UploadRatio(uploaded, total int64) float64 {
@@ -188,7 +224,7 @@ func isActiveStatus(status string) bool {
 	return status == "DOWNLOADING" || status == "PAUSED" || status == "SEEDING"
 }
 
-func (m *Manager) Start(source, destDir string, limits RateLimits, networkConfig networking.Config) error {
+func (m *Manager) Start(source, destDir string, files []FileView, limits RateLimits, networkConfig networking.Config) error {
 	source = strings.TrimSpace(source)
 	if source == "" {
 		return errors.New("empty torrent source")
@@ -203,10 +239,12 @@ func (m *Manager) Start(source, destDir string, limits RateLimits, networkConfig
 	m.rememberConfig(limits, networkConfig)
 
 	job := storage.TorrentJob{
-		Source:  source,
-		DestDir: destDir,
-		Name:    displaySource(source),
-		Status:  "QUEUED",
+		Source:     source,
+		DestDir:    destDir,
+		Name:       displaySource(source),
+		Status:     "QUEUED",
+		BytesTotal: selectedBytesTotal(files),
+		FilesJSON:  encodeFiles(files),
 	}
 	id, err := m.store.InsertTorrentJob(job)
 	if err != nil {
@@ -446,8 +484,13 @@ func (m *Manager) Resume(id int64) error {
 
 	if previous == "SEEDING" {
 		torrentHandle.AllowDataUpload()
-	} else if torrentHandle.Info() != nil {
-		torrentHandle.DownloadAll()
+		return m.persistAndEmit(job.ID)
+	}
+	if torrentHandle.Info() == nil {
+		return m.persistAndEmit(job.ID)
+	}
+	if _, err := applyFileSelection(torrentHandle, decodeFiles(job.FilesJSON)); err != nil {
+		return err
 	}
 	return m.persistAndEmit(job.ID)
 }

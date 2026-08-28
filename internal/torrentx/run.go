@@ -32,26 +32,46 @@ func (m *Manager) run(t *torrent.Torrent, jobID int64) {
 
 	info := t.Info()
 	name := t.Name()
-	total := t.Length()
 	hash := t.InfoHash().HexString()
 	m.mu.Lock()
 	session, ok := m.sessionByID(jobID)
 	status := ""
+	selectedFiles := []FileView{}
 	if ok {
 		status = session.job.Status
+		selectedFiles = decodeFiles(session.job.FilesJSON)
 	}
 	m.mu.Unlock()
 	if !ok {
 		return
 	}
+
+	total := selectedBytesTotal(selectedFiles)
+	if total == 0 {
+		total = t.Length()
+	}
 	if status == "DOWNLOADING" {
-		t.DownloadAll()
+		selectedTotal, err := applyFileSelection(t, selectedFiles)
+		if err != nil {
+			m.fail(jobID, err)
+			return
+		}
+		if selectedTotal > 0 {
+			total = selectedTotal
+		}
+	}
+
+	if len(selectedFiles) == 0 {
+		selectedFiles = fileViewsFromTorrent(t, nil)
 	}
 
 	m.update(jobID, func(job *storage.TorrentJob) {
 		job.Name = name
 		job.BytesTotal = total
 		job.InfoHash = hash
+		if job.FilesJSON == "" {
+			job.FilesJSON = encodeFiles(selectedFiles)
+		}
 	})
 
 	ticker := time.NewTicker(1 * time.Second)
@@ -81,9 +101,15 @@ func (m *Manager) run(t *torrent.Torrent, jobID int64) {
 		if info != nil && session.job.Name == "" {
 			session.job.Name = name
 		}
-		view := liveView(session.job)
+		view := liveViewWithTorrent(session.job, t)
 		view.SpeedBytesPerSecond = speed
 		view.UploadSpeedBytesPerSecond = uploadSpeed
+		if view.BytesTotal > 0 {
+			total = view.BytesTotal
+			completed = view.BytesCompleted
+			session.job.BytesCompleted = completed
+			session.job.BytesTotal = total
+		}
 		downloadDone := session.job.Status == "DOWNLOADING" && completed >= total && total > 0
 		seedingDone := session.job.Status == "SEEDING" && seedingComplete(session.job.BytesUploaded, total)
 		m.mu.Unlock()
@@ -136,7 +162,8 @@ func uploadedBytes(t *torrent.Torrent) int64 {
 
 func (m *Manager) finish(t *torrent.Torrent, jobID int64) {
 	t.DisallowDataUpload()
-	files := videoFiles(t)
+	selected := decodeFiles(m.snapshot(jobID).FilesJSON)
+	files := videoFiles(t, selected)
 
 	m.mu.Lock()
 	session, ok := m.sessionByID(jobID)
@@ -187,9 +214,13 @@ func (m *Manager) fail(jobID int64, err error) {
 	m.mu.Unlock()
 }
 
-func videoFiles(t *torrent.Torrent) []string {
+func videoFiles(t *torrent.Torrent, selected []FileView) []string {
+	wanted := selectedPathSet(selected)
 	var out []string
 	for _, f := range t.Files() {
+		if !fileWanted(f, wanted) {
+			continue
+		}
 		ext := strings.ToLower(filepath.Ext(f.DisplayPath()))
 		if !videoExt[ext] {
 			continue

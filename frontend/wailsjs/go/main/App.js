@@ -54,6 +54,10 @@ export function InitError() {
   return window['go']['main']['App']['InitError']();
 }
 
+export function InspectTorrent(arg1) {
+  return window['go']['main']['App']['InspectTorrent'](arg1);
+}
+
 export function ListAiringSchedule(arg1, arg2) {
   return window['go']['main']['App']['ListAiringSchedule'](arg1, arg2);
 }
@@ -92,6 +96,10 @@ export function PickDownloadDir() {
 
 export function PickMpvPath() {
   return window['go']['main']['App']['PickMpvPath']();
+}
+
+export function PickTorrentFile() {
+  return window['go']['main']['App']['PickTorrentFile']();
 }
 
 export function PlayEpisode(arg1) {
@@ -156,6 +164,10 @@ export function SetAnimeListStatus(arg1, arg2, arg3) {
 
 export function StartMagnet(arg1) {
   return window['go']['main']['App']['StartMagnet'](arg1);
+}
+
+export function StartTorrent(arg1, arg2) {
+  return window['go']['main']['App']['StartTorrent'](arg1, arg2);
 }
 
 export function StartTorrentFile() {

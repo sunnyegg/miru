@@ -17,14 +17,15 @@ type TorrentJob struct {
 	BytesTotal     int64
 	BytesUploaded  int64
 	Error          string
+	FilesJSON      string
 }
 
 func (s *Store) InsertTorrentJob(job TorrentJob) (int64, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	res, err := s.db.Exec(
-		`INSERT INTO torrent_jobs(info_hash, source, dest_dir, name, status, bytes_completed, bytes_total, bytes_uploaded, error, created_at, updated_at)
-		 VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		job.InfoHash, job.Source, job.DestDir, job.Name, job.Status, job.BytesCompleted, job.BytesTotal, job.BytesUploaded, job.Error, now, now,
+		`INSERT INTO torrent_jobs(info_hash, source, dest_dir, name, status, bytes_completed, bytes_total, bytes_uploaded, error, files_json, created_at, updated_at)
+		 VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		job.InfoHash, job.Source, job.DestDir, job.Name, job.Status, job.BytesCompleted, job.BytesTotal, job.BytesUploaded, job.Error, job.FilesJSON, now, now,
 	)
 	if err != nil {
 		return 0, err
@@ -35,27 +36,34 @@ func (s *Store) InsertTorrentJob(job TorrentJob) (int64, error) {
 func (s *Store) UpdateTorrentJob(job TorrentJob) error {
 	_, err := s.db.Exec(
 		`UPDATE torrent_jobs
-		 SET info_hash = ?, name = ?, status = ?, bytes_completed = ?, bytes_total = ?, bytes_uploaded = ?, error = ?, updated_at = ?
+		 SET info_hash = ?, name = ?, status = ?, bytes_completed = ?, bytes_total = ?, bytes_uploaded = ?, error = ?, files_json = ?, updated_at = ?
 		 WHERE id = ?`,
-		job.InfoHash, job.Name, job.Status, job.BytesCompleted, job.BytesTotal, job.BytesUploaded, job.Error,
+		job.InfoHash, job.Name, job.Status, job.BytesCompleted, job.BytesTotal, job.BytesUploaded, job.Error, job.FilesJSON,
 		time.Now().UTC().Format(time.RFC3339), job.ID,
 	)
 	return err
 }
 
+func scanTorrentJob(scanner interface {
+	Scan(dest ...any) error
+}) (TorrentJob, error) {
+	var job TorrentJob
+	err := scanner.Scan(
+		&job.ID, &job.InfoHash, &job.Source, &job.DestDir, &job.Name, &job.Status,
+		&job.BytesCompleted, &job.BytesTotal, &job.BytesUploaded, &job.Error, &job.FilesJSON,
+	)
+	return job, err
+}
+
 func (s *Store) TorrentJobByID(id int64) (TorrentJob, error) {
 	row := s.db.QueryRow(
 		`SELECT id, COALESCE(info_hash, ''), source, dest_dir, COALESCE(name, ''), status,
-		        bytes_completed, bytes_total, bytes_uploaded, COALESCE(error, '')
+		        bytes_completed, bytes_total, bytes_uploaded, COALESCE(error, ''), COALESCE(files_json, '')
 		 FROM torrent_jobs
 		 WHERE id = ?`,
 		id,
 	)
-	var job TorrentJob
-	err := row.Scan(
-		&job.ID, &job.InfoHash, &job.Source, &job.DestDir, &job.Name, &job.Status,
-		&job.BytesCompleted, &job.BytesTotal, &job.BytesUploaded, &job.Error,
-	)
+	job, err := scanTorrentJob(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return TorrentJob{}, ErrNotFound
 	}
@@ -80,16 +88,12 @@ func (s *Store) DeleteTorrentJob(id int64) error {
 func (s *Store) LatestTorrentJob() (TorrentJob, error) {
 	row := s.db.QueryRow(
 		`SELECT id, COALESCE(info_hash, ''), source, dest_dir, COALESCE(name, ''), status,
-		        bytes_completed, bytes_total, bytes_uploaded, COALESCE(error, '')
+		        bytes_completed, bytes_total, bytes_uploaded, COALESCE(error, ''), COALESCE(files_json, '')
 		 FROM torrent_jobs
 		 ORDER BY id DESC
 		 LIMIT 1`,
 	)
-	var job TorrentJob
-	err := row.Scan(
-		&job.ID, &job.InfoHash, &job.Source, &job.DestDir, &job.Name, &job.Status,
-		&job.BytesCompleted, &job.BytesTotal, &job.BytesUploaded, &job.Error,
-	)
+	job, err := scanTorrentJob(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return TorrentJob{}, ErrNotFound
 	}
@@ -99,7 +103,7 @@ func (s *Store) LatestTorrentJob() (TorrentJob, error) {
 func (s *Store) ListTorrentJobs() ([]TorrentJob, error) {
 	rows, err := s.db.Query(
 		`SELECT id, COALESCE(info_hash, ''), source, dest_dir, COALESCE(name, ''), status,
-		        bytes_completed, bytes_total, bytes_uploaded, COALESCE(error, '')
+		        bytes_completed, bytes_total, bytes_uploaded, COALESCE(error, ''), COALESCE(files_json, '')
 		 FROM torrent_jobs
 		 ORDER BY created_at DESC, id DESC`,
 	)
@@ -110,11 +114,8 @@ func (s *Store) ListTorrentJobs() ([]TorrentJob, error) {
 
 	var jobs []TorrentJob
 	for rows.Next() {
-		var job TorrentJob
-		if err := rows.Scan(
-			&job.ID, &job.InfoHash, &job.Source, &job.DestDir, &job.Name, &job.Status,
-			&job.BytesCompleted, &job.BytesTotal, &job.BytesUploaded, &job.Error,
-		); err != nil {
+		job, err := scanTorrentJob(rows)
+		if err != nil {
 			return nil, err
 		}
 		jobs = append(jobs, job)
@@ -128,17 +129,13 @@ func (s *Store) ListTorrentJobs() ([]TorrentJob, error) {
 func (s *Store) NextQueuedTorrentJob() (TorrentJob, error) {
 	row := s.db.QueryRow(
 		`SELECT id, COALESCE(info_hash, ''), source, dest_dir, COALESCE(name, ''), status,
-		        bytes_completed, bytes_total, bytes_uploaded, COALESCE(error, '')
+		        bytes_completed, bytes_total, bytes_uploaded, COALESCE(error, ''), COALESCE(files_json, '')
 		 FROM torrent_jobs
 		 WHERE status = 'QUEUED'
 		 ORDER BY id ASC
 		 LIMIT 1`,
 	)
-	var job TorrentJob
-	err := row.Scan(
-		&job.ID, &job.InfoHash, &job.Source, &job.DestDir, &job.Name, &job.Status,
-		&job.BytesCompleted, &job.BytesTotal, &job.BytesUploaded, &job.Error,
-	)
+	job, err := scanTorrentJob(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return TorrentJob{}, ErrNotFound
 	}

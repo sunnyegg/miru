@@ -29,6 +29,8 @@ export function ImportLocalFile():Promise<main.ImportResult>;
 
 export function InitError():Promise<string>;
 
+export function InspectTorrent(arg1:string):Promise<torrentx.ContentsView>;
+
 export function ListAiringSchedule(arg1:number,arg2:number):Promise<Array<main.AiringScheduleView>>;
 
 export function ListAnimeList(arg1:string):Promise<Array<main.WatchingEntryView>>;
@@ -48,6 +50,8 @@ export function PauseDownload(arg1:number):Promise<void>;
 export function PickDownloadDir():Promise<string>;
 
 export function PickMpvPath():Promise<string>;
+
+export function PickTorrentFile():Promise<string>;
 
 export function PlayEpisode(arg1:number):Promise<void>;
 
@@ -80,6 +84,8 @@ export function SearchTokyoToshokan(arg1:string):Promise<Array<main.NyaaResultVi
 export function SetAnimeListStatus(arg1:number,arg2:string,arg3:number):Promise<void>;
 
 export function StartMagnet(arg1:string):Promise<void>;
+
+export function StartTorrent(arg1:string,arg2:Array<torrentx.FileView>):Promise<void>;
 
 export function StartTorrentFile():Promise<void>;
 

@@ -12,7 +12,7 @@ the [issue tracker](https://github.com/sunnyegg/miru/issues).
 - **Playback** — MPV playback with watch progress synced to AniList at a configurable threshold (default 85%)
 - **AniList** — browser OAuth, list statuses, and an episode catalog on each show page
 - **Search** — Nyaa and Tokyo Toshokan RSS with pagination
-- **Downloads** — built-in BitTorrent for magnet and `.torrent` links, with a concurrent limit, queue, bandwidth caps, and seeding across restarts
+- **Downloads** — built-in BitTorrent for magnet and `.torrent` links, with file selection, a concurrent limit, queue, bandwidth caps, and seeding across restarts
 - **Calendar** — weekly airing schedule
 - **Settings** — MPV path, download folder, network mode (system / direct / SOCKS5), AniList, and About
 - **Updates** — Miru checks GitHub Releases and can update and restart from **Settings → About**

@@ -329,6 +329,60 @@ export namespace main {
 
 export namespace torrentx {
 	
+	export class ContentsView {
+	    name: string;
+	    bytesTotal: number;
+	    files: FileView[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ContentsView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.bytesTotal = source["bytesTotal"];
+	        this.files = this.convertValues(source["files"], FileView);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class FileView {
+	    path: string;
+	    length: number;
+	    bytesCompleted: number;
+	    selected: boolean;
+	    isVideo: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.length = source["length"];
+	        this.bytesCompleted = source["bytesCompleted"];
+	        this.selected = source["selected"];
+	        this.isVideo = source["isVideo"];
+	    }
+	}
 	export class JobView {
 	    id: number;
 	    name: string;
@@ -343,6 +397,7 @@ export namespace torrentx {
 	    error: string;
 	    source: string;
 	    live: boolean;
+	    files: FileView[];
 	
 	    static createFrom(source: any = {}) {
 	        return new JobView(source);
@@ -363,7 +418,26 @@ export namespace torrentx {
 	        this.error = source["error"];
 	        this.source = source["source"];
 	        this.live = source["live"];
+	        this.files = this.convertValues(source["files"], FileView);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

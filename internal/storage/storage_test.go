@@ -56,6 +56,39 @@ func TestSyncEventsUnique(t *testing.T) {
 	}
 }
 
+func TestTorrentJobFilesJSON(t *testing.T) {
+	store := openTestStore(t)
+	id, err := store.InsertTorrentJob(TorrentJob{
+		Source:     "show.torrent",
+		DestDir:    t.TempDir(),
+		Status:     "QUEUED",
+		BytesTotal: 12,
+		FilesJSON:  `[{"path":"01.mkv","length":12}]`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err := store.TorrentJobByID(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.FilesJSON != `[{"path":"01.mkv","length":12}]` || job.BytesTotal != 12 {
+		t.Fatalf("job = %+v", job)
+	}
+	job.FilesJSON = `[{"path":"01.mkv","length":12},{"path":"02.mkv","length":8}]`
+	job.BytesTotal = 20
+	if err := store.UpdateTorrentJob(job); err != nil {
+		t.Fatal(err)
+	}
+	updated, err := store.TorrentJobByID(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.FilesJSON != job.FilesJSON || updated.BytesTotal != 20 {
+		t.Fatalf("updated = %+v", updated)
+	}
+}
+
 func TestRecoverInterruptedDownloads(t *testing.T) {
 	store := openTestStore(t)
 	downloadingID, err := store.InsertTorrentJob(TorrentJob{
