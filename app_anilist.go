@@ -141,7 +141,7 @@ func (a *App) LogoutAnilist() error {
 	if err := a.ready(); err != nil {
 		return err
 	}
-	_ = a.store.DeleteAPICache(watchingCacheKey)
+	a.invalidateAnimeListCache()
 	return a.tokens.Delete()
 }
 
@@ -187,36 +187,87 @@ func (a *App) ListAiringSchedule(start, end int64) ([]AiringScheduleView, error)
 }
 
 func (a *App) ListCurrentlyWatching() ([]WatchingEntryView, error) {
+	return a.ListAnimeList("CURRENT")
+}
+
+func (a *App) ListAnimeList(status string) ([]WatchingEntryView, error) {
 	if err := a.ready(); err != nil {
 		return nil, err
+	}
+	status = strings.ToUpper(strings.TrimSpace(status))
+	if status != "CURRENT" && status != "COMPLETED" {
+		return nil, fmt.Errorf("unsupported list status %q", status)
 	}
 	token, err := a.tokens.Get()
 	if err != nil {
 		return nil, errors.New("AniList not connected")
 	}
-	return loadCachedJSON(a.store, watchingCacheKey, apiCacheTTL, func() ([]WatchingEntryView, error) {
+	cacheKey := watchingCacheKey
+	if status == "COMPLETED" {
+		cacheKey = completedCacheKey
+	}
+	return loadCachedJSON(a.store, cacheKey, apiCacheTTL, func() ([]WatchingEntryView, error) {
 		client, err := a.newAnilist(token)
 		if err != nil {
 			return nil, err
 		}
-		entries, err := client.ListCurrent()
+		entries, err := client.ListMediaList(status)
 		if err != nil {
 			return nil, err
 		}
-		out := make([]WatchingEntryView, 0, len(entries))
-		for _, entry := range entries {
-			out = append(out, WatchingEntryView{
-				MediaID:       entry.MediaID,
-				Progress:      entry.Progress,
-				TitleRomaji:   entry.TitleRomaji,
-				TitleEnglish:  entry.TitleEnglish,
-				CoverImage:    entry.CoverImage,
-				TotalEpisodes: entry.TotalEpisodes,
-				MediaStatus:   entry.MediaStatus,
-			})
-		}
-		return out, nil
+		return toWatchingEntryViews(entries), nil
 	})
+}
+
+func (a *App) SetAnimeListStatus(mediaID int, status string, totalEpisodes int) error {
+	if err := a.ready(); err != nil {
+		return err
+	}
+	if mediaID <= 0 {
+		return errors.New("invalid anime id")
+	}
+	status = strings.ToUpper(strings.TrimSpace(status))
+	if status != "CURRENT" && status != "COMPLETED" {
+		return fmt.Errorf("unsupported list status %q", status)
+	}
+	token, err := a.tokens.Get()
+	if err != nil {
+		return errors.New("AniList not connected")
+	}
+	client, err := a.newAnilist(token)
+	if err != nil {
+		return err
+	}
+	progress := -1
+	if status == "COMPLETED" && totalEpisodes > 0 {
+		progress = totalEpisodes
+	}
+	if err := client.SaveListStatus(mediaID, status, progress); err != nil {
+		return err
+	}
+	a.invalidateAnimeListCache()
+	return nil
+}
+
+func (a *App) invalidateAnimeListCache() {
+	_ = a.store.DeleteAPICache(watchingCacheKey)
+	_ = a.store.DeleteAPICache(completedCacheKey)
+}
+
+func toWatchingEntryViews(entries []anilist.CurrentEntry) []WatchingEntryView {
+	out := make([]WatchingEntryView, 0, len(entries))
+	for _, entry := range entries {
+		out = append(out, WatchingEntryView{
+			MediaID:       entry.MediaID,
+			Progress:      entry.Progress,
+			TitleRomaji:   entry.TitleRomaji,
+			TitleEnglish:  entry.TitleEnglish,
+			CoverImage:    entry.CoverImage,
+			TotalEpisodes: entry.TotalEpisodes,
+			MediaStatus:   entry.MediaStatus,
+		})
+	}
+	return out
 }
 
 func loadCachedJSON[T any](store *storage.Store, key string, ttl time.Duration, fetch func() (T, error)) (T, error) {

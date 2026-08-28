@@ -154,7 +154,7 @@ func (a *App) maybeSync(session *playSession, percent, threshold float64) {
 		return
 	}
 	_ = a.store.RecordSync(session.anilistID, session.episodeNum)
-	_ = a.store.DeleteAPICache(watchingCacheKey)
+	a.invalidateAnimeListCache()
 	a.playMu.Lock()
 	session.synced = true
 	a.playMu.Unlock()

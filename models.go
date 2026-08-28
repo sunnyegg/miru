@@ -34,6 +34,7 @@ type AnimeView struct {
 	TotalEpisodes int    `json:"totalEpisodes"`
 	Status        string `json:"status"`
 	Synopsis      string `json:"synopsis"`
+	ListStatus    string `json:"listStatus"`
 }
 
 type ImportResult struct {

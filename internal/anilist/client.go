@@ -26,6 +26,7 @@ type Anime struct {
 	TotalEpisodes int    `json:"totalEpisodes"`
 	Status        string `json:"status"`
 	Synopsis      string `json:"synopsis"`
+	ListStatus    string `json:"listStatus"`
 }
 
 type AiringSchedule struct {

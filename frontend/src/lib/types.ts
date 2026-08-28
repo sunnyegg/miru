@@ -34,6 +34,7 @@ export type AnimeView = {
   totalEpisodes: number
   status: string
   synopsis: string
+  listStatus: string
 }
 
 export type ImportResult = {

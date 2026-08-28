@@ -29,7 +29,11 @@ func TestSearchAndSave(t *testing.T) {
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		w.Header().Set("Content-Type", "application/json")
 		if strings.Contains(body.Query, "Page(") {
-			_, _ = w.Write([]byte(`{"data":{"Page":{"media":[{"id":21,"title":{"romaji":"One Piece","english":"One Piece"},"coverImage":{"large":"x"},"episodes":1000,"status":"RELEASING","description":"d"}]}}}`))
+			_, _ = w.Write([]byte(`{"data":{"Page":{"media":[{"id":21,"title":{"romaji":"One Piece","english":"One Piece"},"coverImage":{"large":"x"},"episodes":1000,"status":"RELEASING","description":"d","mediaListEntry":{"status":"PLANNING"}}]}}}`))
+			return
+		}
+		if strings.Contains(body.Query, "SaveMediaListEntry") && strings.Contains(body.Query, "status:") {
+			_, _ = w.Write([]byte(`{"data":{"SaveMediaListEntry":{"id":1,"status":"CURRENT","progress":0}}}`))
 			return
 		}
 		if strings.Contains(body.Query, "SaveMediaListEntry") {
@@ -59,7 +63,13 @@ func TestSearchAndSave(t *testing.T) {
 	if len(results) != 1 || results[0].ID != 21 {
 		t.Fatalf("search = %+v", results)
 	}
+	if results[0].ListStatus != "PLANNING" {
+		t.Fatalf("listStatus = %q", results[0].ListStatus)
+	}
 	if err := client.SaveProgress(21, 3); err != nil {
+		t.Fatal(err)
+	}
+	if err := client.SaveListStatus(21, "CURRENT", -1); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -175,8 +185,9 @@ func TestListCurrent(t *testing.T) {
 		var body struct {
 			Query     string `json:"query"`
 			Variables struct {
-				Page   int `json:"page"`
-				UserID int `json:"userId"`
+				Page   int    `json:"page"`
+				UserID int    `json:"userId"`
+				Status string `json:"status"`
 			} `json:"variables"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -188,12 +199,14 @@ func TestListCurrent(t *testing.T) {
 			return
 		}
 		if !strings.Contains(body.Query, "mediaList") ||
-			!strings.Contains(body.Query, "CURRENT") ||
 			!strings.Contains(body.Query, "UPDATED_TIME_DESC") {
-			t.Fatalf("query missing current list filters: %s", body.Query)
+			t.Fatalf("query missing media list fields: %s", body.Query)
 		}
 		if body.Variables.UserID != 42 {
 			t.Fatalf("userId = %d", body.Variables.UserID)
+		}
+		if body.Variables.Status != "CURRENT" {
+			t.Fatalf("status = %q", body.Variables.Status)
 		}
 		pages = append(pages, body.Variables.Page)
 		if body.Variables.Page == 1 {
@@ -219,5 +232,47 @@ func TestListCurrent(t *testing.T) {
 	}
 	if entries[1].TotalEpisodes != 0 || entries[1].MediaStatus != "FINISHED" {
 		t.Fatalf("ongoing mapping = %+v", entries[1])
+	}
+}
+
+func TestListMediaListCompleted(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Query     string `json:"query"`
+			Variables struct {
+				Status string `json:"status"`
+			} `json:"variables"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(body.Query, "Viewer") {
+			_, _ = w.Write([]byte(`{"data":{"Viewer":{"id":42}}}`))
+			return
+		}
+		if body.Variables.Status != "COMPLETED" {
+			t.Fatalf("status = %q", body.Variables.Status)
+		}
+		_, _ = w.Write([]byte(`{"data":{"Page":{"pageInfo":{"hasNextPage":false},"mediaList":[{"progress":12,"media":{"id":21,"title":{"romaji":"Done Show","english":null},"coverImage":{"large":""},"episodes":12,"status":"FINISHED"}}]}}}`))
+	}))
+	defer server.Close()
+
+	client := New("tok")
+	client.Endpoint = server.URL
+	client.HTTP = server.Client()
+	entries, err := client.ListMediaList("COMPLETED")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].MediaID != 21 || entries[0].Progress != 12 {
+		t.Fatalf("entries = %+v", entries)
+	}
+}
+
+func TestListMediaListRejectsUnknownStatus(t *testing.T) {
+	client := New("tok")
+	if _, err := client.ListMediaList("PLANNING"); err == nil {
+		t.Fatal("expected error for unsupported status")
 	}
 }

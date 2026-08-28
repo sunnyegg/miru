@@ -25,6 +25,8 @@ export function InitError():Promise<string>;
 
 export function ListAiringSchedule(arg1:number,arg2:number):Promise<Array<main.AiringScheduleView>>;
 
+export function ListAnimeList(arg1:string):Promise<Array<main.WatchingEntryView>>;
+
 export function ListCurrentlyWatching():Promise<Array<main.WatchingEntryView>>;
 
 export function ListEpisodes():Promise<Array<main.EpisodeView>>;
@@ -64,6 +66,8 @@ export function SearchAnime(arg1:string):Promise<Array<main.AnimeView>>;
 export function SearchNyaa(arg1:string):Promise<Array<main.NyaaResultView>>;
 
 export function SearchTokyoToshokan(arg1:string):Promise<Array<main.NyaaResultView>>;
+
+export function SetAnimeListStatus(arg1:number,arg2:string,arg3:number):Promise<void>;
 
 export function StartMagnet(arg1:string):Promise<void>;
 

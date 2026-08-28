@@ -20,8 +20,9 @@ import (
 )
 
 const (
-	apiCacheTTL      = 7 * 24 * time.Hour
-	watchingCacheKey = "watching"
+	apiCacheTTL       = 7 * 24 * time.Hour
+	watchingCacheKey  = "watching"
+	completedCacheKey = "completed"
 )
 
 type App struct {

@@ -90,7 +90,8 @@ func (a *App) SearchAnime(query string) ([]AnimeView, error) {
 	if err := a.ready(); err != nil {
 		return nil, err
 	}
-	client, err := a.newAnilist("")
+	token, _ := a.tokens.Get()
+	client, err := a.newAnilist(token)
 	if err != nil {
 		return nil, err
 	}
@@ -257,6 +258,7 @@ func toAnimeViews(in []anilist.Anime) []AnimeView {
 			TotalEpisodes: a.TotalEpisodes,
 			Status:        a.Status,
 			Synopsis:      a.Synopsis,
+			ListStatus:    a.ListStatus,
 		})
 	}
 	return out

@@ -46,6 +46,10 @@ export function ListAiringSchedule(arg1, arg2) {
   return window['go']['main']['App']['ListAiringSchedule'](arg1, arg2);
 }
 
+export function ListAnimeList(arg1) {
+  return window['go']['main']['App']['ListAnimeList'](arg1);
+}
+
 export function ListCurrentlyWatching() {
   return window['go']['main']['App']['ListCurrentlyWatching']();
 }
@@ -124,6 +128,10 @@ export function SearchNyaa(arg1) {
 
 export function SearchTokyoToshokan(arg1) {
   return window['go']['main']['App']['SearchTokyoToshokan'](arg1);
+}
+
+export function SetAnimeListStatus(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetAnimeListStatus'](arg1, arg2, arg3);
 }
 
 export function StartMagnet(arg1) {

@@ -36,16 +36,25 @@ func (c *Client) ViewerID() (int, error) {
 }
 
 func (c *Client) ListCurrent() ([]CurrentEntry, error) {
+	return c.ListMediaList("CURRENT")
+}
+
+func (c *Client) ListMediaList(status string) ([]CurrentEntry, error) {
+	status = strings.ToUpper(strings.TrimSpace(status))
+	if status != "CURRENT" && status != "COMPLETED" {
+		return nil, fmt.Errorf("unsupported media list status %q", status)
+	}
+
 	userID, err := c.ViewerID()
 	if err != nil {
 		return nil, err
 	}
 
 	const q = `
-	query ($page: Int, $userId: Int) {
+	query ($page: Int, $userId: Int, $status: MediaListStatus) {
 	  Page(page: $page, perPage: 50) {
 	    pageInfo { hasNextPage }
-	    mediaList(userId: $userId, type: ANIME, status: CURRENT, sort: UPDATED_TIME_DESC) {
+	    mediaList(userId: $userId, type: ANIME, status: $status, sort: UPDATED_TIME_DESC) {
 	      progress
 	      media {
 	        id
@@ -70,6 +79,7 @@ func (c *Client) ListCurrent() ([]CurrentEntry, error) {
 		if err := c.query(q, map[string]any{
 			"page":   page,
 			"userId": userID,
+			"status": status,
 		}, &out); err != nil {
 			return nil, err
 		}
@@ -97,6 +107,7 @@ func (c *Client) Search(search string) ([]Anime, error) {
 	      episodes
 	      status
 	      description(asHtml: false)
+	      mediaListEntry { status }
 	    }
 	  }
 	}`
@@ -269,6 +280,45 @@ func (c *Client) SaveProgress(mediaID, progress int) error {
 	return c.query(q, map[string]any{"mediaId": mediaID, "progress": progress}, &out)
 }
 
+func (c *Client) SaveListStatus(mediaID int, status string, progress int) error {
+	status = strings.ToUpper(strings.TrimSpace(status))
+	if status != "CURRENT" && status != "COMPLETED" {
+		return fmt.Errorf("unsupported media list status %q", status)
+	}
+
+	variables := map[string]any{
+		"mediaId": mediaID,
+		"status":  status,
+	}
+	query := `
+	mutation ($mediaId: Int, $status: MediaListStatus) {
+	  SaveMediaListEntry(mediaId: $mediaId, status: $status) {
+	    id
+	    status
+	    progress
+	  }
+	}`
+	if progress >= 0 {
+		query = `
+		mutation ($mediaId: Int, $status: MediaListStatus, $progress: Int) {
+		  SaveMediaListEntry(mediaId: $mediaId, status: $status, progress: $progress) {
+		    id
+		    status
+		    progress
+		  }
+		}`
+		variables["progress"] = progress
+	}
+
+	var out struct {
+		SaveMediaListEntry struct {
+			Status   string `json:"status"`
+			Progress int    `json:"progress"`
+		} `json:"SaveMediaListEntry"`
+	}
+	return c.query(query, variables, &out)
+}
+
 type gqlMedia struct {
 	ID    int `json:"id"`
 	Title struct {
@@ -278,9 +328,12 @@ type gqlMedia struct {
 	CoverImage struct {
 		Large string `json:"large"`
 	} `json:"coverImage"`
-	Episodes    int    `json:"episodes"`
-	Status      string `json:"status"`
-	Description string `json:"description"`
+	Episodes       int    `json:"episodes"`
+	Status         string `json:"status"`
+	Description    string `json:"description"`
+	MediaListEntry *struct {
+		Status string `json:"status"`
+	} `json:"mediaListEntry"`
 }
 
 type gqlAiringSchedule struct {
@@ -370,6 +423,10 @@ func (s gqlAiringSchedule) toAiringSchedule() AiringSchedule {
 }
 
 func (m gqlMedia) toAnime() Anime {
+	listStatus := ""
+	if m.MediaListEntry != nil {
+		listStatus = m.MediaListEntry.Status
+	}
 	return Anime{
 		ID:            m.ID,
 		TitleRomaji:   m.Title.Romaji,
@@ -378,5 +435,6 @@ func (m gqlMedia) toAnime() Anime {
 		TotalEpisodes: m.Episodes,
 		Status:        m.Status,
 		Synopsis:      m.Description,
+		ListStatus:    listStatus,
 	}
 }

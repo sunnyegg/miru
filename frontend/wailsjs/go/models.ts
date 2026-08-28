@@ -46,6 +46,7 @@ export namespace main {
 	    totalEpisodes: number;
 	    status: string;
 	    synopsis: string;
+	    listStatus: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new AnimeView(source);
@@ -60,6 +61,7 @@ export namespace main {
 	        this.totalEpisodes = source["totalEpisodes"];
 	        this.status = source["status"];
 	        this.synopsis = source["synopsis"];
+	        this.listStatus = source["listStatus"];
 	    }
 	}
 	export class EpisodeView {
