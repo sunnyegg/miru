@@ -1,6 +1,7 @@
 import {
   Calendar,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleHelp,
@@ -43,6 +44,10 @@ export function IconCalendar({className}: IconProps) {
 
 export function IconCheck({className}: IconProps) {
   return <Check className={className} {...stroke} />
+}
+
+export function IconChevronDown({className}: IconProps) {
+  return <ChevronDown className={className} {...stroke} />
 }
 
 export function IconSettings({className}: IconProps) {

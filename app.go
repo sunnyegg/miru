@@ -26,14 +26,19 @@ import (
 )
 
 const (
-	apiCacheTTL         = 7 * 24 * time.Hour
-	currentListCacheTTL = time.Hour
-	watchingCacheKey    = "watching"
-	completedCacheKey   = "completed"
+	apiCacheTTL             = 7 * 24 * time.Hour
+	currentListCacheTTL     = time.Hour
+	watchingCacheKey        = "watching"
+	completedCacheKey       = "completed"
+	animeListCountsCacheKey = "anilist:list-counts:v1"
 )
 
 func animeListCacheKey(status string) string {
 	return "anilist:list:v2:" + strings.ToLower(strings.TrimSpace(status))
+}
+
+func animeCacheKey(mediaID int) string {
+	return fmt.Sprintf("anime:%d", mediaID)
 }
 
 type App struct {

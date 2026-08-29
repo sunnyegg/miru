@@ -43,6 +43,8 @@ export function ListAiringSchedule(arg1:number,arg2:number):Promise<Array<main.A
 
 export function ListAnimeList(arg1:string):Promise<Array<main.WatchingEntryView>>;
 
+export function ListAnimeListCounts():Promise<Record<string, number>>;
+
 export function ListCurrentlyWatching():Promise<Array<main.WatchingEntryView>>;
 
 export function ListEpisodes():Promise<Array<main.EpisodeView>>;

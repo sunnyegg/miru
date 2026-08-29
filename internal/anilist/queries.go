@@ -101,6 +101,48 @@ func (c *Client) ListMediaList(status string) ([]CurrentEntry, error) {
 	}
 }
 
+func (c *Client) ListMediaListCounts() (map[string]int, error) {
+	userID, err := c.ViewerID()
+	if err != nil {
+		return nil, err
+	}
+
+	const q = `
+	query ($userId: Int) {
+	  MediaListCollection(userId: $userId, type: ANIME) {
+	    lists {
+	      entries { status }
+	    }
+	  }
+	}`
+	var out struct {
+		MediaListCollection struct {
+			Lists []struct {
+				Entries []struct {
+					Status string `json:"status"`
+				} `json:"entries"`
+			} `json:"lists"`
+		} `json:"MediaListCollection"`
+	}
+	if err := c.query(q, map[string]any{"userId": userID}, &out); err != nil {
+		return nil, err
+	}
+
+	counts := make(map[string]int, len(ListStatuses))
+	for _, status := range ListStatuses {
+		counts[status] = 0
+	}
+	for _, list := range out.MediaListCollection.Lists {
+		for _, entry := range list.Entries {
+			status := strings.ToUpper(strings.TrimSpace(entry.Status))
+			if ValidListStatus(status) {
+				counts[status]++
+			}
+		}
+	}
+	return counts, nil
+}
+
 func (c *Client) Search(search string) ([]Anime, error) {
 	search = strings.TrimSpace(search)
 	if search == "" {

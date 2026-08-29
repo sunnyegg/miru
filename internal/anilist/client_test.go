@@ -386,3 +386,47 @@ func TestSaveListEntryRejectsInvalidStatus(t *testing.T) {
 		t.Fatal("expected invalid status error")
 	}
 }
+
+func TestListMediaListCounts(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Query     string `json:"query"`
+			Variables struct {
+				UserID int `json:"userId"`
+			} `json:"variables"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(body.Query, "Viewer") {
+			_, _ = w.Write([]byte(`{"data":{"Viewer":{"id":42}}}`))
+			return
+		}
+		if !strings.Contains(body.Query, "MediaListCollection") {
+			t.Fatalf("query missing MediaListCollection: %s", body.Query)
+		}
+		if body.Variables.UserID != 42 {
+			t.Fatalf("userId = %d", body.Variables.UserID)
+		}
+		_, _ = w.Write([]byte(`{"data":{"MediaListCollection":{"lists":[
+			{"entries":[{"status":"CURRENT"},{"status":"CURRENT"},{"status":"COMPLETED"}]},
+			{"entries":[{"status":"PLANNING"},{"status":"DROPPED"},{"status":"CUSTOM_LIST"}]}
+		]}}}`))
+	}))
+	defer server.Close()
+
+	client := New("tok")
+	client.Endpoint = server.URL
+	client.HTTP = server.Client()
+	counts, err := client.ListMediaListCounts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if counts["CURRENT"] != 2 || counts["COMPLETED"] != 1 || counts["PLANNING"] != 1 || counts["DROPPED"] != 1 {
+		t.Fatalf("counts = %+v", counts)
+	}
+	if counts["PAUSED"] != 0 || counts["REPEATING"] != 0 {
+		t.Fatalf("missing zero counts = %+v", counts)
+	}
+}

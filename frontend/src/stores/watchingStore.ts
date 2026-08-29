@@ -1,6 +1,7 @@
 import {create} from 'zustand'
 import {
   ListAnimeList,
+  ListAnimeListCounts,
   SaveAnimeListEntry,
   SearchAnime,
   SetAnimeListStatus,
@@ -33,6 +34,9 @@ type NoticeFn = (message: string, isError?: boolean) => void
 type WatchingState = {
   listFilter: ListFilter
   entries: WatchingEntryView[]
+  counts: Partial<Record<ListFilter, number>>
+  countsLoading: boolean
+  countsError: string
   loading: boolean
   notConnected: boolean
   error: string
@@ -44,19 +48,23 @@ type WatchingState = {
   clearSearch: () => void
   selectFilter: (filter: ListFilter) => Promise<void>
   loadList: (filter?: ListFilter) => Promise<void>
+  loadCounts: () => Promise<void>
   searchAnime: () => Promise<void>
   setListStatus: (
     mediaId: number,
     status: QuickAddStatus,
     totalEpisodes: number,
     notice: NoticeFn,
-  ) => Promise<void>
+  ) => Promise<boolean>
   saveEntry: (input: AnimeListEntryInput, notice: NoticeFn) => Promise<void>
 }
 
 export const useWatchingStore = create<WatchingState>((set, get) => ({
   listFilter: 'CURRENT',
   entries: [],
+  counts: {},
+  countsLoading: true,
+  countsError: '',
   loading: true,
   notConnected: false,
   error: '',
@@ -84,6 +92,18 @@ export const useWatchingStore = create<WatchingState>((set, get) => ({
       }
     } finally {
       set({loading: false})
+    }
+  },
+
+  loadCounts: async () => {
+    set({countsLoading: true, countsError: ''})
+    try {
+      const counts = await ListAnimeListCounts()
+      set({counts: counts ?? {}})
+    } catch (err) {
+      set({counts: {}, countsError: errorMessage(err)})
+    } finally {
+      set({countsLoading: false})
     }
   },
 
@@ -119,8 +139,11 @@ export const useWatchingStore = create<WatchingState>((set, get) => ({
         ),
       }))
       await get().loadList()
+      await get().loadCounts()
+      return true
     } catch (err) {
       notice(errorMessage(err), true)
+      return false
     }
   },
 
@@ -129,6 +152,7 @@ export const useWatchingStore = create<WatchingState>((set, get) => ({
       await SaveAnimeListEntry(input)
       notice('List entry updated')
       await get().loadList()
+      await get().loadCounts()
     } catch (err) {
       notice(errorMessage(err), true)
       throw err

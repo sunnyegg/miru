@@ -46,6 +46,7 @@ type Props = {
   schedulesByDay: Map<string, AiringScheduleView[]>
   loading: boolean
   scrollToTodayRequest: number
+  notice: (msg: string, isError?: boolean) => void
 }
 
 function easeInOutCubic(progress: number): number {
@@ -111,6 +112,7 @@ export function AiringAgendaLayout({
   schedulesByDay,
   loading,
   scrollToTodayRequest,
+  notice,
 }: Props) {
   const todaySectionRef = useRef<HTMLElement>(null)
   const [selectedSchedule, setSelectedSchedule] =
@@ -226,6 +228,7 @@ export function AiringAgendaLayout({
       </div>
       <AiringScheduleDialog
         schedule={selectedSchedule}
+        notice={notice}
         onClose={() => setSelectedSchedule(null)}
       />
     </>
