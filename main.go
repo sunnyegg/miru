@@ -13,6 +13,9 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+//go:embed build/appicon.png
+var appIconPNG []byte
+
 func main() {
 	applyWaylandNVIDIAWorkaround()
 
@@ -39,6 +42,7 @@ func main() {
 			app,
 		},
 		Linux: &linux.Options{
+			Icon:                appIconPNG,
 			WindowIsTranslucent: false,
 		},
 	})
