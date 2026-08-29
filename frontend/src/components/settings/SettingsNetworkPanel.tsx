@@ -2,7 +2,14 @@ import type {Dispatch, FormEvent, SetStateAction} from 'react'
 import type {SettingsView} from '../../lib/types'
 import {LabelWithHint} from '../LabelWithHint'
 import {Button} from '@/components/ui/button'
-import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import {Input} from '@/components/ui/input'
 import {NativeSelect, NativeSelectOption} from '@/components/ui/native-select'
 
@@ -38,13 +45,22 @@ export function SettingsNetworkPanel({
             id="networkMode"
             value={form.networkMode}
             onChange={(event) =>
-              setForm((current) => ({...current, networkMode: event.target.value}))
+              setForm((current) => ({
+                ...current,
+                networkMode: event.target.value,
+              }))
             }
           >
-            <NativeSelectOption value="system">System proxy / VPN</NativeSelectOption>
-            <NativeSelectOption value="direct">Direct connection</NativeSelectOption>
+            <NativeSelectOption value="system">
+              System proxy / VPN
+            </NativeSelectOption>
+            <NativeSelectOption value="direct">
+              Direct connection
+            </NativeSelectOption>
             <NativeSelectOption value="socks5">SOCKS5 proxy</NativeSelectOption>
-            <NativeSelectOption value="http_proxy">HTTP/HTTPS proxy</NativeSelectOption>
+            <NativeSelectOption value="http_proxy">
+              HTTP/HTTPS proxy
+            </NativeSelectOption>
           </NativeSelect>
           {form.networkMode === 'socks5' && (
             <>
@@ -58,7 +74,10 @@ export function SettingsNetworkPanel({
                 id="socks5Address"
                 value={form.socks5Address}
                 onChange={(event) =>
-                  setForm((current) => ({...current, socks5Address: event.target.value}))
+                  setForm((current) => ({
+                    ...current,
+                    socks5Address: event.target.value,
+                  }))
                 }
                 placeholder="127.0.0.1:1080"
                 className="bg-card"
@@ -77,7 +96,10 @@ export function SettingsNetworkPanel({
                 id="httpProxyUrl"
                 value={form.httpProxyUrl}
                 onChange={(event) =>
-                  setForm((current) => ({...current, httpProxyUrl: event.target.value}))
+                  setForm((current) => ({
+                    ...current,
+                    httpProxyUrl: event.target.value,
+                  }))
                 }
                 placeholder="http://127.0.0.1:8080"
                 className="bg-card"
@@ -89,7 +111,12 @@ export function SettingsNetworkPanel({
           <Button type="submit" variant="secondary" disabled={saving}>
             {saving ? 'Saving…' : 'Save'}
           </Button>
-          <Button type="button" variant="muted" disabled={testingNetwork} onClick={onTestNetwork}>
+          <Button
+            type="button"
+            variant="muted"
+            disabled={testingNetwork}
+            onClick={onTestNetwork}
+          >
             {testingNetwork ? 'Testing…' : 'Test connection'}
           </Button>
         </CardFooter>

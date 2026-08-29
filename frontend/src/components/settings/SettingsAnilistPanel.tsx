@@ -1,7 +1,14 @@
 import type {Dispatch, FormEvent, SetStateAction} from 'react'
 import type {AnilistStatus, SettingsView} from '../../lib/types'
 import {Button} from '@/components/ui/button'
-import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import {Input} from '@/components/ui/input'
 import {SettingsField} from './SettingsField'
 
@@ -59,7 +66,10 @@ export function SettingsAnilistPanel({
               max={100}
               value={form.syncThreshold}
               onChange={(event) =>
-                setForm((current) => ({...current, syncThreshold: Number(event.target.value)}))
+                setForm((current) => ({
+                  ...current,
+                  syncThreshold: Number(event.target.value),
+                }))
               }
               className="w-32 bg-card"
             />

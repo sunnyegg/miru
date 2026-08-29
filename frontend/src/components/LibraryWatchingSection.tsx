@@ -36,7 +36,8 @@ export function LibraryWatchingSection({
           <h3 className="text-sm font-medium text-foreground">Watching</h3>
         </div>
         <p className="text-sm text-muted-foreground">
-          Nothing on your AniList Watching list yet. Add titles from the Watching tab to track them here.
+          Nothing on your AniList Watching list yet. Add titles from the
+          Watching tab to track them here.
         </p>
       </section>
     )
@@ -52,7 +53,9 @@ export function LibraryWatchingSection({
       <div className="mb-3 flex items-baseline gap-2">
         <h3 className="text-sm font-medium text-foreground">Watching</h3>
         {!loading && allItems.length > 0 && (
-          <span className="text-xs text-muted-foreground">{allItems.length}</span>
+          <span className="text-xs text-muted-foreground">
+            {allItems.length}
+          </span>
         )}
       </div>
       {loading ? (

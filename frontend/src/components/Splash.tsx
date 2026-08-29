@@ -11,7 +11,10 @@ export function Splash() {
         <IconLibrary className="h-6 w-6" />
         <span className="text-lg font-semibold tracking-tight">Miru</span>
       </div>
-      <div className="mt-6 h-px w-48 overflow-hidden bg-border" aria-hidden="true">
+      <div
+        className="mt-6 h-px w-48 overflow-hidden bg-border"
+        aria-hidden="true"
+      >
         <div className="h-full w-1/3 bg-accent animate-pulse" />
       </div>
     </div>

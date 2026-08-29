@@ -4,7 +4,11 @@ function isSafeLink(href: string): boolean {
   return href.startsWith('https://') || href.startsWith('http://')
 }
 
-function sanitizeSynopsisNode(source: Node, target: HTMLElement, document: Document) {
+function sanitizeSynopsisNode(
+  source: Node,
+  target: HTMLElement,
+  document: Document,
+) {
   for (const child of source.childNodes) {
     if (child.nodeType === Node.TEXT_NODE) {
       target.appendChild(document.createTextNode(child.textContent ?? ''))

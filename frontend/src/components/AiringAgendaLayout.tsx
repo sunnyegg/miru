@@ -15,7 +15,11 @@ import {cn} from '@/lib/utils'
 
 function AgendaSkeleton() {
   return (
-    <div className="flex flex-col gap-8" aria-busy="true" aria-label="Loading airing schedule">
+    <div
+      className="flex flex-col gap-8"
+      aria-busy="true"
+      aria-label="Loading airing schedule"
+    >
       {Array.from({length: 2}, (_, sectionIndex) => (
         <div key={sectionIndex}>
           <Skeleton className="h-4 w-44 animate-pulse" />
@@ -59,11 +63,15 @@ function scrollMainToTodaySection(element: HTMLElement): () => void {
 
   const container = scrollContainer
   const scrollOffset = 24
-  const durationMs = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 800
+  const durationMs = window.matchMedia('(prefers-reduced-motion: reduce)')
+    .matches
+    ? 0
+    : 800
 
   const containerTop = container.getBoundingClientRect().top
   const elementTop = element.getBoundingClientRect().top
-  const targetScrollTop = container.scrollTop + (elementTop - containerTop) - scrollOffset
+  const targetScrollTop =
+    container.scrollTop + (elementTop - containerTop) - scrollOffset
   const startScrollTop = container.scrollTop
   const scrollDistance = targetScrollTop - startScrollTop
 
@@ -82,7 +90,8 @@ function scrollMainToTodaySection(element: HTMLElement): () => void {
   function animateScroll(now: number) {
     const elapsed = now - startedAt
     const progress = Math.min(elapsed / durationMs, 1)
-    container.scrollTop = startScrollTop + scrollDistance * easeInOutCubic(progress)
+    container.scrollTop =
+      startScrollTop + scrollDistance * easeInOutCubic(progress)
     if (progress < 1) {
       animationFrame = requestAnimationFrame(animateScroll)
     }
@@ -97,9 +106,15 @@ function scrollMainToTodaySection(element: HTMLElement): () => void {
   }
 }
 
-export function AiringAgendaLayout({days, schedulesByDay, loading, scrollToTodayRequest}: Props) {
+export function AiringAgendaLayout({
+  days,
+  schedulesByDay,
+  loading,
+  scrollToTodayRequest,
+}: Props) {
   const todaySectionRef = useRef<HTMLElement>(null)
-  const [selectedSchedule, setSelectedSchedule] = useState<AiringScheduleView | null>(null)
+  const [selectedSchedule, setSelectedSchedule] =
+    useState<AiringScheduleView | null>(null)
 
   useEffect(() => {
     if (loading) {
@@ -117,7 +132,9 @@ export function AiringAgendaLayout({days, schedulesByDay, loading, scrollToToday
         if (!todaySectionRef.current) {
           return
         }
-        cancelScrollAnimation = scrollMainToTodaySection(todaySectionRef.current)
+        cancelScrollAnimation = scrollMainToTodaySection(
+          todaySectionRef.current,
+        )
       })
     })
 
@@ -137,60 +154,75 @@ export function AiringAgendaLayout({days, schedulesByDay, loading, scrollToToday
   return (
     <>
       <div className="flex flex-col gap-8">
-      {days.map((day) => {
-        const entries = schedulesByDay.get(dateKey(day)) ?? []
-        const today = isToday(day)
+        {days.map((day) => {
+          const entries = schedulesByDay.get(dateKey(day)) ?? []
+          const today = isToday(day)
 
-        return (
-          <section
-            key={dateKey(day)}
-            ref={today ? todaySectionRef : undefined}
-            className={cn(
-              'scroll-mt-6',
-              today && 'border-l-2 border-l-accent bg-muted/40 py-4 pl-4',
-            )}
-          >
-            <div
+          return (
+            <section
+              key={dateKey(day)}
+              ref={today ? todaySectionRef : undefined}
               className={cn(
-                'flex flex-wrap items-baseline gap-2 border-b pb-2',
-                today ? 'border-b-accent' : 'border-b-border',
+                'scroll-mt-6',
+                today && 'border-l-2 border-l-accent bg-muted/40 py-4 pl-4',
               )}
             >
-              <h3 className={cn('text-sm font-medium', today && 'text-accent')}>
-                {dayFormatter.format(day)}
-              </h3>
-              {today && <AiringTodayBadge />}
-            </div>
-            {entries.length === 0 ? (
-              <p className="mt-4 text-sm text-muted-foreground">No episodes scheduled.</p>
-            ) : (
-              <ul className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {entries.map((schedule) => (
-                  <li key={schedule.id}>
-                    <button
-                      type="button"
-                      className="flex w-full items-start gap-3 text-left transition-opacity hover:opacity-80 motion-reduce:transition-none"
-                      onClick={() => setSelectedSchedule(schedule)}
-                    >
-                      <AiringEpisodePoster coverImage={schedule.coverImage} size="xxlarge" />
-                      <div className="min-w-0 flex-1">
-                        <time
-                          className="tabular-nums text-xs text-muted-foreground"
-                          dateTime={new Date(schedule.airingAt * 1000).toISOString()}
-                        >
-                          {timeFormatter.format(new Date(schedule.airingAt * 1000))}
-                        </time>
-                        <p className="mt-0.5 truncate text-sm font-medium">{scheduleTitle(schedule)}</p>
-                        <p className="text-xs text-muted-foreground">Episode {schedule.episode}</p>
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        )
-      })}
+              <div
+                className={cn(
+                  'flex flex-wrap items-baseline gap-2 border-b pb-2',
+                  today ? 'border-b-accent' : 'border-b-border',
+                )}
+              >
+                <h3
+                  className={cn('text-sm font-medium', today && 'text-accent')}
+                >
+                  {dayFormatter.format(day)}
+                </h3>
+                {today && <AiringTodayBadge />}
+              </div>
+              {entries.length === 0 ? (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  No episodes scheduled.
+                </p>
+              ) : (
+                <ul className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {entries.map((schedule) => (
+                    <li key={schedule.id}>
+                      <button
+                        type="button"
+                        className="flex w-full items-start gap-3 text-left transition-opacity hover:opacity-80 motion-reduce:transition-none"
+                        onClick={() => setSelectedSchedule(schedule)}
+                      >
+                        <AiringEpisodePoster
+                          coverImage={schedule.coverImage}
+                          size="xxlarge"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <time
+                            className="tabular-nums text-xs text-muted-foreground"
+                            dateTime={new Date(
+                              schedule.airingAt * 1000,
+                            ).toISOString()}
+                          >
+                            {timeFormatter.format(
+                              new Date(schedule.airingAt * 1000),
+                            )}
+                          </time>
+                          <p className="mt-0.5 truncate text-sm font-medium">
+                            {scheduleTitle(schedule)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Episode {schedule.episode}
+                          </p>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )
+        })}
       </div>
       <AiringScheduleDialog
         schedule={selectedSchedule}

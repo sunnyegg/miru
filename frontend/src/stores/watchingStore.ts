@@ -1,7 +1,16 @@
 import {create} from 'zustand'
-import {ListAnimeList, SaveAnimeListEntry, SearchAnime, SetAnimeListStatus} from '../../wailsjs/go/main/App'
+import {
+  ListAnimeList,
+  SaveAnimeListEntry,
+  SearchAnime,
+  SetAnimeListStatus,
+} from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
-import type {AnimeListEntryInput, AnimeView, WatchingEntryView} from '../lib/types'
+import type {
+  AnimeListEntryInput,
+  AnimeView,
+  WatchingEntryView,
+} from '../lib/types'
 
 export type ListFilter =
   | 'CURRENT'
@@ -90,7 +99,7 @@ export const useWatchingStore = create<WatchingState>((set, get) => ({
       notice('Added to Watching')
       set((state) => ({
         searchResults: state.searchResults.map((anime) =>
-          anime.id === mediaId ? {...anime, listStatus: 'CURRENT'} : anime
+          anime.id === mediaId ? {...anime, listStatus: 'CURRENT'} : anime,
         ),
       }))
       await get().loadList()

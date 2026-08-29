@@ -43,7 +43,9 @@ export function scheduleTitle(schedule: AiringScheduleView): string {
   return schedule.titleEnglish || schedule.titleRomaji
 }
 
-export function groupSchedulesByDay(schedules: AiringScheduleView[]): Map<string, AiringScheduleView[]> {
+export function groupSchedulesByDay(
+  schedules: AiringScheduleView[],
+): Map<string, AiringScheduleView[]> {
   const grouped = new Map<string, AiringScheduleView[]>()
   for (const schedule of schedules) {
     const key = dateKey(new Date(schedule.airingAt * 1000))

@@ -4,7 +4,14 @@ import {SettingsCheckboxRow} from './SettingsCheckboxRow'
 import {SettingsField} from './SettingsField'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
-import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import {Input} from '@/components/ui/input'
 
 const mpvPathHint = 'MPV path changes take effect after restart.'
@@ -15,7 +22,8 @@ const anime4kHint =
 const discordRpcHint =
   'Show the anime you are watching on your Discord profile while MPV is playing. Discord Rich Presence requires the Discord desktop app to be running.'
 
-const discordAppIdHint = 'Leave empty to use DISCORD_APP_ID from the build .env file.'
+const discordAppIdHint =
+  'Leave empty to use DISCORD_APP_ID from the build .env file.'
 
 type Props = {
   form: SettingsView
@@ -42,12 +50,22 @@ export function SettingsPlaybackPanel({
           <CardDescription>MPV binary used to play episodes.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <SettingsField label="MPV path" htmlFor="mpvPath" hint={mpvPathHint} className="mt-0">
+          <SettingsField
+            label="MPV path"
+            htmlFor="mpvPath"
+            hint={mpvPathHint}
+            className="mt-0"
+          >
             <div className="flex flex-wrap gap-2">
               <Input
                 id="mpvPath"
                 value={form.mpvPath}
-                onChange={(event) => setForm((current) => ({...current, mpvPath: event.target.value}))}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    mpvPath: event.target.value,
+                  }))
+                }
                 className="min-w-0 flex-1 bg-card"
               />
               <Button type="button" variant="muted" onClick={onDetectMpv}>
@@ -63,24 +81,31 @@ export function SettingsPlaybackPanel({
             label="Enable Anime4K upscaling"
             hint={anime4kHint}
             checked={form.anime4kEnabled}
-            onChange={(value) => setForm((current) => ({...current, anime4kEnabled: value}))}
+            onChange={(value) =>
+              setForm((current) => ({...current, anime4kEnabled: value}))
+            }
           />
           {form.anime4kEnabled && !form.anime4kShadersReady && (
             <Alert variant="destructive">
               <AlertDescription>
-                Anime4K shaders are not installed yet. Save playback settings to download them.
+                Anime4K shaders are not installed yet. Save playback settings to
+                download them.
               </AlertDescription>
             </Alert>
           )}
           {form.anime4kEnabled && form.anime4kShadersReady && (
-            <p className="text-xs text-muted-foreground">Anime4K shaders are installed.</p>
+            <p className="text-xs text-muted-foreground">
+              Anime4K shaders are installed.
+            </p>
           )}
           <SettingsCheckboxRow
             id="discordRpcEnabled"
             label="Discord Rich Presence"
             hint={discordRpcHint}
             checked={form.discordRpcEnabled}
-            onChange={(value) => setForm((current) => ({...current, discordRpcEnabled: value}))}
+            onChange={(value) =>
+              setForm((current) => ({...current, discordRpcEnabled: value}))
+            }
           />
           {form.discordRpcEnabled && (
             <SettingsField
@@ -92,7 +117,10 @@ export function SettingsPlaybackPanel({
                 id="discordAppId"
                 value={form.discordAppId}
                 onChange={(event) =>
-                  setForm((current) => ({...current, discordAppId: event.target.value}))
+                  setForm((current) => ({
+                    ...current,
+                    discordAppId: event.target.value,
+                  }))
                 }
                 placeholder="From the Discord Developer Portal"
                 className="bg-card"

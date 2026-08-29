@@ -8,9 +8,9 @@ const container = document.getElementById('root')
 const root = createRoot(container!)
 
 root.render(
-    <React.StrictMode>
-        <Toaster>
-            <App/>
-        </Toaster>
-    </React.StrictMode>
+  <React.StrictMode>
+    <Toaster>
+      <App />
+    </Toaster>
+  </React.StrictMode>,
 )

@@ -1,4 +1,11 @@
-import {IconCalendar, IconDownload, IconLibrary, IconSearch, IconSettings, IconWatching} from './Icons'
+import {
+  IconCalendar,
+  IconDownload,
+  IconLibrary,
+  IconSearch,
+  IconSettings,
+  IconWatching,
+} from './Icons'
 import {Button} from '@/components/ui/button'
 import {cn} from '@/lib/utils'
 import type {TabId} from '../lib/types'
@@ -55,7 +62,9 @@ export function Sidebar() {
       aria-label="Main"
     >
       <div className="px-2 pb-5 sm:px-5">
-        <h1 className="text-center text-[11px] font-semibold tracking-tight text-foreground sm:text-left sm:text-lg">Miru</h1>
+        <h1 className="text-center text-[11px] font-semibold tracking-tight text-foreground sm:text-left sm:text-lg">
+          Miru
+        </h1>
       </div>
       <ul className="flex flex-col">
         {destinations.map((item) => (
@@ -65,7 +74,13 @@ export function Sidebar() {
         ))}
       </ul>
       <div className="mt-auto">
-        <NavButton id="settings" label="Settings" icon={IconSettings} current={current} onChange={onChange} />
+        <NavButton
+          id="settings"
+          label="Settings"
+          icon={IconSettings}
+          current={current}
+          onChange={onChange}
+        />
       </div>
     </nav>
   )

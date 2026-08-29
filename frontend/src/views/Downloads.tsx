@@ -50,7 +50,9 @@ export function DownloadsView({notice}: Props) {
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
-  const [deleteFilesConfirmId, setDeleteFilesConfirmId] = useState<number | null>(null)
+  const [deleteFilesConfirmId, setDeleteFilesConfirmId] = useState<
+    number | null
+  >(null)
   const [loadError, setLoadError] = useState('')
   const [picker, setPicker] = useState<PickerState | null>(null)
   const [confirming, setConfirming] = useState(false)
@@ -58,9 +60,10 @@ export function DownloadsView({notice}: Props) {
   const grouped = groupDownloads(jobs)
   const hasJobs = jobs.length > 0
   const tabJobs = grouped[activeTab]
-  const deleteFilesConfirmJob = deleteFilesConfirmId === null
-    ? null
-    : jobs.find((job) => job.id === deleteFilesConfirmId) ?? null
+  const deleteFilesConfirmJob =
+    deleteFilesConfirmId === null
+      ? null
+      : (jobs.find((job) => job.id === deleteFilesConfirmId) ?? null)
 
   useEffect(() => {
     void refreshHistory()
@@ -246,20 +249,29 @@ export function DownloadsView({notice}: Props) {
         <div>
           <h2 className="text-2xl font-semibold">Downloads</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Choose which files to keep before a torrent starts. Extra torrents wait in queue.
+            Choose which files to keep before a torrent starts. Extra torrents
+            wait in queue.
           </p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           <Button type="button" onClick={() => setAddDialogOpen(true)}>
             Add torrent
           </Button>
-          <Button type="button" variant="secondary" onClick={() => void openFolder()}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void openFolder()}
+          >
             <IconFolder className="h-4 w-4" />
             Open folder
           </Button>
         </div>
         {hasJobs && (
-          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Download categories">
+          <div
+            className="flex flex-wrap gap-2"
+            role="tablist"
+            aria-label="Download categories"
+          >
             {downloadTabs.map(({group, label}) => {
               const active = activeTab === group
               return (
@@ -289,7 +301,11 @@ export function DownloadsView({notice}: Props) {
         <Alert variant="destructive">
           <AlertDescription>{loadError}</AlertDescription>
           <AlertAction>
-            <Button type="button" variant="secondary" onClick={() => void refreshHistory()}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void refreshHistory()}
+            >
               Try again
             </Button>
           </AlertAction>
@@ -322,7 +338,9 @@ export function DownloadsView({notice}: Props) {
           </p>
         )
       ) : (
-        <p className="text-sm text-muted-foreground">No torrent jobs yet. Add a torrent to start.</p>
+        <p className="text-sm text-muted-foreground">
+          No torrent jobs yet. Add a torrent to start.
+        </p>
       )}
 
       {deleteFilesConfirmJob && (

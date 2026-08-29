@@ -53,7 +53,14 @@ export function IconChevronRight({className}: IconProps) {
 }
 
 export function IconPlay({className}: IconProps) {
-  return <Play className={className} aria-hidden="true" fill="currentColor" strokeWidth={0} />
+  return (
+    <Play
+      className={className}
+      aria-hidden="true"
+      fill="currentColor"
+      strokeWidth={0}
+    />
+  )
 }
 
 export function IconFolder({className}: IconProps) {

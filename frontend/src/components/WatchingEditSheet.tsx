@@ -32,7 +32,11 @@ function fuzzyDateToInput(year: number, month: number, day: number): string {
   return `${year}-${paddedMonth}-${paddedDay}`
 }
 
-function inputDateToParts(value: string): {year: number; month: number; day: number} {
+function inputDateToParts(value: string): {
+  year: number
+  month: number
+  day: number
+} {
   if (!value) {
     return {year: 0, month: 0, day: 0}
   }
@@ -52,8 +56,16 @@ function entryToForm(entry: WatchingEntryView) {
     notes: entry.notes,
     repeat: String(entry.repeat),
     privateEntry: entry.private ? 'true' : 'false',
-    startedAt: fuzzyDateToInput(entry.startedAt.year, entry.startedAt.month, entry.startedAt.day),
-    completedAt: fuzzyDateToInput(entry.completedAt.year, entry.completedAt.month, entry.completedAt.day),
+    startedAt: fuzzyDateToInput(
+      entry.startedAt.year,
+      entry.startedAt.month,
+      entry.startedAt.day,
+    ),
+    completedAt: fuzzyDateToInput(
+      entry.completedAt.year,
+      entry.completedAt.month,
+      entry.completedAt.day,
+    ),
   }
 }
 
@@ -100,8 +112,12 @@ export function WatchingEditSheet({entry, saving, onClose, onSave}: Props) {
           <Dialog.Panel aria-labelledby="watching-edit-title">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <Dialog.Title id="watching-edit-title">Edit list entry</Dialog.Title>
-                <p className="mt-1 truncate text-sm text-muted-foreground">{title}</p>
+                <Dialog.Title id="watching-edit-title">
+                  Edit list entry
+                </Dialog.Title>
+                <p className="mt-1 truncate text-sm text-muted-foreground">
+                  {title}
+                </p>
               </div>
               <Button type="button" variant="ghost" onClick={onClose}>
                 Cancel
@@ -114,7 +130,12 @@ export function WatchingEditSheet({entry, saving, onClose, onSave}: Props) {
                 <NativeSelect
                   id="watching-edit-status"
                   value={form.status}
-                  onChange={(event) => setForm((current) => ({...current, status: event.target.value}))}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      status: event.target.value,
+                    }))
+                  }
                 >
                   {listStatusOptions.map((option) => (
                     <NativeSelectOption key={option.value} value={option.value}>
@@ -126,13 +147,20 @@ export function WatchingEditSheet({entry, saving, onClose, onSave}: Props) {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="grid gap-2">
-                  <Label htmlFor="watching-edit-progress">Progress (episodes)</Label>
+                  <Label htmlFor="watching-edit-progress">
+                    Progress (episodes)
+                  </Label>
                   <Input
                     id="watching-edit-progress"
                     type="number"
                     min={0}
                     value={form.progress}
-                    onChange={(event) => setForm((current) => ({...current, progress: event.target.value}))}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        progress: event.target.value,
+                      }))
+                    }
                     className=""
                   />
                 </div>
@@ -144,7 +172,12 @@ export function WatchingEditSheet({entry, saving, onClose, onSave}: Props) {
                     min={0}
                     max={100}
                     value={form.scoreRaw}
-                    onChange={(event) => setForm((current) => ({...current, scoreRaw: event.target.value}))}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        scoreRaw: event.target.value,
+                      }))
+                    }
                     className=""
                   />
                 </div>
@@ -159,7 +192,12 @@ export function WatchingEditSheet({entry, saving, onClose, onSave}: Props) {
                     min={0}
                     max={1000}
                     value={form.repeat}
-                    onChange={(event) => setForm((current) => ({...current, repeat: event.target.value}))}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        repeat: event.target.value,
+                      }))
+                    }
                     className=""
                   />
                 </div>
@@ -168,10 +206,19 @@ export function WatchingEditSheet({entry, saving, onClose, onSave}: Props) {
                   <NativeSelect
                     id="watching-edit-private"
                     value={form.privateEntry}
-                    onChange={(event) => setForm((current) => ({...current, privateEntry: event.target.value}))}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        privateEntry: event.target.value,
+                      }))
+                    }
                   >
-                    <NativeSelectOption value="false">Public</NativeSelectOption>
-                    <NativeSelectOption value="true">Private</NativeSelectOption>
+                    <NativeSelectOption value="false">
+                      Public
+                    </NativeSelectOption>
+                    <NativeSelectOption value="true">
+                      Private
+                    </NativeSelectOption>
                   </NativeSelect>
                 </div>
               </div>
@@ -183,7 +230,12 @@ export function WatchingEditSheet({entry, saving, onClose, onSave}: Props) {
                     id="watching-edit-started"
                     type="date"
                     value={form.startedAt}
-                    onChange={(event) => setForm((current) => ({...current, startedAt: event.target.value}))}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        startedAt: event.target.value,
+                      }))
+                    }
                     className=""
                   />
                 </div>
@@ -193,7 +245,12 @@ export function WatchingEditSheet({entry, saving, onClose, onSave}: Props) {
                     id="watching-edit-completed"
                     type="date"
                     value={form.completedAt}
-                    onChange={(event) => setForm((current) => ({...current, completedAt: event.target.value}))}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        completedAt: event.target.value,
+                      }))
+                    }
                     className=""
                   />
                 </div>
@@ -206,17 +263,32 @@ export function WatchingEditSheet({entry, saving, onClose, onSave}: Props) {
                   value={form.notes}
                   rows={4}
                   maxLength={6000}
-                  onChange={(event) => setForm((current) => ({...current, notes: event.target.value}))}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      notes: event.target.value,
+                    }))
+                  }
                   className=""
                 />
               </div>
             </div>
 
             <div className="mt-4 flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onClose}
+                disabled={saving}
+              >
                 Cancel
               </Button>
-              <Button type="button" onClick={submitSave} disabled={saving} aria-busy={saving}>
+              <Button
+                type="button"
+                onClick={submitSave}
+                disabled={saving}
+                aria-busy={saving}
+              >
                 {saving ? 'Saving…' : 'Save'}
               </Button>
             </div>

@@ -47,7 +47,11 @@ function computePageMetrics(
   return {viewportWidth, itemWidth, itemCount, itemsPerPage, maxPage}
 }
 
-export function LibraryPosterCarousel({children, ariaLabel, ariaBusy = false}: Props) {
+export function LibraryPosterCarousel({
+  children,
+  ariaLabel,
+  ariaBusy = false,
+}: Props) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLUListElement>(null)
   const [pageIndex, setPageIndex] = useState(0)

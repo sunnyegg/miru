@@ -20,7 +20,11 @@ function posterCaption(show: ShowGroup): string {
 }
 
 function posterSubcaption(show: ShowGroup): string | null {
-  if (show.bound && show.totalEpisodes > 0 && show.progress < show.totalEpisodes) {
+  if (
+    show.bound &&
+    show.totalEpisodes > 0 &&
+    show.progress < show.totalEpisodes
+  ) {
     return `Next: Ep ${show.progress + 1}`
   }
   if (!show.bound) {
@@ -66,10 +70,17 @@ export function LibraryPosterGrid({
 
   if (loadError && shows.length === 0) {
     return (
-      <Alert variant="destructive" className="flex min-h-48 flex-wrap items-end justify-between gap-4 p-4">
+      <Alert
+        variant="destructive"
+        className="flex min-h-48 flex-wrap items-end justify-between gap-4 p-4"
+      >
         <div className="min-w-0">
-          <h3 className="font-medium text-foreground">Library could not be loaded</h3>
-          <p className="mt-1 wrap-break-word text-sm text-destructive">{loadError}</p>
+          <h3 className="font-medium text-foreground">
+            Library could not be loaded
+          </h3>
+          <p className="mt-1 wrap-break-word text-sm text-destructive">
+            {loadError}
+          </p>
         </div>
         <Button type="button" variant="secondary" onClick={onRetry}>
           Try again
@@ -85,7 +96,8 @@ export function LibraryPosterGrid({
     return (
       <div className="flex min-h-32 items-end">
         <p className="max-w-md text-sm text-muted-foreground">
-          No local shows yet. Import a file, or finish a torrent download and it will land here.
+          No local shows yet. Import a file, or finish a torrent download and it
+          will land here.
         </p>
       </div>
     )

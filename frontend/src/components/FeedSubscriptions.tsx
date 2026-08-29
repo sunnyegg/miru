@@ -78,7 +78,7 @@ export function FeedSubscriptions({notice}: Props) {
     }
   }
 
-  async function download(item: typeof items[number], itemIndex: number) {
+  async function download(item: (typeof items)[number], itemIndex: number) {
     const source = item.magnet || item.link
     if (!source) {
       notice('This item has no torrent link', true)
@@ -162,7 +162,8 @@ export function FeedSubscriptions({notice}: Props) {
             className="bg-background"
           />
           <p className="text-xs text-muted-foreground">
-            Any http/https RSS feed works — Nyaa, Tokyo Toshokan, or a fansub site feed URL.
+            Any http/https RSS feed works — Nyaa, Tokyo Toshokan, or a fansub
+            site feed URL.
           </p>
         </div>
         <div className="w-full min-w-48 space-y-2 sm:w-auto sm:flex-1">
@@ -183,7 +184,12 @@ export function FeedSubscriptions({notice}: Props) {
       </form>
 
       <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <Button type="button" variant="muted" disabled={polling} onClick={() => void pollFeedsNow()}>
+        <Button
+          type="button"
+          variant="muted"
+          disabled={polling}
+          onClick={() => void pollFeedsNow()}
+        >
           {polling ? 'Polling…' : 'Poll now'}
         </Button>
         <Button
@@ -223,7 +229,8 @@ export function FeedSubscriptions({notice}: Props) {
               <h3 className="text-sm font-medium">Subscriptions</h3>
               {feeds.length === 0 ? (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Add Nyaa, Tokyo Toshokan, or fansub RSS URLs to poll in the background.
+                  Add Nyaa, Tokyo Toshokan, or fansub RSS URLs to poll in the
+                  background.
                 </p>
               ) : (
                 <ul className="mt-3 flex flex-col gap-2">
@@ -232,8 +239,12 @@ export function FeedSubscriptions({notice}: Props) {
                       <Card>
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
-                            <p className="font-medium">{feed.title || feed.url}</p>
-                            <p className="mt-1 break-all text-xs text-muted-foreground">{feed.url}</p>
+                            <p className="font-medium">
+                              {feed.title || feed.url}
+                            </p>
+                            <p className="mt-1 break-all text-xs text-muted-foreground">
+                              {feed.url}
+                            </p>
                             <p className="mt-1 text-xs text-muted-foreground">
                               {feed.lastPolled
                                 ? `Last polled ${formatDate(feed.lastPolled)}`
@@ -270,7 +281,9 @@ export function FeedSubscriptions({notice}: Props) {
               <h3 className="text-sm font-medium">Items</h3>
               {items.length === 0 ? (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {showNewOnly ? 'No new torrents from your feeds.' : 'No items stored yet.'}
+                  {showNewOnly
+                    ? 'No new torrents from your feeds.'
+                    : 'No items stored yet.'}
                 </p>
               ) : (
                 <ul className="mt-3 flex flex-col gap-3">
@@ -279,7 +292,9 @@ export function FeedSubscriptions({notice}: Props) {
                       <Card>
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
-                            <p className="break-words font-medium">{item.title}</p>
+                            <p className="break-words font-medium">
+                              {item.title}
+                            </p>
                             <p className="mt-1 text-xs text-muted-foreground">
                               {item.feedTitle} · {formatDate(item.published)}
                             </p>

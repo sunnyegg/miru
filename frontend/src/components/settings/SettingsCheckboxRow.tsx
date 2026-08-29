@@ -12,7 +12,14 @@ type Props = {
   className?: string
 }
 
-export function SettingsCheckboxRow({id, label, hint, checked, onChange, className}: Props) {
+export function SettingsCheckboxRow({
+  id,
+  label,
+  hint,
+  checked,
+  onChange,
+  className,
+}: Props) {
   return (
     <div className={cn('flex min-h-11 items-center gap-3', className)}>
       <input

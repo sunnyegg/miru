@@ -2,11 +2,7 @@ import {useEffect, useState} from 'react'
 import {GetAnime} from '../../wailsjs/go/main/App'
 import {anilistExtraLargeCover} from '../lib/anilistImage'
 import {sanitizeAnilistSynopsis} from '../lib/anilistDescription'
-import {
-  dayFormatter,
-  scheduleTitle,
-  timeFormatter,
-} from '../lib/calendar'
+import {dayFormatter, scheduleTitle, timeFormatter} from '../lib/calendar'
 import {errorMessage} from '../lib/format'
 import type {AiringScheduleView, AnimeView} from '../lib/types'
 import {Alert, AlertDescription} from '@/components/ui/alert'
@@ -111,7 +107,8 @@ export function AiringScheduleDialog({schedule, onClose}: Props) {
   const title = scheduleTitle(schedule)
   const romajiTitle = schedule.titleRomaji.trim()
   const showRomaji = romajiTitle.length > 0 && romajiTitle !== title
-  const coverImage = anime?.coverImage || anilistExtraLargeCover(schedule.coverImage)
+  const coverImage =
+    anime?.coverImage || anilistExtraLargeCover(schedule.coverImage)
 
   return (
     <Dialog.Root
@@ -125,14 +122,22 @@ export function AiringScheduleDialog({schedule, onClose}: Props) {
       <Dialog.Portal>
         <Dialog.Backdrop />
         <Dialog.Viewport>
-          <Dialog.Panel className="max-w-4xl p-6" aria-labelledby="airing-detail-title">
+          <Dialog.Panel
+            className="max-w-4xl p-6"
+            aria-labelledby="airing-detail-title"
+          >
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
-                <Dialog.Title id="airing-detail-title" className="text-xl font-semibold">
+                <Dialog.Title
+                  id="airing-detail-title"
+                  className="text-xl font-semibold"
+                >
                   {title}
                 </Dialog.Title>
                 {showRomaji && (
-                  <p className="mt-1 text-base text-muted-foreground">{romajiTitle}</p>
+                  <p className="mt-1 text-base text-muted-foreground">
+                    {romajiTitle}
+                  </p>
                 )}
               </div>
               <Button type="button" variant="ghost" onClick={onClose}>
@@ -157,7 +162,10 @@ export function AiringScheduleDialog({schedule, onClose}: Props) {
                   />
                 </button>
               ) : (
-                <span className="mx-auto aspect-[2/3] w-56 shrink-0 bg-muted sm:mx-0" aria-hidden="true" />
+                <span
+                  className="mx-auto aspect-[2/3] w-56 shrink-0 bg-muted sm:mx-0"
+                  aria-hidden="true"
+                />
               )}
 
               <div className="flex min-w-0 flex-1 flex-col gap-4 text-base">
@@ -165,7 +173,8 @@ export function AiringScheduleDialog({schedule, onClose}: Props) {
                   <div>
                     <dt className="text-sm text-muted-foreground">Airing</dt>
                     <dd className="font-medium">
-                      {dayFormatter.format(airingDate)} · {timeFormatter.format(airingDate)}
+                      {dayFormatter.format(airingDate)} ·{' '}
+                      {timeFormatter.format(airingDate)}
                     </dd>
                   </div>
                   <div>
@@ -181,13 +190,21 @@ export function AiringScheduleDialog({schedule, onClose}: Props) {
                     <>
                       {anime.status && (
                         <div>
-                          <dt className="text-sm text-muted-foreground">Status</dt>
-                          <dd className="font-medium">{mediaStatusLabel(anime.status)}</dd>
+                          <dt className="text-sm text-muted-foreground">
+                            Status
+                          </dt>
+                          <dd className="font-medium">
+                            {mediaStatusLabel(anime.status)}
+                          </dd>
                         </div>
                       )}
                       <div>
-                        <dt className="text-sm text-muted-foreground">Episodes</dt>
-                        <dd className="font-medium">{episodeCountLabel(anime.totalEpisodes)}</dd>
+                        <dt className="text-sm text-muted-foreground">
+                          Episodes
+                        </dt>
+                        <dd className="font-medium">
+                          {episodeCountLabel(anime.totalEpisodes)}
+                        </dd>
                       </div>
                     </>
                   ) : null}
@@ -201,7 +218,9 @@ export function AiringScheduleDialog({schedule, onClose}: Props) {
                     <p className="text-sm text-muted-foreground">Synopsis</p>
                     <div
                       className="mt-1 max-h-72 overflow-y-auto text-foreground/90 [&_a]:text-accent [&_a]:underline"
-                      dangerouslySetInnerHTML={{__html: sanitizeAnilistSynopsis(anime.synopsis)}}
+                      dangerouslySetInnerHTML={{
+                        __html: sanitizeAnilistSynopsis(anime.synopsis),
+                      }}
                     />
                   </div>
                 ) : null}

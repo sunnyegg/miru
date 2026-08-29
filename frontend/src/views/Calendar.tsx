@@ -1,13 +1,19 @@
 import {useEffect, useMemo} from 'react'
 import {AiringAgendaLayout} from '../components/AiringAgendaLayout'
-import {buildWeekDays, groupSchedulesByDay, startOfMonday} from '../lib/calendar'
+import {
+  buildWeekDays,
+  groupSchedulesByDay,
+  startOfMonday,
+} from '../lib/calendar'
 import {useCalendarStore} from '../stores/calendarStore'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 
 export function CalendarView() {
   const weekOffset = useCalendarStore((state) => state.weekOffset)
-  const scrollToTodayRequest = useCalendarStore((state) => state.scrollToTodayRequest)
+  const scrollToTodayRequest = useCalendarStore(
+    (state) => state.scrollToTodayRequest,
+  )
   const schedules = useCalendarStore((state) => state.schedules)
   const loading = useCalendarStore((state) => state.loading)
   const error = useCalendarStore((state) => state.error)
@@ -23,7 +29,10 @@ export function CalendarView() {
 
   const days = useMemo(() => buildWeekDays(weekStart), [weekStart])
 
-  const schedulesByDay = useMemo(() => groupSchedulesByDay(schedules), [schedules])
+  const schedulesByDay = useMemo(
+    () => groupSchedulesByDay(schedules),
+    [schedules],
+  )
 
   useEffect(() => {
     void loadSchedules()
@@ -40,29 +49,48 @@ export function CalendarView() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2" aria-label="Calendar navigation">
-          <Button type="button" variant="muted" onClick={() => setWeekOffset((offset) => offset - 1)}>
+          <Button
+            type="button"
+            variant="muted"
+            onClick={() => setWeekOffset((offset) => offset - 1)}
+          >
             Previous
           </Button>
           <Button type="button" variant="secondary" onClick={() => goToToday()}>
             Today
           </Button>
-          <Button type="button" variant="muted" onClick={() => setWeekOffset((offset) => offset + 1)}>
+          <Button
+            type="button"
+            variant="muted"
+            onClick={() => setWeekOffset((offset) => offset + 1)}
+          >
             Next
           </Button>
         </div>
       </header>
 
       <p className="text-sm font-medium text-muted-foreground">
-        {days[0].toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}
+        {days[0].toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+        })}
         {' – '}
-        {days[6].toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric'})}
+        {days[6].toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })}
       </p>
 
       {error ? (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
           <AlertAction>
-            <Button type="button" variant="secondary" onClick={() => void loadSchedules()}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void loadSchedules()}
+            >
               Try again
             </Button>
           </AlertAction>

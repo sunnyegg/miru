@@ -28,7 +28,8 @@ export function LibraryMatchSheet({
   onBind,
   onSkip,
 }: Props) {
-  const englishTitle = picker.episode.animeTitle?.trim() || picker.episode.displayTitle
+  const englishTitle =
+    picker.episode.animeTitle?.trim() || picker.episode.displayTitle
   const descriptionCopy = `Match the local file "${englishTitle}" to an AniList title. Pick the right one, or skip to leave the file unmatched.`
 
   return (
@@ -57,7 +58,9 @@ export function LibraryMatchSheet({
               </Button>
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
-              <label className="sr-only" htmlFor="anilist-search">Search AniList</label>
+              <label className="sr-only" htmlFor="anilist-search">
+                Search AniList
+              </label>
               <Input
                 id="anilist-search"
                 value={picker.query}
@@ -91,13 +94,22 @@ export function LibraryMatchSheet({
                           style={{width: 40, height: 56}}
                         />
                       ) : (
-                        <span className="shrink-0 bg-muted" style={{width: 40, height: 56}} />
+                        <span
+                          className="shrink-0 bg-muted"
+                          style={{width: 40, height: 56}}
+                        />
                       )}
                       <span className="min-w-0 flex-1 py-2">
-                        <span className="block truncate text-sm font-medium" title={title}>
+                        <span
+                          className="block truncate text-sm font-medium"
+                          title={title}
+                        >
                           {title}
                         </span>
-                        <span className="block truncate text-xs text-muted-foreground" title={anime.titleRomaji}>
+                        <span
+                          className="block truncate text-xs text-muted-foreground"
+                          title={anime.titleRomaji}
+                        >
                           {anime.titleRomaji}
                         </span>
                       </span>
@@ -116,7 +128,9 @@ export function LibraryMatchSheet({
                 )
               })}
               {picker.candidates.length === 0 && !searching && (
-                <li className="text-sm text-muted-foreground">No matches. Search with a cleaner title.</li>
+                <li className="text-sm text-muted-foreground">
+                  No matches. Search with a cleaner title.
+                </li>
               )}
             </ul>
           </Dialog.Panel>

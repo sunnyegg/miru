@@ -44,11 +44,16 @@ function maxLocalEpisodeNumber(show: ShowGroup | undefined): number {
   return highest
 }
 
-function hasLocalEpisode(show: ShowGroup | undefined, episodeNumber: number): boolean {
+function hasLocalEpisode(
+  show: ShowGroup | undefined,
+  episodeNumber: number,
+): boolean {
   if (!show || episodeNumber <= 0) {
     return false
   }
-  return show.episodes.some((episode) => episode.episodeNumber === episodeNumber)
+  return show.episodes.some(
+    (episode) => episode.episodeNumber === episodeNumber,
+  )
 }
 
 export function buildWatchingShowItems(
@@ -97,7 +102,10 @@ export function buildWatchingShowItems(
   })
 }
 
-export function watchingPosterCaption(item: WatchingShowItem): {text: string; accent: boolean} {
+export function watchingPosterCaption(item: WatchingShowItem): {
+  text: string
+  accent: boolean
+} {
   if (item.newEpisodeNumber !== null) {
     return {
       text: `Episode ${item.newEpisodeNumber} available`,
@@ -123,7 +131,9 @@ export function watchingPosterCaption(item: WatchingShowItem): {text: string; ac
   }
 }
 
-export function watchingPosterSubcaption(item: WatchingShowItem): string | null {
+export function watchingPosterSubcaption(
+  item: WatchingShowItem,
+): string | null {
   if (item.hasLocalFiles) {
     return `${item.maxLocalEpisode} local`
   }
@@ -139,12 +149,18 @@ export function watchingPosterSubcaption(item: WatchingShowItem): string | null 
   return null
 }
 
-export function torrentSearchQuery(title: string, episodeNumber: number): string {
+export function torrentSearchQuery(
+  title: string,
+  episodeNumber: number,
+): string {
   const paddedEpisode = String(episodeNumber).padStart(2, '0')
   return `${title} ${paddedEpisode}`
 }
 
-export function showKeyForEpisodeId(localShows: ShowGroup[], episodeId: number): string | null {
+export function showKeyForEpisodeId(
+  localShows: ShowGroup[],
+  episodeId: number,
+): string | null {
   if (episodeId <= 0) {
     return null
   }
@@ -156,7 +172,9 @@ export function showKeyForEpisodeId(localShows: ShowGroup[], episodeId: number):
   return null
 }
 
-export function lastWatchedEpisodeIdFromLibrary(episodes: EpisodeView[]): number | null {
+export function lastWatchedEpisodeIdFromLibrary(
+  episodes: EpisodeView[],
+): number | null {
   let latestEpisodeId: number | null = null
   let latestPlayedAt = 0
 
@@ -201,7 +219,10 @@ export function pickContinueHeroKey(
   }
   const rememberedEpisodeId =
     lastPlaybackEpisodeId ?? lastWatchedEpisodeIdFromLibrary(libraryEpisodes)
-  const lastWatchedShowKey = showKeyForEpisodeId(localShows, rememberedEpisodeId ?? 0)
+  const lastWatchedShowKey = showKeyForEpisodeId(
+    localShows,
+    rememberedEpisodeId ?? 0,
+  )
   if (lastWatchedShowKey) {
     return lastWatchedShowKey
   }

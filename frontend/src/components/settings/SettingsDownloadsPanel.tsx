@@ -3,7 +3,14 @@ import type {SettingsView} from '../../lib/types'
 import {SettingsCheckboxRow} from './SettingsCheckboxRow'
 import {SettingsField} from './SettingsField'
 import {Button} from '@/components/ui/button'
-import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import {Input} from '@/components/ui/input'
 
 type Props = {
@@ -14,7 +21,13 @@ type Props = {
   onPickDownloadDir: () => void
 }
 
-export function SettingsDownloadsPanel({form, setForm, saving, onSubmit, onPickDownloadDir}: Props) {
+export function SettingsDownloadsPanel({
+  form,
+  setForm,
+  saving,
+  onSubmit,
+  onPickDownloadDir,
+}: Props) {
   return (
     <form onSubmit={onSubmit} className="w-full">
       <Card className="w-full border border-border">
@@ -25,13 +38,20 @@ export function SettingsDownloadsPanel({form, setForm, saving, onSubmit, onPickD
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <SettingsField label="Download folder" htmlFor="downloadDir" className="mt-0">
+          <SettingsField
+            label="Download folder"
+            htmlFor="downloadDir"
+            className="mt-0"
+          >
             <div className="flex flex-wrap gap-2">
               <Input
                 id="downloadDir"
                 value={form.downloadDir}
                 onChange={(event) =>
-                  setForm((current) => ({...current, downloadDir: event.target.value}))
+                  setForm((current) => ({
+                    ...current,
+                    downloadDir: event.target.value,
+                  }))
                 }
                 className="min-w-0 flex-1 bg-card"
               />
@@ -55,7 +75,10 @@ export function SettingsDownloadsPanel({form, setForm, saving, onSubmit, onPickD
                 step={1}
                 value={form.downloadRateLimit}
                 onChange={(event) =>
-                  setForm((current) => ({...current, downloadRateLimit: Number(event.target.value)}))
+                  setForm((current) => ({
+                    ...current,
+                    downloadRateLimit: Number(event.target.value),
+                  }))
                 }
                 className="w-full bg-card"
               />
@@ -73,7 +96,10 @@ export function SettingsDownloadsPanel({form, setForm, saving, onSubmit, onPickD
                 step={1}
                 value={form.uploadRateLimit}
                 onChange={(event) =>
-                  setForm((current) => ({...current, uploadRateLimit: Number(event.target.value)}))
+                  setForm((current) => ({
+                    ...current,
+                    uploadRateLimit: Number(event.target.value),
+                  }))
                 }
                 className="w-full bg-card"
               />
@@ -114,7 +140,10 @@ export function SettingsDownloadsPanel({form, setForm, saving, onSubmit, onPickD
                 step={0.1}
                 value={form.seedRatio}
                 onChange={(event) =>
-                  setForm((current) => ({...current, seedRatio: Number(event.target.value)}))
+                  setForm((current) => ({
+                    ...current,
+                    seedRatio: Number(event.target.value),
+                  }))
                 }
                 className="w-full bg-card"
               />
@@ -148,7 +177,9 @@ export function SettingsDownloadsPanel({form, setForm, saving, onSubmit, onPickD
             label="Auto-download new RSS items"
             hint="Queue torrent downloads when subscribed feeds publish new items with magnet links."
             checked={form.rssAutoDownload}
-            onChange={(value) => setForm((current) => ({...current, rssAutoDownload: value}))}
+            onChange={(value) =>
+              setForm((current) => ({...current, rssAutoDownload: value}))
+            }
           />
           {form.rssAutoDownload && (
             <SettingsCheckboxRow
@@ -157,7 +188,10 @@ export function SettingsDownloadsPanel({form, setForm, saving, onSubmit, onPickD
               hint="Only auto-download when the item title matches an anime in your local library."
               checked={form.rssAutoDownloadLibraryOnly}
               onChange={(value) =>
-                setForm((current) => ({...current, rssAutoDownloadLibraryOnly: value}))
+                setForm((current) => ({
+                  ...current,
+                  rssAutoDownloadLibraryOnly: value,
+                }))
               }
             />
           )}
@@ -166,7 +200,9 @@ export function SettingsDownloadsPanel({form, setForm, saving, onSubmit, onPickD
             label="Desktop notifications"
             hint="Show an OS notification when a download you started finishes in the background."
             checked={form.downloadNotifications}
-            onChange={(value) => setForm((current) => ({...current, downloadNotifications: value}))}
+            onChange={(value) =>
+              setForm((current) => ({...current, downloadNotifications: value}))
+            }
           />
         </CardContent>
         <CardFooter>
