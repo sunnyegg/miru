@@ -24,6 +24,7 @@ import {SettingsNetworkPanel} from '../components/settings/SettingsNetworkPanel'
 import {SettingsPlaybackPanel} from '../components/settings/SettingsPlaybackPanel'
 import {errorMessage} from '../lib/format'
 import type {AnilistStatus as Status, SettingsView as SettingsForm, UpdateInfo} from '../lib/types'
+import {useSettingsStore, type SettingsTab} from '../stores/settingsStore'
 import {cn} from '@/lib/utils'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
@@ -53,7 +54,6 @@ const empty: SettingsForm = {
 
 type Props = {
   notice: (msg: string, isError?: boolean) => void
-  refreshKey: number
   appVersion: string
   update: UpdateInfo | null
   checkingUpdate: boolean
@@ -64,8 +64,6 @@ type Props = {
 }
 
 type SettingsSection = 'desktop' | 'playback' | 'downloads' | 'network' | 'anilist' | 'updates'
-
-type SettingsTab = SettingsSection | 'about'
 
 const settingsTabs: {id: SettingsTab; label: string}[] = [
   {id: 'desktop', label: 'Desktop'},
@@ -78,7 +76,6 @@ const settingsTabs: {id: SettingsTab; label: string}[] = [
 
 export function SettingsView({
   notice,
-  refreshKey,
   appVersion,
   update,
   checkingUpdate,
@@ -87,7 +84,10 @@ export function SettingsView({
   onApplyUpdate,
   onOpenRelease,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('desktop')
+  const activeTab = useSettingsStore((state) => state.activeTab)
+  const setActiveTab = useSettingsStore((state) => state.setActiveTab)
+  const reloadKey = useSettingsStore((state) => state.reloadKey)
+
   const [form, setForm] = useState<SettingsForm>(empty)
   const [status, setStatus] = useState<Status>({connected: false, username: ''})
   const [saving, setSaving] = useState<SettingsSection | null>(null)
@@ -128,7 +128,7 @@ export function SettingsView({
 
   useEffect(() => {
     void reload()
-  }, [refreshKey])
+  }, [reloadKey])
 
   async function saveSection(section: SettingsSection, run: () => Promise<void>, ok: string) {
     setSaving(section)

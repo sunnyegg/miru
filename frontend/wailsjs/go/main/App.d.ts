@@ -120,3 +120,5 @@ export function StartTorrentFile():Promise<void>;
 export function StartTorrentURL(arg1:string):Promise<void>;
 
 export function TestNetworkConnection(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function UnbindEpisode(arg1:number):Promise<void>;

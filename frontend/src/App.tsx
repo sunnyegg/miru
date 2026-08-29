@@ -15,17 +15,22 @@ import {Alert} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 import {TooltipProvider} from '@/components/ui/tooltip'
 import {toast} from '@/components/ui/toast'
-import type {DownloadView, PlaybackEvent, SyncEvent, TabId, UpdateInfo} from './lib/types'
+import type {DownloadView, PlaybackEvent, SyncEvent, UpdateInfo} from './lib/types'
+import {useDownloadStore} from './stores/downloadStore'
+import {useFeedStore} from './stores/feedStore'
+import {useLibraryStore} from './stores/libraryStore'
+import {useNavigationStore} from './stores/navigationStore'
+import {usePlaybackStore} from './stores/playbackStore'
 import {useSearchStore} from './stores/searchStore'
+import {useSettingsStore} from './stores/settingsStore'
+import {useWatchingStore} from './stores/watchingStore'
 
 export default function App() {
-  const [tab, setTab] = useState<TabId>('library')
+  const tab = useNavigationStore((state) => state.tab)
+  const setTab = useNavigationStore((state) => state.setTab)
+  const playing = usePlaybackStore((state) => state.playing)
+
   const [initError, setInitError] = useState('')
-  const [jobs, setJobs] = useState<DownloadView[]>([])
-  const [libraryKey, setLibraryKey] = useState(0)
-  const [authKey, setAuthKey] = useState(0)
-  const [playing, setPlaying] = useState<PlaybackEvent | null>(null)
-  const [lastPlayback, setLastPlayback] = useState<PlaybackEvent | null>(null)
   const [bootDone, setBootDone] = useState(false)
   const [appVersion, setAppVersion] = useState('')
   const [update, setUpdate] = useState<UpdateInfo | null>(null)
@@ -129,31 +134,31 @@ export default function App() {
     })()
 
     EventsOn('torrent:progress', (payload: DownloadView) => {
-      setJobs((current) => {
-        const exists = current.some((job) => job.id === payload.id)
-        if (!exists) {
-          return [payload, ...current]
-        }
-        return current.map((job) => job.id === payload.id ? payload : job)
-      })
+      useDownloadStore.getState().upsertJob(payload)
     })
-    EventsOn('library:changed', () => setLibraryKey((n) => n + 1))
+    EventsOn('library:changed', () => {
+      void useLibraryStore.getState().reload(showNotice)
+    })
     EventsOn('mpv:progress', (payload: PlaybackEvent) => {
-      setPlaying(payload)
-      setLastPlayback(payload)
+      usePlaybackStore.getState().trackProgress(payload)
     })
     EventsOn('mpv:ended', () => {
-      setPlaying(null)
+      usePlaybackStore.getState().clearPlaying()
     })
     EventsOn('sync:result', (payload: SyncEvent) => {
       showNotice(payload.message, !payload.ok)
       if (payload.ok) {
-        setLibraryKey((count) => count + 1)
+        void useLibraryStore.getState().reload(showNotice)
       }
     })
     EventsOn('anilist:connected', () => {
-      setAuthKey((n) => n + 1)
+      void useLibraryStore.getState().reloadWatching()
+      void useWatchingStore.getState().loadList()
+      useSettingsStore.getState().bumpReloadKey()
       showNotice('AniList connected')
+    })
+    EventsOn('feeds:updated', () => {
+      void useFeedStore.getState().reload()
     })
     EventsOn('rss:auto_queued', (payload: {count: number}) => {
       const count = payload?.count ?? 1
@@ -171,6 +176,7 @@ export default function App() {
       EventsOff('mpv:ended')
       EventsOff('sync:result')
       EventsOff('anilist:connected')
+      EventsOff('feeds:updated')
       EventsOff('rss:auto_queued')
       EventsOff('window:close-prompt')
     }
@@ -184,7 +190,7 @@ export default function App() {
   return (
     <TooltipProvider delay={300}>
     <div className="flex h-full bg-background text-foreground">
-      <Sidebar current={tab} onChange={setTab} />
+      <Sidebar />
       <div className="relative flex min-w-0 flex-1 flex-col bg-background">
         {initError && (
           <Alert className="border-0 bg-destructive px-4 py-2 text-sm text-destructive-foreground">
@@ -213,33 +219,17 @@ export default function App() {
           {tab === 'library' && (
             <LibraryView
               notice={showNotice}
-              refreshKey={libraryKey}
-              authKey={authKey}
-              playing={playing}
-              lastPlayback={lastPlayback}
               onFindTorrent={openSearchForTorrent}
               onReady={() => setBootDone(true)}
             />
           )}
-          {tab === 'watching' && (
-            <WatchingView
-              refreshKey={authKey}
-              notice={showNotice}
-              onSettings={() => setTab('settings')}
-            />
-          )}
-          {tab === 'search' && (
-            <SearchView
-              notice={showNotice}
-              onDownloads={() => setTab('downloads')}
-            />
-          )}
-          {tab === 'downloads' && <DownloadsView notice={showNotice} jobs={jobs} onJobs={setJobs} />}
+          {tab === 'watching' && <WatchingView notice={showNotice} />}
+          {tab === 'search' && <SearchView notice={showNotice} />}
+          {tab === 'downloads' && <DownloadsView notice={showNotice} />}
           {tab === 'calendar' && <CalendarView />}
           {tab === 'settings' && (
             <SettingsView
               notice={showNotice}
-              refreshKey={authKey}
               appVersion={appVersion}
               update={update}
               checkingUpdate={checkingUpdate}

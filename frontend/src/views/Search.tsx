@@ -2,6 +2,7 @@ import {useRef, useState} from 'react'
 import {InspectTorrent, StartTorrent} from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
 import type {NyaaResultView, TorrentContentsView, TorrentFileView} from '../lib/types'
+import {useNavigationStore} from '../stores/navigationStore'
 import {useSearchStore, type SearchSource} from '../stores/searchStore'
 import {TorrentFileSheet} from '../components/TorrentFileSheet'
 import {FeedSubscriptions} from '../components/FeedSubscriptions'
@@ -15,7 +16,6 @@ import {Skeleton} from '@/components/ui/skeleton'
 
 type Props = {
   notice: (msg: string, isError?: boolean) => void
-  onDownloads: () => void
 }
 
 const PAGE_SIZE = 10
@@ -25,7 +25,8 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: 'short',
 })
 
-export function SearchView({notice, onDownloads}: Props) {
+export function SearchView({notice}: Props) {
+  const goToDownloads = useNavigationStore((state) => state.setTab)
   const mode = useSearchStore((state) => state.mode)
   const query = useSearchStore((state) => state.query)
   const source = useSearchStore((state) => state.source)
@@ -113,7 +114,7 @@ export function SearchView({notice, onDownloads}: Props) {
       await StartTorrent(picker.source, files)
       setPicker(null)
       notice('Download added')
-      onDownloads()
+      goToDownloads('downloads')
     } catch (err) {
       notice(errorMessage(err), true)
     } finally {
@@ -154,7 +155,7 @@ export function SearchView({notice, onDownloads}: Props) {
       </header>
 
       {mode === 'feeds' ? (
-        <FeedSubscriptions notice={notice} onDownloads={onDownloads} />
+        <FeedSubscriptions notice={notice} />
       ) : (
         <>
       <form

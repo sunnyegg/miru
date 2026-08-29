@@ -114,6 +114,8 @@ export namespace main {
 	    totalEpisodes: number;
 	    mediaStatus: string;
 	    nextAiringEpisode: number;
+	    resumePosition: number;
+	    lastPlayedAt: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new EpisodeView(source);
@@ -134,6 +136,8 @@ export namespace main {
 	        this.totalEpisodes = source["totalEpisodes"];
 	        this.mediaStatus = source["mediaStatus"];
 	        this.nextAiringEpisode = source["nextAiringEpisode"];
+	        this.resumePosition = source["resumePosition"];
+	        this.lastPlayedAt = source["lastPlayedAt"];
 	    }
 	}
 	export class FuzzyDateView {

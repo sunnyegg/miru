@@ -25,7 +25,7 @@ Go: guard clauses over nested `if`. Invert the empty/error case and return. Extr
 
 Folders: `views/` one screen, `components/` app-owned (Sidebar, Icons), `components/ui/` generated shadcn (leave them), `lib/` pure helpers and DTOs, `stores/` Zustand stores for cross-tab or persisted state. Do not add `hooks/` or `features/` until something is reused across screens.
 
-State stays local `useState` in the view unless it must survive tab switches or persist — then use a Zustand store in `stores/` (one store per domain, e.g. `searchStore`). Shared tab/jobs/playback/toast live in `App.tsx` and pass as props. Wails `EventsOn` stays in `App`. Do not add Redux or a new Context. Do not edit `frontend/wailsjs/` (generated). Call bindings from `wailsjs/go/main/App`; DTO types from `lib/types.ts` — do not import `models.ts` in views.
+State stays local `useState` in the view unless it must survive tab switches or persist — then use a Zustand store in `stores/` (one store per domain, e.g. `searchStore`). Domain state shared across tabs lives in stores; shell state (init, update banner, close prompt, toast) stays in `App.tsx`. Wails `EventsOn` stays in `App` and delegates to store actions via `getState()`. Do not add Redux or a new Context. Do not edit `frontend/wailsjs/` (generated). Call bindings from `wailsjs/go/main/App`; DTO types from `lib/types.ts` — do not import `models.ts` in views.
 
 Split a `.ts`/`.tsx` file when it mixes responsibilities or passes ~500 lines. Views: ~200–300 is comfortable; ~400 is fine for one screen. Extract a component or hook only if it is reused, or the file mixes distinct UI/logic. Logic with no JSX goes in `lib/`. Do not add a helper that is only called once.
 

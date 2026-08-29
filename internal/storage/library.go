@@ -51,6 +51,7 @@ type Episode struct {
 	TotalEpisodes   int
 	MediaStatus     string
 	ResumePosition  float64
+	LastPlayedAt    sql.NullString
 }
 
 func (s *Store) InsertEpisode(e Episode) (int64, error) {
@@ -71,7 +72,7 @@ func (s *Store) GetEpisode(id int64) (Episode, error) {
 		`SELECT e.id, e.anilist_id, e.episode_number, e.file_path, e.display_title,
 		        e.downloaded_bytes, e.status,
 		        COALESCE(a.title_romaji, ''), COALESCE(a.title_english, ''), COALESCE(a.cover_image, ''),
-		        e.resume_position
+		        e.resume_position, e.last_played_at
 		 FROM episode_downloads e
 		 LEFT JOIN anime_cache a ON a.anilist_id = e.anilist_id
 		 WHERE e.id = ?`,
@@ -81,7 +82,7 @@ func (s *Store) GetEpisode(id int64) (Episode, error) {
 	err := row.Scan(
 		&e.ID, &e.AnilistID, &e.EpisodeNumber, &e.FilePath, &e.DisplayTitle,
 		&e.DownloadedBytes, &e.Status, &e.TitleRomaji, &e.TitleEnglish, &e.CoverImage,
-		&e.ResumePosition,
+		&e.ResumePosition, &e.LastPlayedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Episode{}, ErrNotFound
@@ -171,7 +172,8 @@ func (s *Store) ListEpisodes() ([]Episode, error) {
 		`SELECT e.id, e.anilist_id, e.episode_number, e.file_path, e.display_title,
 		        e.downloaded_bytes, e.status,
 		        COALESCE(a.title_romaji, ''), COALESCE(a.title_english, ''), COALESCE(a.cover_image, ''),
-		        COALESCE(a.total_episodes, 0), COALESCE(a.status, '')
+		        COALESCE(a.total_episodes, 0), COALESCE(a.status, ''),
+		        e.resume_position, e.last_played_at
 		 FROM episode_downloads e
 		 LEFT JOIN anime_cache a ON a.anilist_id = e.anilist_id
 		 ORDER BY e.created_at DESC`,
@@ -187,7 +189,7 @@ func (s *Store) ListEpisodes() ([]Episode, error) {
 		if err := rows.Scan(
 			&e.ID, &e.AnilistID, &e.EpisodeNumber, &e.FilePath, &e.DisplayTitle,
 			&e.DownloadedBytes, &e.Status, &e.TitleRomaji, &e.TitleEnglish, &e.CoverImage,
-			&e.TotalEpisodes, &e.MediaStatus,
+			&e.TotalEpisodes, &e.MediaStatus, &e.ResumePosition, &e.LastPlayedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -223,10 +225,18 @@ func (s *Store) BindEpisode(id int64, anilistID int, episodeNumber int) error {
 	return err
 }
 
+func (s *Store) UnbindEpisode(id int64) error {
+	_, err := s.db.Exec(
+		`UPDATE episode_downloads SET anilist_id = NULL, episode_number = NULL WHERE id = ?`,
+		id,
+	)
+	return err
+}
+
 func (s *Store) SetResumePosition(id int64, seconds float64) error {
 	_, err := s.db.Exec(
-		`UPDATE episode_downloads SET resume_position = ? WHERE id = ?`,
-		seconds, id,
+		`UPDATE episode_downloads SET resume_position = ?, last_played_at = ? WHERE id = ?`,
+		seconds, time.Now().UTC().Format(time.RFC3339), id,
 	)
 	return err
 }
