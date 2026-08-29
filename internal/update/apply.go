@@ -25,61 +25,117 @@ func CleanupOld(executable string) {
 	_ = os.RemoveAll(bundle + ".old")
 }
 
-func Apply(ctx context.Context, client *http.Client, downloadURL, assetName, executable string) error {
+func Apply(ctx context.Context, client *http.Client, downloadURL, assetName, executable string) (string, error) {
 	exe := executable
 	if resolved, err := filepath.EvalSymlinks(executable); err == nil {
 		exe = resolved
 	}
 	if strings.HasSuffix(assetName, ".zip") {
-		return applyAppBundle(ctx, client, downloadURL, exe)
+		return applyAppBundle(ctx, client, downloadURL, assetName, exe)
 	}
-	return applyBinary(ctx, client, downloadURL, exe)
+	return applyBinary(ctx, client, downloadURL, assetName, exe)
 }
 
-func applyBinary(ctx context.Context, client *http.Client, downloadURL, dest string) error {
-	newPath := dest + ".new"
+func binaryInstallTarget(assetName, executable string) string {
+	return filepath.Join(filepath.Dir(executable), assetName)
+}
+
+func bundleInstallTarget(assetName, executable string) (string, error) {
+	bundle, ok := appBundleRoot(executable)
+	if !ok {
+		return "", fmt.Errorf("cannot replace binary: run Miru from the .app bundle")
+	}
+	targetName := strings.TrimSuffix(assetName, ".zip") + ".app"
+	return filepath.Join(filepath.Dir(bundle), targetName), nil
+}
+
+func applyBinary(ctx context.Context, client *http.Client, downloadURL, assetName, current string) (string, error) {
+	target := binaryInstallTarget(assetName, current)
+	newPath := target + ".new"
 	if err := downloadFile(ctx, client, downloadURL, newPath); err != nil {
 		_ = os.Remove(newPath)
-		return err
+		return "", err
 	}
 	mode := os.FileMode(0755)
-	if info, err := os.Stat(dest); err == nil {
+	if info, err := os.Stat(current); err == nil {
+		mode = info.Mode()
+	} else if info, err := os.Stat(target); err == nil {
 		mode = info.Mode()
 	}
 	if err := os.Chmod(newPath, mode); err != nil {
-		return fmt.Errorf("cannot replace binary: %w", err)
+		_ = os.Remove(newPath)
+		return "", fmt.Errorf("cannot replace binary: %w", err)
 	}
-	return replacePath(dest, newPath)
+	if err := installToTarget(current, target, newPath); err != nil {
+		return "", err
+	}
+	return target, nil
 }
 
-func applyAppBundle(ctx context.Context, client *http.Client, downloadURL, executable string) error {
-	bundle, ok := appBundleRoot(executable)
+func applyAppBundle(ctx context.Context, client *http.Client, downloadURL, assetName, executable string) (string, error) {
+	currentBundle, ok := appBundleRoot(executable)
 	if !ok {
-		return fmt.Errorf("cannot replace binary: run Miru from the .app bundle")
+		return "", fmt.Errorf("cannot replace binary: run Miru from the .app bundle")
+	}
+	targetBundle, err := bundleInstallTarget(assetName, executable)
+	if err != nil {
+		return "", err
 	}
 
 	tempDir, err := os.MkdirTemp("", "miru-update-*")
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer os.RemoveAll(tempDir)
 
 	zipPath := filepath.Join(tempDir, "update.zip")
 	if err := downloadFile(ctx, client, downloadURL, zipPath); err != nil {
-		return err
+		return "", err
 	}
 	extractDir := filepath.Join(tempDir, "extracted")
 	if err := os.Mkdir(extractDir, 0755); err != nil {
-		return err
+		return "", err
 	}
 	if err := extractZip(zipPath, extractDir); err != nil {
-		return err
+		return "", err
 	}
 	newBundle, err := findAppBundle(extractDir)
 	if err != nil {
-		return err
+		return "", err
 	}
-	return replacePath(bundle, newBundle)
+	if err := installToTarget(currentBundle, targetBundle, newBundle); err != nil {
+		return "", err
+	}
+	return filepath.Join(targetBundle, "Contents", "MacOS", filepath.Base(executable)), nil
+}
+
+func installToTarget(current, target, staged string) error {
+	if filepath.Clean(current) == filepath.Clean(target) {
+		return replacePath(target, staged)
+	}
+
+	stagedNew := target + ".new"
+	if err := os.Rename(staged, stagedNew); err != nil {
+		return fmt.Errorf("cannot replace binary: %w", err)
+	}
+
+	oldSidecar := target + ".old"
+	_ = os.RemoveAll(oldSidecar)
+	if _, err := os.Stat(target); err == nil {
+		if err := os.Rename(target, oldSidecar); err != nil {
+			_ = os.RemoveAll(stagedNew)
+			return fmt.Errorf("cannot replace binary: %w", err)
+		}
+		_ = os.RemoveAll(oldSidecar)
+	}
+	if err := os.Rename(stagedNew, target); err != nil {
+		_ = os.RemoveAll(stagedNew)
+		return fmt.Errorf("cannot replace binary: %w", err)
+	}
+	if filepath.Clean(current) != filepath.Clean(target) {
+		_ = os.RemoveAll(current)
+	}
+	return nil
 }
 
 func downloadFile(ctx context.Context, client *http.Client, url, dest string) error {
