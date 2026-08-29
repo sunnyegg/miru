@@ -68,13 +68,20 @@ func (a *App) ApplyUpdate() error {
 	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
 		exe = resolved
 	}
-	if err := update.Apply(a.ctx, &downloadClient, release.AssetURL, release.AssetName, exe); err != nil {
+	installed, err := update.Apply(a.ctx, &downloadClient, release.AssetURL, release.AssetName, exe)
+	if err != nil {
 		return err
 	}
 
 	a.forceQuit.Store(true)
 	a.shutdown(a.ctx)
-	if err := update.Restart(exe, os.Args, os.Environ()); err != nil {
+	args := append([]string(nil), os.Args...)
+	if len(args) == 0 {
+		args = []string{installed}
+	} else {
+		args[0] = installed
+	}
+	if err := update.Restart(installed, args, os.Environ()); err != nil {
 		restartErr := fmt.Errorf("update installed but restart failed: %w; restart Miru manually", err)
 		a.logDebugErr("restart after update", restartErr)
 		return restartErr
