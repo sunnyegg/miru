@@ -23,14 +23,19 @@ export type EpisodeSlot = {
 
 export function visibleLibraryEpisodes(episodes: EpisodeView[]): EpisodeView[] {
   const boundTitles = new Set(
-    episodes.filter((episode) => episode.bound).map((episode) => episode.displayTitle),
+    episodes
+      .filter((episode) => episode.bound)
+      .map((episode) => episode.displayTitle),
   )
   const seenUnboundTitles = new Set<string>()
   return episodes.filter((episode) => {
     if (episode.bound) {
       return true
     }
-    if (boundTitles.has(episode.displayTitle) || seenUnboundTitles.has(episode.displayTitle)) {
+    if (
+      boundTitles.has(episode.displayTitle) ||
+      seenUnboundTitles.has(episode.displayTitle)
+    ) {
       return false
     }
     seenUnboundTitles.add(episode.displayTitle)
@@ -42,9 +47,10 @@ export function groupEpisodes(episodes: EpisodeView[]): ShowGroup[] {
   const groups = new Map<string, ShowGroup>()
 
   for (const episode of episodes) {
-    const key = episode.anilistId > 0
-      ? `anilist:${episode.anilistId}`
-      : `file:${episode.animeTitle || episode.displayTitle}`
+    const key =
+      episode.anilistId > 0
+        ? `anilist:${episode.anilistId}`
+        : `file:${episode.animeTitle || episode.displayTitle}`
     const existing = groups.get(key)
     if (!existing) {
       groups.set(key, {
@@ -120,7 +126,8 @@ export function episodeSlots(show: ShowGroup): EpisodeSlot[] {
   }
 
   const slots: EpisodeSlot[] = []
-  const hasUpcoming = show.nextAiringEpisode > 0 && show.mediaStatus !== 'FINISHED'
+  const hasUpcoming =
+    show.nextAiringEpisode > 0 && show.mediaStatus !== 'FINISHED'
 
   for (let number = 1; number <= slotCount; number++) {
     const file = filesByNumber.get(number) ?? null

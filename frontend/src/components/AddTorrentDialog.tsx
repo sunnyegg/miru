@@ -12,7 +12,13 @@ type Props = {
   onStartFile: () => Promise<void>
 }
 
-export function AddTorrentDialog({open, onOpenChange, busy, onStartMagnet, onStartFile}: Props) {
+export function AddTorrentDialog({
+  open,
+  onOpenChange,
+  busy,
+  onStartMagnet,
+  onStartFile,
+}: Props) {
   const [magnet, setMagnet] = useState('')
 
   useEffect(() => {
@@ -45,10 +51,14 @@ export function AddTorrentDialog({open, onOpenChange, busy, onStartMagnet, onSta
           <Dialog.Panel aria-labelledby="add-torrent-title">
             <Dialog.Title id="add-torrent-title">Add torrent</Dialog.Title>
             <Dialog.Description>
-              Choose which files to keep before the download starts. Extra torrents wait in queue.
+              Choose which files to keep before the download starts. Extra
+              torrents wait in queue.
             </Dialog.Description>
 
-            <form className="mt-4 flex flex-col gap-3" onSubmit={(event) => void handleMagnetSubmit(event)}>
+            <form
+              className="mt-4 flex flex-col gap-3"
+              onSubmit={(event) => void handleMagnetSubmit(event)}
+            >
               <Label htmlFor="add-torrent-magnet">Magnet link</Label>
               <Textarea
                 id="add-torrent-magnet"
@@ -70,7 +80,12 @@ export function AddTorrentDialog({open, onOpenChange, busy, onStartMagnet, onSta
                 >
                   Open .torrent file
                 </Button>
-                <Button type="button" variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => onOpenChange(false)}
+                >
                   Cancel
                 </Button>
               </div>

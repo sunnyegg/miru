@@ -28,7 +28,9 @@ function heroProgressCaption(
   lastPlayback: PlaybackEvent | null,
 ): string {
   if (lastPlayback) {
-    const episode = show.episodes.find((entry) => entry.id === lastPlayback.episodeId)
+    const episode = show.episodes.find(
+      (entry) => entry.id === lastPlayback.episodeId,
+    )
     if (episode && episode.episodeNumber > 0) {
       const percent = Number.isFinite(lastPlayback.percent)
         ? Math.min(100, Math.max(0, Math.round(lastPlayback.percent)))
@@ -52,7 +54,10 @@ function heroProgressCaption(
   return `${show.progress} watched`
 }
 
-function findWatchingItem(items: WatchingShowItem[], key: string): WatchingShowItem | null {
+function findWatchingItem(
+  items: WatchingShowItem[],
+  key: string,
+): WatchingShowItem | null {
   return items.find((item) => item.key === key) ?? null
 }
 
@@ -67,14 +72,21 @@ export function LibraryContinueHero({
   onFindTorrent,
 }: Props) {
   const heroKey = useMemo(
-    () => pickContinueHeroKey(
+    () =>
+      pickContinueHeroKey(
+        entries,
+        localShows,
+        playingShowKey,
+        lastPlayback?.episodeId ?? null,
+        libraryEpisodes,
+      ),
+    [
       entries,
       localShows,
       playingShowKey,
-      lastPlayback?.episodeId ?? null,
+      lastPlayback?.episodeId,
       libraryEpisodes,
-    ),
-    [entries, localShows, playingShowKey, lastPlayback?.episodeId, libraryEpisodes],
+    ],
   )
 
   const watchingItems = useMemo(
@@ -111,11 +123,15 @@ export function LibraryContinueHero({
     if (!watchingItem) {
       return
     }
-    const episodeNumber = watchingItem.newEpisodeNumber ?? watchingItem.progress + 1
+    const episodeNumber =
+      watchingItem.newEpisodeNumber ?? watchingItem.progress + 1
     onFindTorrent(torrentSearchQuery(watchingItem.title, episodeNumber))
   }
 
-  const showFindTorrent = watchingItem !== null && !watchingItem.hasLocalFiles && watchingItem.newEpisodeNumber !== null
+  const showFindTorrent =
+    watchingItem !== null &&
+    !watchingItem.hasLocalFiles &&
+    watchingItem.newEpisodeNumber !== null
 
   return (
     <section
@@ -141,13 +157,19 @@ export function LibraryContinueHero({
           <h3 className="mt-1 max-w-xl text-2xl font-semibold tracking-tight sm:text-3xl">
             {title}
           </h3>
-          <p className="mt-1 text-sm text-muted-foreground">{progressCaption}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {progressCaption}
+          </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button type="button" onClick={handleContinue}>
               {isPlaying ? 'Open show' : 'Continue'}
             </Button>
             {showFindTorrent && (
-              <Button type="button" variant="secondary" onClick={handleFindTorrent}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleFindTorrent}
+              >
                 Find torrent
               </Button>
             )}

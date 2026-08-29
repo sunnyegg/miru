@@ -1,4 +1,10 @@
-export type TabId = 'library' | 'watching' | 'search' | 'downloads' | 'calendar' | 'settings'
+export type TabId =
+  | 'library'
+  | 'watching'
+  | 'search'
+  | 'downloads'
+  | 'calendar'
+  | 'settings'
 
 export type SettingsView = {
   mpvPath: string

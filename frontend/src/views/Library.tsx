@@ -15,7 +15,10 @@ import {useLibraryStore} from '../stores/libraryStore'
 import {usePlaybackStore} from '../stores/playbackStore'
 import {pickContinueHeroKey} from '../lib/libraryWatching'
 import {LibraryContinueHero} from '../components/LibraryContinueHero'
-import {LibraryMatchSheet, type LibraryMatchPicker} from '../components/LibraryMatchSheet'
+import {
+  LibraryMatchSheet,
+  type LibraryMatchPicker,
+} from '../components/LibraryMatchSheet'
 import {LibraryEpisodeList} from '../components/LibraryEpisodeList'
 import {LibraryShowDetailHero} from '../components/LibraryShowDetailHero'
 import {LibraryUnlistedSection} from '../components/LibraryUnlistedSection'
@@ -48,14 +51,21 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
   const [bindingAnimeId, setBindingAnimeId] = useState<number | null>(null)
   const [addingToWatching, setAddingToWatching] = useState(false)
   const [unmatching, setUnmatching] = useState(false)
-  const [unmatchingEpisodeId, setUnmatchingEpisodeId] = useState<number | null>(null)
+  const [unmatchingEpisodeId, setUnmatchingEpisodeId] = useState<number | null>(
+    null,
+  )
   const [picker, setPicker] = useState<LibraryMatchPicker | null>(null)
-  const [episodeThumbnails, setEpisodeThumbnails] = useState<Record<number, string>>({})
+  const [episodeThumbnails, setEpisodeThumbnails] = useState<
+    Record<number, string>
+  >({})
   const skippedMatchIds = useRef(new Set<number>())
   const bindingEpisodeId = useRef<number | null>(null)
   const readySignaled = useRef(false)
 
-  const libraryEpisodes = useMemo(() => visibleLibraryEpisodes(episodes), [episodes])
+  const libraryEpisodes = useMemo(
+    () => visibleLibraryEpisodes(episodes),
+    [episodes],
+  )
   const shows = useMemo(() => groupEpisodes(libraryEpisodes), [libraryEpisodes])
   const watchingKeys = useMemo(
     () => new Set(watchingEntries.map((entry) => `anilist:${entry.mediaId}`)),
@@ -73,18 +83,21 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
     if (!playing) {
       return null
     }
-    const owner = shows.find((show) => show.episodes.some((episode) => episode.id === playing.episodeId))
+    const owner = shows.find((show) =>
+      show.episodes.some((episode) => episode.id === playing.episodeId),
+    )
     return owner?.key ?? null
   }, [shows, playing])
 
   const continueHeroKey = useMemo(
-    () => pickContinueHeroKey(
-      watchingEntries,
-      shows,
-      playingShowKey,
-      lastPlayback?.episodeId ?? null,
-      episodes,
-    ),
+    () =>
+      pickContinueHeroKey(
+        watchingEntries,
+        shows,
+        playingShowKey,
+        lastPlayback?.episodeId ?? null,
+        episodes,
+      ),
     [watchingEntries, shows, playingShowKey, lastPlayback?.episodeId, episodes],
   )
 
@@ -103,7 +116,10 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
     if (selectedAnilistId <= 0) {
       return null
     }
-    return watchingEntries.find((entry) => entry.mediaId === selectedAnilistId) ?? null
+    return (
+      watchingEntries.find((entry) => entry.mediaId === selectedAnilistId) ??
+      null
+    )
   }, [watchingEntries, selectedAnilistId])
 
   useEffect(() => {
@@ -161,8 +177,13 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
     }
   }, [selectedAnilistId])
 
-  async function openMatcher(episode: EpisodeView, candidates: AnimeView[] = []) {
-    const query = (episode.displayTitle || episode.animeTitle).replace(/\s+—\s+Episode\s+\d+\s*$/i, '').trim()
+  async function openMatcher(
+    episode: EpisodeView,
+    candidates: AnimeView[] = [],
+  ) {
+    const query = (episode.displayTitle || episode.animeTitle)
+      .replace(/\s+—\s+Episode\s+\d+\s*$/i, '')
+      .trim()
     setPicker({episode, candidates, query})
     if (!query || candidates.length > 0) {
       return
@@ -241,7 +262,10 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
     try {
       const found = await SearchAnime(query)
       setPicker((current) => {
-        if (current?.episode.id !== episodeId || current.query.trim() !== query) {
+        if (
+          current?.episode.id !== episodeId ||
+          current.query.trim() !== query
+        ) {
           return current
         }
         return {...current, candidates: found ?? []}
@@ -264,7 +288,9 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
       await BindEpisode(episodeId, anilistId)
       skippedMatchIds.current.add(episodeId)
       await reload(notice)
-      setPicker((current) => current?.episode.id === episodeId ? null : current)
+      setPicker((current) =>
+        current?.episode.id === episodeId ? null : current,
+      )
     } catch (err) {
       notice(errorMessage(err), true)
     } finally {
@@ -336,7 +362,9 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
       await UnbindEpisode(episodeId)
       skippedMatchIds.current.delete(episodeId)
       await reload(notice)
-      const updatedShows = groupEpisodes(visibleLibraryEpisodes(useLibraryStore.getState().episodes))
+      const updatedShows = groupEpisodes(
+        visibleLibraryEpisodes(useLibraryStore.getState().episodes),
+      )
       const updatedShow = updatedShows.find((show) => {
         return show.episodes.some((episode) => episode.id === episodeId)
       })
@@ -355,10 +383,17 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
   }
 
   async function unmatchSelectedShow() {
-    if (!selectedShow || !selectedShow.bound || unmatching || unmatchingEpisodeId !== null) {
+    if (
+      !selectedShow ||
+      !selectedShow.bound ||
+      unmatching ||
+      unmatchingEpisodeId !== null
+    ) {
       return
     }
-    const boundEpisodes = selectedShow.episodes.filter((episode) => episode.bound)
+    const boundEpisodes = selectedShow.episodes.filter(
+      (episode) => episode.bound,
+    )
     if (boundEpisodes.length === 0) {
       return
     }
@@ -372,7 +407,9 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
         skippedMatchIds.current.delete(episode.id)
       }
       await reload(notice)
-      const updatedShows = groupEpisodes(visibleLibraryEpisodes(useLibraryStore.getState().episodes))
+      const updatedShows = groupEpisodes(
+        visibleLibraryEpisodes(useLibraryStore.getState().episodes),
+      )
       const updatedShow = updatedShows.find((show) => {
         return show.episodes.some((episode) => episode.id === firstEpisodeId)
       })
@@ -411,7 +448,12 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
     <section className="flex h-full min-h-0 flex-col">
       <header className="flex shrink-0 flex-wrap items-end justify-between gap-3 px-5 pt-5 pb-3">
         {selectedShow ? (
-          <Button type="button" variant="ghost" onClick={backToGrid} style={{gap: 8, paddingInline: 12}}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={backToGrid}
+            style={{gap: 8, paddingInline: 12}}
+          >
             <span className="shrink-0" style={{width: 16, height: 16}}>
               <IconBack className="size-full" />
             </span>
@@ -427,7 +469,12 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
             </p>
           </div>
         )}
-        <Button type="button" variant="secondary" onClick={() => void onImport()} disabled={importing}>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => void onImport()}
+          disabled={importing}
+        >
           {importing ? 'Importing…' : 'Import file'}
         </Button>
       </header>
@@ -465,7 +512,11 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
               unmatchingEpisodeId={unmatchingEpisodeId}
               episodeThumbnails={episodeThumbnails}
               onPlay={(episodeId) => void onPlay(episodeId)}
-              onUnmatch={selectedShow.bound ? (episodeId) => void unmatchEpisode(episodeId) : undefined}
+              onUnmatch={
+                selectedShow.bound
+                  ? (episodeId) => void unmatchEpisode(episodeId)
+                  : undefined
+              }
               onFindTorrent={onFindTorrent}
             />
           </>

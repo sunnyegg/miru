@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -31,9 +33,11 @@
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^5.0.0",
     "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.0",
     "globals": "^15.0.0",
+    "oxfmt": "^0.65.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.0.0",

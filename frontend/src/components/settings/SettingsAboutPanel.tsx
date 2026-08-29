@@ -1,7 +1,13 @@
 import type {SettingsView, UpdateInfo} from '../../lib/types'
 import {LabelWithHint} from '../LabelWithHint'
 import {Button} from '@/components/ui/button'
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import {NativeSelect, NativeSelectOption} from '@/components/ui/native-select'
 
 type Props = {
@@ -54,7 +60,11 @@ export function SettingsAboutPanel({
           <>
             <p className="mt-3 text-sm">Miru {update.latest} is available.</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button type="button" disabled={applyingUpdate} onClick={onApplyUpdate}>
+              <Button
+                type="button"
+                disabled={applyingUpdate}
+                onClick={onApplyUpdate}
+              >
                 {applyingUpdate ? 'Updating…' : 'Update now'}
               </Button>
               <Button type="button" variant="muted" onClick={onOpenRelease}>

@@ -30,7 +30,8 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
 
   setWeekOffset: (offset) => {
     set((state) => ({
-      weekOffset: typeof offset === 'function' ? offset(state.weekOffset) : offset,
+      weekOffset:
+        typeof offset === 'function' ? offset(state.weekOffset) : offset,
     }))
   },
 

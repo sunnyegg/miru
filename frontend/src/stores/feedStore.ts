@@ -22,7 +22,11 @@ type FeedState = {
   error: string
   setShowNewOnly: (showNewOnly: boolean) => Promise<void>
   reload: () => Promise<void>
-  addFeed: (feedURL: string, feedTitle: string, notice: NoticeFn) => Promise<boolean>
+  addFeed: (
+    feedURL: string,
+    feedTitle: string,
+    notice: NoticeFn,
+  ) => Promise<boolean>
   removeFeed: (feed: RSSFeedView, notice: NoticeFn) => Promise<void>
   toggleFeed: (feed: RSSFeedView, notice: NoticeFn) => Promise<void>
   pollNow: (notice: NoticeFn) => Promise<void>

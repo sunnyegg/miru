@@ -1,6 +1,11 @@
 import {useEffect, useState} from 'react'
 import {BrowserOpenURL, EventsOff, EventsOn} from '../wailsjs/runtime/runtime'
-import {ApplyUpdate, AppVersion, CheckForUpdate, InitError} from '../wailsjs/go/main/App'
+import {
+  ApplyUpdate,
+  AppVersion,
+  CheckForUpdate,
+  InitError,
+} from '../wailsjs/go/main/App'
 import {errorMessage} from './lib/format'
 import {Sidebar} from './components/Sidebar'
 import {Splash} from './components/Splash'
@@ -15,7 +20,12 @@ import {Alert} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 import {TooltipProvider} from '@/components/ui/tooltip'
 import {toast} from '@/components/ui/toast'
-import type {DownloadView, PlaybackEvent, SyncEvent, UpdateInfo} from './lib/types'
+import type {
+  DownloadView,
+  PlaybackEvent,
+  SyncEvent,
+  UpdateInfo,
+} from './lib/types'
 import {useDownloadStore} from './stores/downloadStore'
 import {useFeedStore} from './stores/feedStore'
 import {useLibraryStore} from './stores/libraryStore'
@@ -189,72 +199,85 @@ export default function App() {
 
   return (
     <TooltipProvider delay={300}>
-    <div className="flex h-full bg-background text-foreground">
-      <Sidebar />
-      <div className="relative flex min-w-0 flex-1 flex-col bg-background">
-        {initError && (
-          <Alert className="border-0 bg-destructive px-4 py-2 text-sm text-destructive-foreground">
-            {friendlyInitError(initError)}
-          </Alert>
-        )}
-        {update?.available && showUpdateBanner && (
-          <Alert className="flex flex-wrap items-center gap-2 border-0 border-b border-border bg-card px-4 py-2 text-sm text-foreground">
-            <span className="min-w-0 flex-1">
-              Miru {update.latest} is available (you have {update.current}).
-            </span>
-            <Button type="button" disabled={applyingUpdate} onClick={() => void applyUpdate()}>
-              {applyingUpdate ? 'Updating…' : 'Update'}
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setShowUpdateBanner(false)}>
-              Later
-            </Button>
-          </Alert>
-        )}
-        {playing && (
-          <div className="border-b border-border bg-bezel px-4 py-2 text-sm" role="status">
-            Playing · {Math.round(playing.percent)}%
-          </div>
-        )}
-        <main className={`min-h-0 flex-1 ${tab === 'library' ? 'overflow-hidden' : 'overflow-auto p-6'}`}>
-          {tab === 'library' && (
-            <LibraryView
-              notice={showNotice}
-              onFindTorrent={openSearchForTorrent}
-              onReady={() => setBootDone(true)}
-            />
+      <div className="flex h-full bg-background text-foreground">
+        <Sidebar />
+        <div className="relative flex min-w-0 flex-1 flex-col bg-background">
+          {initError && (
+            <Alert className="border-0 bg-destructive px-4 py-2 text-sm text-destructive-foreground">
+              {friendlyInitError(initError)}
+            </Alert>
           )}
-          {tab === 'watching' && <WatchingView notice={showNotice} />}
-          {tab === 'search' && <SearchView notice={showNotice} />}
-          {tab === 'downloads' && <DownloadsView notice={showNotice} />}
-          {tab === 'calendar' && <CalendarView />}
-          {tab === 'settings' && (
-            <SettingsView
-              notice={showNotice}
-              appVersion={appVersion}
-              update={update}
-              checkingUpdate={checkingUpdate}
-              applyingUpdate={applyingUpdate}
-              onCheckUpdate={() => void checkUpdate(true)}
-              onApplyUpdate={() => void applyUpdate()}
-              onOpenRelease={openReleasePage}
-            />
+          {update?.available && showUpdateBanner && (
+            <Alert className="flex flex-wrap items-center gap-2 border-0 border-b border-border bg-card px-4 py-2 text-sm text-foreground">
+              <span className="min-w-0 flex-1">
+                Miru {update.latest} is available (you have {update.current}).
+              </span>
+              <Button
+                type="button"
+                disabled={applyingUpdate}
+                onClick={() => void applyUpdate()}
+              >
+                {applyingUpdate ? 'Updating…' : 'Update'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setShowUpdateBanner(false)}
+              >
+                Later
+              </Button>
+            </Alert>
           )}
-        </main>
-        {tab === 'library' && !bootDone && !initError && (
-          <div
-            className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-background transition-opacity duration-200 motion-reduce:transition-none"
-            aria-hidden="false"
+          {playing && (
+            <div
+              className="border-b border-border bg-bezel px-4 py-2 text-sm"
+              role="status"
+            >
+              Playing · {Math.round(playing.percent)}%
+            </div>
+          )}
+          <main
+            className={`min-h-0 flex-1 ${tab === 'library' ? 'overflow-hidden' : 'overflow-auto p-6'}`}
           >
-            <Splash />
-          </div>
-        )}
+            {tab === 'library' && (
+              <LibraryView
+                notice={showNotice}
+                onFindTorrent={openSearchForTorrent}
+                onReady={() => setBootDone(true)}
+              />
+            )}
+            {tab === 'watching' && <WatchingView notice={showNotice} />}
+            {tab === 'search' && <SearchView notice={showNotice} />}
+            {tab === 'downloads' && <DownloadsView notice={showNotice} />}
+            {tab === 'calendar' && <CalendarView />}
+            {tab === 'settings' && (
+              <SettingsView
+                notice={showNotice}
+                appVersion={appVersion}
+                update={update}
+                checkingUpdate={checkingUpdate}
+                applyingUpdate={applyingUpdate}
+                onCheckUpdate={() => void checkUpdate(true)}
+                onApplyUpdate={() => void applyUpdate()}
+                onOpenRelease={openReleasePage}
+              />
+            )}
+          </main>
+          {tab === 'library' && !bootDone && !initError && (
+            <div
+              className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-background transition-opacity duration-200 motion-reduce:transition-none"
+              aria-hidden="false"
+            >
+              <Splash />
+            </div>
+          )}
+        </div>
+        <CloseToTrayDialog
+          open={closePromptOpen}
+          onOpenChange={setClosePromptOpen}
+          notice={showNotice}
+        />
       </div>
-      <CloseToTrayDialog
-        open={closePromptOpen}
-        onOpenChange={setClosePromptOpen}
-        notice={showNotice}
-      />
-    </div>
     </TooltipProvider>
   )
 }

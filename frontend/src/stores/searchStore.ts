@@ -23,7 +23,11 @@ type SearchState = {
   setQuery: (query: string) => void
   setPage: (page: number) => void
   changeSource: (nextSource: SearchSource, notice: NoticeFn) => Promise<void>
-  runSearch: (notice: NoticeFn, searchQuery?: string, searchSource?: SearchSource) => Promise<void>
+  runSearch: (
+    notice: NoticeFn,
+    searchQuery?: string,
+    searchSource?: SearchSource,
+  ) => Promise<void>
   prefillSearch: (prefillQuery: string, notice: NoticeFn) => Promise<void>
 }
 
@@ -63,9 +67,10 @@ export const useSearchStore = create<SearchState>()(
 
         set({loading: true, error: '', submittedQuery: trimmed})
         try {
-          const found = source === 'tokyotosho'
-            ? await SearchTokyoToshokan(trimmed)
-            : await SearchNyaa(trimmed)
+          const found =
+            source === 'tokyotosho'
+              ? await SearchTokyoToshokan(trimmed)
+              : await SearchNyaa(trimmed)
           set({results: found ?? [], page: 1})
         } catch (err) {
           const message = errorMessage(err)

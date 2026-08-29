@@ -43,10 +43,13 @@ export function CloseToTrayDialog({open, onOpenChange, notice}: Props) {
         <Dialog.Backdrop />
         <Dialog.Viewport>
           <Dialog.Panel aria-labelledby="close-to-tray-title">
-            <Dialog.Title id="close-to-tray-title">Keep Miru running?</Dialog.Title>
+            <Dialog.Title id="close-to-tray-title">
+              Keep Miru running?
+            </Dialog.Title>
             <Dialog.Description>
-              Hide Miru to the system tray so downloads and RSS polling keep running in the
-              background. You can change this behavior in Settings.
+              Hide Miru to the system tray so downloads and RSS polling keep
+              running in the background. You can change this behavior in
+              Settings.
             </Dialog.Description>
             <label className="mt-4 flex min-h-11 cursor-pointer items-center gap-3">
               <input

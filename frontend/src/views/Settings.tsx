@@ -23,7 +23,11 @@ import {SettingsDownloadsPanel} from '../components/settings/SettingsDownloadsPa
 import {SettingsNetworkPanel} from '../components/settings/SettingsNetworkPanel'
 import {SettingsPlaybackPanel} from '../components/settings/SettingsPlaybackPanel'
 import {errorMessage} from '../lib/format'
-import type {AnilistStatus as Status, SettingsView as SettingsForm, UpdateInfo} from '../lib/types'
+import type {
+  AnilistStatus as Status,
+  SettingsView as SettingsForm,
+  UpdateInfo,
+} from '../lib/types'
 import {useSettingsStore, type SettingsTab} from '../stores/settingsStore'
 import {cn} from '@/lib/utils'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
@@ -63,7 +67,13 @@ type Props = {
   onOpenRelease: () => void
 }
 
-type SettingsSection = 'desktop' | 'playback' | 'downloads' | 'network' | 'anilist' | 'updates'
+type SettingsSection =
+  | 'desktop'
+  | 'playback'
+  | 'downloads'
+  | 'network'
+  | 'anilist'
+  | 'updates'
 
 const settingsTabs: {id: SettingsTab; label: string}[] = [
   {id: 'desktop', label: 'Desktop'},
@@ -97,7 +107,10 @@ export function SettingsView({
   async function reload() {
     setLoadError('')
     try {
-      const [settings, anilist] = await Promise.all([GetSettings(), AnilistStatus()])
+      const [settings, anilist] = await Promise.all([
+        GetSettings(),
+        AnilistStatus(),
+      ])
       setForm({
         mpvPath: settings?.mpvPath ?? '',
         anime4kEnabled: settings?.anime4kEnabled ?? false,
@@ -117,7 +130,8 @@ export function SettingsView({
         discordAppId: settings?.discordAppId ?? '',
         downloadNotifications: settings?.downloadNotifications ?? true,
         rssAutoDownload: settings?.rssAutoDownload ?? false,
-        rssAutoDownloadLibraryOnly: settings?.rssAutoDownloadLibraryOnly ?? true,
+        rssAutoDownloadLibraryOnly:
+          settings?.rssAutoDownloadLibraryOnly ?? true,
         closeToTray: settings?.closeToTray ?? false,
       })
       setStatus(anilist ?? {connected: false, username: ''})
@@ -130,7 +144,11 @@ export function SettingsView({
     void reload()
   }, [reloadKey])
 
-  async function saveSection(section: SettingsSection, run: () => Promise<void>, ok: string) {
+  async function saveSection(
+    section: SettingsSection,
+    run: () => Promise<void>,
+    ok: string,
+  ) {
     setSaving(section)
     try {
       await run()
@@ -178,7 +196,11 @@ export function SettingsView({
   async function testNetwork() {
     setTestingNetwork(true)
     try {
-      await TestNetworkConnection(form.networkMode, form.socks5Address, form.httpProxyUrl)
+      await TestNetworkConnection(
+        form.networkMode,
+        form.socks5Address,
+        form.httpProxyUrl,
+      )
       notice('Network connection succeeded')
     } catch (err) {
       notice(errorMessage(err), true)
@@ -230,11 +252,17 @@ export function SettingsView({
       {loadError ? (
         <Alert variant="destructive">
           <AlertDescription>
-            <span className="block font-medium">Settings could not be loaded</span>
+            <span className="block font-medium">
+              Settings could not be loaded
+            </span>
             <span className="mt-1 block">{loadError}</span>
           </AlertDescription>
           <AlertAction>
-            <Button type="button" variant="secondary" onClick={() => void reload()}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void reload()}
+            >
               Try again
             </Button>
           </AlertAction>
@@ -353,7 +381,11 @@ export function SettingsView({
                   void saveSection(
                     'network',
                     () =>
-                      SaveNetworkSettings(form.networkMode, form.socks5Address, form.httpProxyUrl),
+                      SaveNetworkSettings(
+                        form.networkMode,
+                        form.socks5Address,
+                        form.httpProxyUrl,
+                      ),
                     'Network saved',
                   )
                 }}
@@ -387,7 +419,9 @@ export function SettingsView({
                 saving={saving === 'updates'}
                 checkingUpdate={checkingUpdate}
                 applyingUpdate={applyingUpdate}
-                onSaveUpdateChannel={(channel) => void saveUpdateChannel(channel)}
+                onSaveUpdateChannel={(channel) =>
+                  void saveUpdateChannel(channel)
+                }
                 onCheckUpdate={onCheckUpdate}
                 onApplyUpdate={onApplyUpdate}
                 onOpenRelease={onOpenRelease}

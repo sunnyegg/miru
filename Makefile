@@ -5,7 +5,7 @@ GOLANGCI_LINT_VERSION ?= v2.13.1
 VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || echo dev)
 LD_FLAGS ?= -X main.version=$(VERSION)
 
-.PHONY: help deps build dev test fmt lint lint-fe typecheck doctor clean bench-idle-ram
+.PHONY: help deps build dev test fmt fmt-fe lint lint-fe typecheck doctor clean bench-idle-ram
 
 help:
 	@printf '%s\n' \
@@ -14,6 +14,7 @@ help:
 		'dev       Run the app in development mode' \
 		'test      Run all Go tests' \
 		'fmt       Format Go source files' \
+		'fmt-fe    Format frontend source files' \
 		'lint      Run golangci-lint (standard + nestif)' \
 		'lint-fe   Run ESLint on the frontend' \
 		'typecheck Run TypeScript type checking on the frontend (frontend/)' \
@@ -37,6 +38,9 @@ test:
 
 fmt:
 	$(GO) fmt ./...
+
+fmt-fe:
+	npm --prefix frontend run format
 
 lint:
 	$(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run

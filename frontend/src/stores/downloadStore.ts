@@ -27,7 +27,9 @@ export const useDownloadStore = create<DownloadState>((set) => ({
         return {jobs: [job, ...state.jobs]}
       }
       return {
-        jobs: state.jobs.map((existing) => existing.id === job.id ? job : existing),
+        jobs: state.jobs.map((existing) =>
+          existing.id === job.id ? job : existing,
+        ),
       }
     })
   },

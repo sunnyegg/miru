@@ -32,10 +32,16 @@ export function TorrentFileSheet({
     setSelectedPaths(files.map((file) => file.path))
   }, [files])
 
-  const selectedFiles = files.filter((file) => selectedPaths.includes(file.path))
-  const selectedBytes = selectedFiles.reduce((sum, file) => sum + file.length, 0)
+  const selectedFiles = files.filter((file) =>
+    selectedPaths.includes(file.path),
+  )
+  const selectedBytes = selectedFiles.reduce(
+    (sum, file) => sum + file.length,
+    0,
+  )
   const hasVideos = files.some((file) => file.isVideo)
-  const canDownload = selectedFiles.length > 0 && !loading && !confirming && !error
+  const canDownload =
+    selectedFiles.length > 0 && !loading && !confirming && !error
 
   function togglePath(path: string) {
     setSelectedPaths((current) => {
@@ -61,7 +67,9 @@ export function TorrentFileSheet({
           <Dialog.Panel aria-labelledby="torrent-files-title">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <Dialog.Title id="torrent-files-title">Choose files</Dialog.Title>
+                <Dialog.Title id="torrent-files-title">
+                  Choose files
+                </Dialog.Title>
                 <p className="mt-1 truncate text-sm text-muted-foreground">
                   {name || 'Torrent'}
                 </p>
@@ -71,7 +79,12 @@ export function TorrentFileSheet({
                     : `${selectedFiles.length} of ${files.length} files · ${formatBytes(selectedBytes)} of ${formatBytes(bytesTotal)}`}
                 </p>
               </div>
-              <Button type="button" variant="ghost" onClick={onClose} disabled={confirming}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onClose}
+                disabled={confirming}
+              >
                 Cancel
               </Button>
             </div>
@@ -79,9 +92,16 @@ export function TorrentFileSheet({
             {error ? (
               <p className="mt-4 text-sm text-destructive">{error}</p>
             ) : loading ? (
-              <ul className="mt-4 flex flex-col gap-1" aria-busy="true" aria-label="Loading torrent files">
+              <ul
+                className="mt-4 flex flex-col gap-1"
+                aria-busy="true"
+                aria-label="Loading torrent files"
+              >
                 {Array.from({length: 4}, (_, index) => (
-                  <li key={index} className="flex min-h-11 items-center gap-3 bg-muted px-3">
+                  <li
+                    key={index}
+                    className="flex min-h-11 items-center gap-3 bg-muted px-3"
+                  >
                     <Skeleton className="size-4 shrink-0 animate-pulse" />
                     <Skeleton className="h-4 w-2/3 animate-pulse" />
                   </li>
@@ -93,18 +113,30 @@ export function TorrentFileSheet({
                   <Button
                     type="button"
                     variant="ghost"
-                    onClick={() => setSelectedPaths(files.map((file) => file.path))}
+                    onClick={() =>
+                      setSelectedPaths(files.map((file) => file.path))
+                    }
                   >
                     All
                   </Button>
-                  <Button type="button" variant="ghost" onClick={() => setSelectedPaths([])}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setSelectedPaths([])}
+                  >
                     None
                   </Button>
                   {hasVideos && (
                     <Button
                       type="button"
                       variant="ghost"
-                      onClick={() => setSelectedPaths(files.filter((file) => file.isVideo).map((file) => file.path))}
+                      onClick={() =>
+                        setSelectedPaths(
+                          files
+                            .filter((file) => file.isVideo)
+                            .map((file) => file.path),
+                        )
+                      }
                     >
                       Videos
                     </Button>
@@ -122,7 +154,9 @@ export function TorrentFileSheet({
                             checked={checked}
                             onChange={() => togglePath(file.path)}
                           />
-                          <span className="min-w-0 flex-1 break-all text-sm">{file.path}</span>
+                          <span className="min-w-0 flex-1 break-all text-sm">
+                            {file.path}
+                          </span>
                           <span className="shrink-0 tabular-nums text-xs text-muted-foreground">
                             {formatBytes(file.length)}
                           </span>
@@ -135,7 +169,12 @@ export function TorrentFileSheet({
             )}
 
             <div className="mt-4 flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={onClose} disabled={confirming}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onClose}
+                disabled={confirming}
+              >
                 Cancel
               </Button>
               <Button

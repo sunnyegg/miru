@@ -9,7 +9,13 @@ type Props = {
   children: ReactNode
 }
 
-export function SettingsField({label, htmlFor, hint, className, children}: Props) {
+export function SettingsField({
+  label,
+  htmlFor,
+  hint,
+  className,
+  children,
+}: Props) {
   return (
     <div className={className ?? 'mt-4'}>
       <LabelWithHint htmlFor={htmlFor} label={label} hint={hint} />

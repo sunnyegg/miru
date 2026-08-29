@@ -1,7 +1,7 @@
-@import "@fontsource-variable/source-sans-3";
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+@import '@fontsource-variable/source-sans-3';
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -79,7 +79,7 @@
 }
 
 @theme inline {
-  --font-sans: "Source Sans 3 Variable", "Source Sans 3", sans-serif;
+  --font-sans: 'Source Sans 3 Variable', 'Source Sans 3', sans-serif;
   --font-heading: var(--font-sans);
   --color-bezel: var(--bezel);
   --color-on-accent: var(--accent-foreground);

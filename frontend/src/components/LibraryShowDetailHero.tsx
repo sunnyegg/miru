@@ -62,7 +62,9 @@ export function LibraryShowDetailHero({
           <h2 className="max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">
             {show.title}
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">{progressSummary(show)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {progressSummary(show)}
+          </p>
           {showAddToWatching && (
             <div className="mt-4">
               <LibraryAddToWatchingBanner

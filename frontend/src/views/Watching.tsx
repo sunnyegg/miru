@@ -64,7 +64,9 @@ export function WatchingView({notice}: Props) {
   const saveEntry = useWatchingStore((state) => state.saveEntry)
 
   const [busyMediaId, setBusyMediaId] = useState<number | null>(null)
-  const [editingEntry, setEditingEntry] = useState<(typeof entries)[number] | null>(null)
+  const [editingEntry, setEditingEntry] = useState<
+    (typeof entries)[number] | null
+  >(null)
   const [savingEntry, setSavingEntry] = useState(false)
 
   useEffect(() => {
@@ -170,11 +172,16 @@ export function WatchingView({notice}: Props) {
                           style={{width: 40, height: 56}}
                         />
                       ) : (
-                        <span className="shrink-0 bg-muted" style={{width: 40, height: 56}} />
+                        <span
+                          className="shrink-0 bg-muted"
+                          style={{width: 40, height: 56}}
+                        />
                       )}
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{title}</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">{listCaption}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {listCaption}
+                        </p>
                       </div>
                       {!onList && (
                         <Button
@@ -196,7 +203,11 @@ export function WatchingView({notice}: Props) {
       )}
 
       {loading ? (
-        <ul className="grid gap-3 lg:grid-cols-2" aria-busy="true" aria-label="Loading your list">
+        <ul
+          className="grid gap-3 lg:grid-cols-2"
+          aria-busy="true"
+          aria-label="Loading your list"
+        >
           {Array.from({length: 4}, (_, i) => (
             <li key={i}>
               <div className="flex flex-row items-center gap-4 bg-card p-3">
@@ -213,9 +224,15 @@ export function WatchingView({notice}: Props) {
         <Card>
           <h3 className="font-medium">Connect AniList to see your list</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Sign in with AniList from Settings, then return here to load your anime list.
+            Sign in with AniList from Settings, then return here to load your
+            anime list.
           </p>
-          <Button type="button" variant="secondary" className="mt-4" onClick={() => goToSettings('settings')}>
+          <Button
+            type="button"
+            variant="secondary"
+            className="mt-4"
+            onClick={() => goToSettings('settings')}
+          >
             Open Settings
           </Button>
         </Card>
@@ -223,7 +240,11 @@ export function WatchingView({notice}: Props) {
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
           <AlertAction>
-            <Button type="button" variant="secondary" onClick={() => void loadList()}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void loadList()}
+            >
               Try again
             </Button>
           </AlertAction>
@@ -257,10 +278,16 @@ export function WatchingView({notice}: Props) {
                       Episode {entry.progress} / {total}
                     </p>
                     {entry.mediaStatus && (
-                      <p className="mt-1 text-xs text-muted-foreground">{mediaStatusLabel(entry.mediaStatus)}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {mediaStatusLabel(entry.mediaStatus)}
+                      </p>
                     )}
                   </div>
-                  <Button type="button" variant="ghost" onClick={() => setEditingEntry(entry)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setEditingEntry(entry)}
+                  >
                     Edit
                   </Button>
                 </Card>

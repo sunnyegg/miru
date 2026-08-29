@@ -37,5 +37,7 @@ export function AiringEpisodePoster({coverImage, size}: Props) {
     )
   }
 
-  return <span className={`${className} shrink-0 bg-muted`} aria-hidden="true" />
+  return (
+    <span className={`${className} shrink-0 bg-muted`} aria-hidden="true" />
+  )
 }

@@ -34,7 +34,9 @@ export function LibraryAddToWatchingBanner({
       aria-labelledby="add-watching-title"
     >
       <div className="min-w-0">
-        <h3 id="add-watching-title" className="text-sm font-medium">Add to Watching</h3>
+        <h3 id="add-watching-title" className="text-sm font-medium">
+          Add to Watching
+        </h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {mediaId
             ? 'Track new episodes and catch up from your library.'
