@@ -200,7 +200,7 @@ func (a *App) GetAnime(mediaID int) (AnimeView, error) {
 	if mediaID <= 0 {
 		return AnimeView{}, errors.New("invalid anime id")
 	}
-	return loadCachedJSON(a, fmt.Sprintf("anime:%d", mediaID), apiCacheTTL, func() (AnimeView, error) {
+	return loadCachedJSON(a, animeCacheKey(mediaID), apiCacheTTL, func() (AnimeView, error) {
 		token, _ := a.tokens.Get()
 		client, err := a.newAnilist(token)
 		if err != nil {
@@ -249,6 +249,23 @@ func (a *App) ListAnimeList(status string) ([]WatchingEntryView, error) {
 	})
 }
 
+func (a *App) ListAnimeListCounts() (map[string]int, error) {
+	if err := a.ready(); err != nil {
+		return nil, err
+	}
+	token, err := a.tokens.Get()
+	if err != nil {
+		return nil, errors.New("AniList not connected")
+	}
+	return loadCachedJSON(a, animeListCountsCacheKey, currentListCacheTTL, func() (map[string]int, error) {
+		client, err := a.newAnilist(token)
+		if err != nil {
+			return nil, err
+		}
+		return client.ListMediaListCounts()
+	})
+}
+
 func (a *App) SetAnimeListStatus(mediaID int, status string, totalEpisodes int) error {
 	if err := a.ready(); err != nil {
 		return err
@@ -278,6 +295,7 @@ func (a *App) SetAnimeListStatus(mediaID int, status string, totalEpisodes int) 
 		return err
 	}
 	a.invalidateAnimeListCache()
+	a.invalidateAnimeCache(mediaID)
 	return nil
 }
 
@@ -319,7 +337,12 @@ func (a *App) SaveAnimeListEntry(input AnimeListEntryInput) error {
 		return err
 	}
 	a.invalidateAnimeListCache()
+	a.invalidateAnimeCache(input.MediaID)
 	return nil
+}
+
+func (a *App) invalidateAnimeCache(mediaID int) {
+	_ = a.store.DeleteAPICache(animeCacheKey(mediaID))
 }
 
 func (a *App) invalidateAnimeListCache() {
@@ -328,6 +351,7 @@ func (a *App) invalidateAnimeListCache() {
 	}
 	_ = a.store.DeleteAPICache(watchingCacheKey)
 	_ = a.store.DeleteAPICache(completedCacheKey)
+	_ = a.store.DeleteAPICache(animeListCountsCacheKey)
 }
 
 func toWatchingEntryViews(entries []anilist.CurrentEntry) []WatchingEntryView {

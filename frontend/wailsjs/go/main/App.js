@@ -82,6 +82,10 @@ export function ListAnimeList(arg1) {
   return window['go']['main']['App']['ListAnimeList'](arg1);
 }
 
+export function ListAnimeListCounts() {
+  return window['go']['main']['App']['ListAnimeListCounts']();
+}
+
 export function ListCurrentlyWatching() {
   return window['go']['main']['App']['ListCurrentlyWatching']();
 }

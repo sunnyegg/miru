@@ -1,19 +1,48 @@
-import {useEffect, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {GetAnime} from '../../wailsjs/go/main/App'
+import {IconCalendar, IconCheck, IconChevronDown, IconPlay} from './Icons'
 import {anilistExtraLargeCover} from '../lib/anilistImage'
 import {sanitizeAnilistSynopsis} from '../lib/anilistDescription'
 import {dayFormatter, scheduleTitle, timeFormatter} from '../lib/calendar'
 import {errorMessage} from '../lib/format'
 import type {AiringScheduleView, AnimeView} from '../lib/types'
+import {useWatchingStore, type QuickAddStatus} from '../stores/watchingStore'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 import {Dialog} from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {Skeleton} from '@/components/ui/skeleton'
 
 type Props = {
   schedule: AiringScheduleView | null
+  notice: (msg: string, isError?: boolean) => void
   onClose: () => void
 }
+
+const listStatusLabels: Record<string, string> = {
+  CURRENT: 'Watching',
+  COMPLETED: 'Completed',
+  PLANNING: 'Planning',
+  PAUSED: 'Paused',
+  DROPPED: 'Dropped',
+  REPEATING: 'Repeating',
+}
+
+const listActions: {
+  status: QuickAddStatus
+  label: string
+  Icon: typeof IconPlay
+}[] = [
+  {status: 'CURRENT', label: 'Add to Watching', Icon: IconPlay},
+  {status: 'PLANNING', label: 'Add to Planning', Icon: IconCalendar},
+  {status: 'COMPLETED', label: 'Add to Completed', Icon: IconCheck},
+]
 
 const mediaStatusLabels: Record<string, string> = {
   RELEASING: 'Airing',
@@ -37,22 +66,32 @@ function episodeCountLabel(totalEpisodes: number): string {
   return `${totalEpisodes} episodes`
 }
 
-export function AiringScheduleDialog({schedule, onClose}: Props) {
+export function AiringScheduleDialog({schedule, notice, onClose}: Props) {
+  const saveListStatus = useWatchingStore((state) => state.setListStatus)
   const [anime, setAnime] = useState<AnimeView | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [posterExpanded, setPosterExpanded] = useState(false)
+  const [activeListStatus, setActiveListStatus] = useState('')
+  const [savingStatus, setSavingStatus] = useState<QuickAddStatus | null>(null)
+  const saveRequestRef = useRef(0)
 
   useEffect(() => {
     if (!schedule) {
+      saveRequestRef.current += 1
       setAnime(null)
       setError('')
       setLoading(false)
       setPosterExpanded(false)
+      setActiveListStatus('')
+      setSavingStatus(null)
       return
     }
 
+    saveRequestRef.current += 1
     setPosterExpanded(false)
+    setActiveListStatus('')
+    setSavingStatus(null)
 
     let cancelled = false
 
@@ -66,6 +105,7 @@ export function AiringScheduleDialog({schedule, onClose}: Props) {
         const details = await GetAnime(mediaId)
         if (!cancelled) {
           setAnime(details)
+          setActiveListStatus(details.listStatus)
         }
       } catch (err) {
         if (!cancelled) {
@@ -99,6 +139,33 @@ export function AiringScheduleDialog({schedule, onClose}: Props) {
     return () => document.removeEventListener('keydown', onKeyDown, true)
   }, [posterExpanded])
 
+  async function updateListStatus(status: QuickAddStatus) {
+    if (!schedule || savingStatus !== null || activeListStatus === status) {
+      return
+    }
+    const request = saveRequestRef.current + 1
+    saveRequestRef.current = request
+    setSavingStatus(status)
+    try {
+      const saved = await saveListStatus(
+        schedule.mediaId,
+        status,
+        status === 'COMPLETED' ? (anime?.totalEpisodes ?? 0) : 0,
+        notice,
+      )
+      if (saved && saveRequestRef.current === request) {
+        setActiveListStatus(status)
+        setAnime((current) =>
+          current ? {...current, listStatus: status} : current,
+        )
+      }
+    } finally {
+      if (saveRequestRef.current === request) {
+        setSavingStatus(null)
+      }
+    }
+  }
+
   if (!schedule) {
     return null
   }
@@ -109,6 +176,12 @@ export function AiringScheduleDialog({schedule, onClose}: Props) {
   const showRomaji = romajiTitle.length > 0 && romajiTitle !== title
   const coverImage =
     anime?.coverImage || anilistExtraLargeCover(schedule.coverImage)
+  const activeListLabel = listStatusLabels[activeListStatus]
+  const listButtonLabel = savingStatus
+    ? 'Updating…'
+    : activeListLabel
+      ? `List: ${activeListLabel}`
+      : 'Add to list'
 
   return (
     <Dialog.Root
@@ -126,7 +199,7 @@ export function AiringScheduleDialog({schedule, onClose}: Props) {
             className="max-w-4xl p-6"
             aria-labelledby="airing-detail-title"
           >
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
                 <Dialog.Title
                   id="airing-detail-title"
@@ -140,9 +213,58 @@ export function AiringScheduleDialog({schedule, onClose}: Props) {
                   </p>
                 )}
               </div>
-              <Button type="button" variant="ghost" onClick={onClose}>
-                Close
-              </Button>
+              <div className="flex shrink-0 items-center gap-2">
+                <DropdownMenu disabled={loading || savingStatus !== null}>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={loading || savingStatus !== null}
+                        aria-busy={savingStatus !== null}
+                      />
+                    }
+                  >
+                    {listButtonLabel}
+                    <IconChevronDown className="size-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent aria-label="Add anime to list">
+                    <DropdownMenuRadioGroup
+                      value={activeListStatus}
+                      disabled={savingStatus !== null}
+                      onValueChange={(value) =>
+                        void updateListStatus(value as QuickAddStatus)
+                      }
+                    >
+                      {listActions.map((action) => {
+                        const selected = activeListStatus === action.status
+                        return (
+                          <DropdownMenuRadioItem
+                            key={action.status}
+                            value={action.status}
+                            closeOnClick
+                            disabled={savingStatus !== null || selected}
+                          >
+                            <action.Icon className="size-4" />
+                            <span className="flex-1">{action.label}</span>
+                            <span
+                              aria-hidden="true"
+                              className={
+                                selected
+                                  ? 'size-1.5 shrink-0 bg-accent'
+                                  : 'size-1.5 shrink-0'
+                              }
+                            />
+                          </DropdownMenuRadioItem>
+                        )
+                      })}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button type="button" variant="ghost" onClick={onClose}>
+                  Close
+                </Button>
+              </div>
             </div>
 
             <div className="mt-6 flex flex-col gap-6 sm:flex-row">

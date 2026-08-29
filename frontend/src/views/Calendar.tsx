@@ -9,7 +9,11 @@ import {useCalendarStore} from '../stores/calendarStore'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 
-export function CalendarView() {
+type Props = {
+  notice: (msg: string, isError?: boolean) => void
+}
+
+export function CalendarView({notice}: Props) {
   const weekOffset = useCalendarStore((state) => state.weekOffset)
   const scrollToTodayRequest = useCalendarStore(
     (state) => state.scrollToTodayRequest,
@@ -101,6 +105,7 @@ export function CalendarView() {
           schedulesByDay={schedulesByDay}
           loading={loading}
           scrollToTodayRequest={scrollToTodayRequest}
+          notice={notice}
         />
       )}
     </section>

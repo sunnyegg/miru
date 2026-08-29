@@ -249,7 +249,7 @@ export default function App() {
             {tab === 'watching' && <WatchingView notice={showNotice} />}
             {tab === 'search' && <SearchView notice={showNotice} />}
             {tab === 'downloads' && <DownloadsView notice={showNotice} />}
-            {tab === 'calendar' && <CalendarView />}
+            {tab === 'calendar' && <CalendarView notice={showNotice} />}
             {tab === 'settings' && (
               <SettingsView
                 notice={showNotice}
