@@ -46,6 +46,19 @@ export default function App() {
     }
   }
 
+  function friendlyInitError(raw: string): string {
+    if (!raw) {
+      return ''
+    }
+    if (raw.startsWith('resolve dirs:')) {
+      return 'Miru could not create its data folder. Check the file system permissions and try again.'
+    }
+    if (raw.startsWith('open database:')) {
+      return 'Miru could not open its database. Check the file system permissions and try again.'
+    }
+    return raw
+  }
+
   async function checkUpdate(manual: boolean) {
     setCheckingUpdate(true)
     try {
@@ -136,7 +149,7 @@ export default function App() {
     EventsOn('rss:auto_queued', (payload: {count: number}) => {
       const count = payload?.count ?? 1
       const label = count === 1 ? '1 RSS item' : `${count} RSS items`
-      showNotice(`Auto-queued ${label} for download`)
+      showNotice(`Auto-added ${label} for download`)
     })
 
     return () => {
@@ -161,7 +174,7 @@ export default function App() {
       <div className="relative flex min-w-0 flex-1 flex-col bg-background">
         {initError && (
           <Alert className="border-0 bg-destructive px-4 py-2 text-sm text-destructive-foreground">
-            {initError}
+            {friendlyInitError(initError)}
           </Alert>
         )}
         {update?.available && showUpdateBanner && (

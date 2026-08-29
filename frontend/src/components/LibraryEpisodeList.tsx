@@ -41,7 +41,7 @@ export function LibraryEpisodeList({show, playing, busyId, onPlay, onFindTorrent
       {slots.map((slot) => {
         const label = episodeLabel(slot.number, slot.file?.displayTitle)
         const subtitle = slot.kind === 'upcoming'
-          ? 'Akan datang'
+          ? 'Not yet aired'
           : slot.kind === 'missing'
             ? 'No file'
             : slot.file?.filePath.split(/[\\/]/).pop() || slot.file?.displayTitle || ''

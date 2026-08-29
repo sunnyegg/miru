@@ -40,6 +40,21 @@ function listStatusLabel(status: string): string {
   return status
 }
 
+const mediaStatusLabels: Record<string, string> = {
+  RELEASING: 'Airing',
+  FINISHED: 'Finished',
+  NOT_YET_RELEASED: 'Not yet aired',
+  CANCELLED: 'Cancelled',
+  HIATUS: 'On hiatus',
+}
+
+function mediaStatusLabel(status: string): string {
+  if (!status) {
+    return ''
+  }
+  return mediaStatusLabels[status] ?? status
+}
+
 export function WatchingView({refreshKey, notice, onSettings}: Props) {
   const [listFilter, setListFilter] = useState<ListFilter>('CURRENT')
   const [entries, setEntries] = useState<WatchingEntryView[]>([])
@@ -97,7 +112,7 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
     setBusyMediaId(mediaId)
     try {
       await SetAnimeListStatus(mediaId, 'CURRENT', 0)
-      notice('Marked as Watching')
+      notice('Added to Watching')
       setSearchResults((current) =>
         current.map((anime) =>
           anime.id === mediaId ? {...anime, listStatus: 'CURRENT'} : anime
@@ -166,7 +181,7 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
         <Card className="border border-border p-4">
           <h3 className="text-base font-medium">Search AniList</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Find anime and add it to your Currently Watching list.
+            Find anime and add it to your Watching list.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <label className="sr-only" htmlFor="watching-anilist-search">
@@ -300,7 +315,7 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
                       Episode {entry.progress} / {total}
                     </p>
                     {entry.mediaStatus && (
-                      <p className="mt-1 text-xs text-muted-foreground">{entry.mediaStatus}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{mediaStatusLabel(entry.mediaStatus)}</p>
                     )}
                   </div>
                   <Button type="button" variant="ghost" onClick={() => setEditingEntry(entry)}>
