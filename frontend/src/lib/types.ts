@@ -207,3 +207,9 @@ export type UpdateInfo = {
   releaseUrl: string
   assetName: string
 }
+
+export type UpdateProgress = {
+  downloaded: number
+  total: number
+  phase: 'downloading' | 'installing'
+}

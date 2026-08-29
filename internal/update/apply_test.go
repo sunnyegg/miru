@@ -2,6 +2,7 @@ package update
 
 import (
 	"archive/zip"
+	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -10,6 +11,57 @@ import (
 	"path/filepath"
 	"testing"
 )
+
+func TestApplyWithProgressReportsFinalBytes(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "miru-linux-amd64")
+	if err := os.WriteFile(dest, []byte("old"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := bytes.Repeat([]byte("x"), 64*1024)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "65536")
+		_, _ = w.Write(payload)
+	}))
+	t.Cleanup(server.Close)
+
+	var calls int
+	var lastDownloaded, lastTotal int64
+	progress := func(downloaded, total int64) {
+		calls++
+		lastDownloaded = downloaded
+		lastTotal = total
+	}
+
+	installed, err := ApplyWithProgress(
+		context.Background(),
+		server.Client(),
+		server.URL,
+		"miru-linux-amd64",
+		dest,
+		progress,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if installed != dest {
+		t.Fatalf("installed %q, want %q", installed, dest)
+	}
+	if calls == 0 {
+		t.Fatal("progress callback was not invoked")
+	}
+	if lastTotal != int64(len(payload)) {
+		t.Fatalf("last total = %d, want %d", lastTotal, len(payload))
+	}
+	if lastDownloaded != lastTotal {
+		t.Fatalf("last downloaded = %d, want %d", lastDownloaded, lastTotal)
+	}
+	if lastDownloaded > lastTotal {
+		t.Fatalf("downloaded %d exceeds total %d", lastDownloaded, lastTotal)
+	}
+}
 
 func TestApplyReplacesFileInPlace(t *testing.T) {
 	t.Parallel()

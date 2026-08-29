@@ -10,7 +10,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
+
+type Progress func(downloaded, total int64)
 
 func CleanupOld(executable string) {
 	exe := executable
@@ -26,14 +29,18 @@ func CleanupOld(executable string) {
 }
 
 func Apply(ctx context.Context, client *http.Client, downloadURL, assetName, executable string) (string, error) {
+	return ApplyWithProgress(ctx, client, downloadURL, assetName, executable, nil)
+}
+
+func ApplyWithProgress(ctx context.Context, client *http.Client, downloadURL, assetName, executable string, progress Progress) (string, error) {
 	exe := executable
 	if resolved, err := filepath.EvalSymlinks(executable); err == nil {
 		exe = resolved
 	}
 	if strings.HasSuffix(assetName, ".zip") {
-		return applyAppBundle(ctx, client, downloadURL, assetName, exe)
+		return applyAppBundle(ctx, client, downloadURL, assetName, exe, progress)
 	}
-	return applyBinary(ctx, client, downloadURL, assetName, exe)
+	return applyBinary(ctx, client, downloadURL, assetName, exe, progress)
 }
 
 func binaryInstallTarget(assetName, executable string) string {
@@ -49,10 +56,10 @@ func bundleInstallTarget(assetName, executable string) (string, error) {
 	return filepath.Join(filepath.Dir(bundle), targetName), nil
 }
 
-func applyBinary(ctx context.Context, client *http.Client, downloadURL, assetName, current string) (string, error) {
+func applyBinary(ctx context.Context, client *http.Client, downloadURL, assetName, current string, progress Progress) (string, error) {
 	target := binaryInstallTarget(assetName, current)
 	newPath := target + ".new"
-	if err := downloadFile(ctx, client, downloadURL, newPath); err != nil {
+	if err := downloadFile(ctx, client, downloadURL, newPath, progress); err != nil {
 		_ = os.Remove(newPath)
 		return "", err
 	}
@@ -72,7 +79,7 @@ func applyBinary(ctx context.Context, client *http.Client, downloadURL, assetNam
 	return target, nil
 }
 
-func applyAppBundle(ctx context.Context, client *http.Client, downloadURL, assetName, executable string) (string, error) {
+func applyAppBundle(ctx context.Context, client *http.Client, downloadURL, assetName, executable string, progress Progress) (string, error) {
 	currentBundle, ok := appBundleRoot(executable)
 	if !ok {
 		return "", fmt.Errorf("cannot replace binary: run Miru from the .app bundle")
@@ -89,7 +96,7 @@ func applyAppBundle(ctx context.Context, client *http.Client, downloadURL, asset
 	defer os.RemoveAll(tempDir)
 
 	zipPath := filepath.Join(tempDir, "update.zip")
-	if err := downloadFile(ctx, client, downloadURL, zipPath); err != nil {
+	if err := downloadFile(ctx, client, downloadURL, zipPath, progress); err != nil {
 		return "", err
 	}
 	extractDir := filepath.Join(tempDir, "extracted")
@@ -138,7 +145,7 @@ func installToTarget(current, target, staged string) error {
 	return nil
 }
 
-func downloadFile(ctx context.Context, client *http.Client, url, dest string) error {
+func downloadFile(ctx context.Context, client *http.Client, url, dest string, progress Progress) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
@@ -158,7 +165,15 @@ func downloadFile(ctx context.Context, client *http.Client, url, dest string) er
 	if err != nil {
 		return err
 	}
-	_, copyErr := io.Copy(out, resp.Body)
+	var reader io.Reader = resp.Body
+	if progress != nil {
+		reader = &progressReader{
+			inner:    resp.Body,
+			total:    resp.ContentLength,
+			progress: progress,
+		}
+	}
+	_, copyErr := io.Copy(out, reader)
 	closeErr := out.Close()
 	if copyErr != nil {
 		return copyErr
@@ -166,7 +181,37 @@ func downloadFile(ctx context.Context, client *http.Client, url, dest string) er
 	if closeErr != nil {
 		return closeErr
 	}
+	if progress != nil {
+		progress(progressTotal(resp.ContentLength), progressTotal(resp.ContentLength))
+	}
 	return nil
+}
+
+type progressReader struct {
+	inner    io.Reader
+	total    int64
+	read     int64
+	last     time.Time
+	progress Progress
+}
+
+func (r *progressReader) Read(p []byte) (int, error) {
+	n, err := r.inner.Read(p)
+	if n > 0 {
+		r.read += int64(n)
+		if r.progress != nil && time.Since(r.last) >= 100*time.Millisecond {
+			r.last = time.Now()
+			r.progress(r.read, progressTotal(r.total))
+		}
+	}
+	return n, err
+}
+
+func progressTotal(contentLength int64) int64 {
+	if contentLength < 0 {
+		return -1
+	}
+	return contentLength
 }
 
 func replacePath(dest, newPath string) error {

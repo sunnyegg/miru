@@ -10,6 +10,7 @@ import {errorMessage} from './lib/format'
 import {Sidebar} from './components/Sidebar'
 import {Splash} from './components/Splash'
 import {CloseToTrayDialog} from './components/CloseToTrayDialog'
+import {UpdateProgressBar} from './components/UpdateProgressBar'
 import {LibraryView} from './views/Library'
 import {WatchingView} from './views/Watching'
 import {SearchView} from './views/Search'
@@ -25,6 +26,7 @@ import type {
   PlaybackEvent,
   SyncEvent,
   UpdateInfo,
+  UpdateProgress,
 } from './lib/types'
 import {useDownloadStore} from './stores/downloadStore'
 import {useFeedStore} from './stores/feedStore'
@@ -47,6 +49,9 @@ export default function App() {
   const [showUpdateBanner, setShowUpdateBanner] = useState(true)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
   const [applyingUpdate, setApplyingUpdate] = useState(false)
+  const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(
+    null,
+  )
   const [closePromptOpen, setClosePromptOpen] = useState(false)
 
   function showNotice(text: string, error = false) {
@@ -106,12 +111,14 @@ export default function App() {
 
   async function applyUpdate() {
     setApplyingUpdate(true)
+    setUpdateProgress({downloaded: 0, total: 0, phase: 'downloading'})
     try {
       await ApplyUpdate()
       showNotice('Restarting…')
     } catch (err) {
       showNotice(errorMessage(err), true)
       setApplyingUpdate(false)
+      setUpdateProgress(null)
     }
   }
 
@@ -178,6 +185,9 @@ export default function App() {
     EventsOn('window:close-prompt', () => {
       setClosePromptOpen(true)
     })
+    EventsOn('update:progress', (payload: UpdateProgress) => {
+      setUpdateProgress(payload)
+    })
 
     return () => {
       EventsOff('torrent:progress')
@@ -189,6 +199,7 @@ export default function App() {
       EventsOff('feeds:updated')
       EventsOff('rss:auto_queued')
       EventsOff('window:close-prompt')
+      EventsOff('update:progress')
     }
   }, [])
 
@@ -208,24 +219,29 @@ export default function App() {
             </Alert>
           )}
           {update?.available && showUpdateBanner && (
-            <Alert className="flex flex-wrap items-center gap-2 border-0 border-b border-border bg-card px-4 py-2 text-sm text-foreground">
-              <span className="min-w-0 flex-1">
-                Miru {update.latest} is available (you have {update.current}).
-              </span>
-              <Button
-                type="button"
-                disabled={applyingUpdate}
-                onClick={() => void applyUpdate()}
-              >
-                {applyingUpdate ? 'Updating…' : 'Update'}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setShowUpdateBanner(false)}
-              >
-                Later
-              </Button>
+            <Alert className="flex flex-col gap-2 border-0 border-b border-border bg-card px-4 py-2 text-sm text-foreground">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 flex-1">
+                  Miru {update.latest} is available (you have {update.current}).
+                </span>
+                <Button
+                  type="button"
+                  disabled={applyingUpdate}
+                  onClick={() => void applyUpdate()}
+                >
+                  {applyingUpdate ? 'Updating…' : 'Update'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowUpdateBanner(false)}
+                >
+                  Later
+                </Button>
+              </div>
+              {applyingUpdate && updateProgress && (
+                <UpdateProgressBar progress={updateProgress} />
+              )}
             </Alert>
           )}
           {playing && (
@@ -255,6 +271,7 @@ export default function App() {
                 notice={showNotice}
                 appVersion={appVersion}
                 update={update}
+                updateProgress={updateProgress}
                 checkingUpdate={checkingUpdate}
                 applyingUpdate={applyingUpdate}
                 onCheckUpdate={() => void checkUpdate(true)}

@@ -1,5 +1,6 @@
-import type {SettingsView, UpdateInfo} from '../../lib/types'
+import type {SettingsView, UpdateInfo, UpdateProgress} from '../../lib/types'
 import {LabelWithHint} from '../LabelWithHint'
+import {UpdateProgressBar} from '../UpdateProgressBar'
 import {Button} from '@/components/ui/button'
 import {
   Card,
@@ -14,6 +15,7 @@ type Props = {
   appVersion: string
   form: SettingsView
   update: UpdateInfo | null
+  updateProgress: UpdateProgress | null
   saving: boolean
   checkingUpdate: boolean
   applyingUpdate: boolean
@@ -27,6 +29,7 @@ export function SettingsAboutPanel({
   appVersion,
   form,
   update,
+  updateProgress,
   saving,
   checkingUpdate,
   applyingUpdate,
@@ -71,6 +74,11 @@ export function SettingsAboutPanel({
                 Open download page
               </Button>
             </div>
+            {applyingUpdate && updateProgress && (
+              <div className="mt-3">
+                <UpdateProgressBar progress={updateProgress} />
+              </div>
+            )}
           </>
         ) : (
           <Button
