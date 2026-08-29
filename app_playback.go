@@ -56,6 +56,9 @@ func (a *App) PlayEpisode(episodeID int64) error {
 		if err != nil {
 			return err
 		}
+		runtime.LogInfo(a.ctx, fmt.Sprintf("Anime4K enabled: attaching %d shader(s) to mpv", len(glslShaders)))
+	} else {
+		runtime.LogDebugf(a.ctx, "Anime4K disabled: no shaders attached")
 	}
 
 	return a.player.Play(mpvPath, ep.FilePath, ep.ResumePosition, glslShaders, func(p mpv.Progress) {

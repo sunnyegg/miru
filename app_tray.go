@@ -44,9 +44,10 @@ func (a *App) beforeClose(_ context.Context) (prevent bool) {
 	keyPresent := false
 	enabled := false
 	if a.store != nil {
-		keyPresent = !a.settingMissing("close_to_tray")
+		raw, err := a.store.GetSetting("close_to_tray")
+		keyPresent = err == nil
 		if keyPresent {
-			enabled = settingBool(a.store, "close_to_tray", false)
+			enabled = parseSettingBool(raw, false)
 		}
 	}
 

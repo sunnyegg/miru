@@ -283,6 +283,23 @@ func (s *Store) SetSetting(key, value string) error {
 	return err
 }
 
+func (s *Store) AllSettings() (map[string]string, error) {
+	rows, err := s.db.Query(`SELECT key, value FROM settings`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[string]string)
+	for rows.Next() {
+		var key, value string
+		if err := rows.Scan(&key, &value); err != nil {
+			return nil, err
+		}
+		out[key] = value
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) GetAPICache(key string, maxAge time.Duration) (string, error) {
 	var payload string
 	var fetchedAt int64

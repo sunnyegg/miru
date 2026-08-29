@@ -10,7 +10,6 @@ import (
 	"github.com/sunnyegg/miru/internal/mpv"
 	"github.com/sunnyegg/miru/internal/networking"
 	"github.com/sunnyegg/miru/internal/nyaa"
-	"github.com/sunnyegg/miru/internal/storage"
 	"github.com/sunnyegg/miru/internal/torrentx"
 	"github.com/sunnyegg/miru/internal/update"
 
@@ -250,60 +249,115 @@ func (a *App) DetectMpv() (string, error) {
 }
 
 func (a *App) loadSettings() (SettingsView, error) {
+	cache := a.snapshotSettings()
+	return buildSettingsView(cache, a.dirs.Config), nil
+}
+
+func (a *App) snapshotSettings() map[string]string {
+	a.settingsMu.RLock()
+	if a.settingsCache != nil {
+		out := a.settingsCache
+		a.settingsMu.RUnlock()
+		a.logCache("hit", len(out))
+		return out
+	}
+	a.settingsMu.RUnlock()
+
+	a.settingsMu.Lock()
+	defer a.settingsMu.Unlock()
+	if a.settingsCache != nil {
+		out := a.settingsCache
+		a.logCache("hit (race)", len(out))
+		return out
+	}
+	snapshot, err := a.store.AllSettings()
+	if err != nil {
+		a.logCache("miss (db error)", 0)
+		return map[string]string{}
+	}
+	a.settingsCache = snapshot
+	a.logCache("miss (loaded from db)", len(snapshot))
+	return snapshot
+}
+
+func (a *App) logCache(event string, count int) {
+	if a == nil || a.ctx == nil {
+		return
+	}
+	runtime.LogDebugf(a.ctx, "settings cache: %s (keys=%d)", event, count)
+}
+
+func (a *App) logCacheInvalidate() {
+	if a == nil || a.ctx == nil {
+		return
+	}
+	runtime.LogDebugf(a.ctx, "settings cache: invalidate")
+}
+
+func (a *App) invalidateSettingsCache() {
+	a.settingsMu.Lock()
+	hadCache := a.settingsCache != nil
+	a.settingsCache = nil
+	a.settingsMu.Unlock()
+	if hadCache {
+		a.logCacheInvalidate()
+	}
+}
+
+func buildSettingsView(cache map[string]string, configDir string) SettingsView {
 	view := SettingsView{
 		SyncThreshold:         85,
 		SeedRatio:             torrentx.DefaultSeedRatio,
 		DownloadNotifications: true,
 	}
-	view.MpvPath, _ = a.store.GetSetting("mpv_path")
-	view.Anime4KEnabled = settingBool(a.store, "anime4k_enabled", false)
-	view.Anime4KShadersReady = mpv.Anime4KInstalled(a.dirs.Config)
-	view.DownloadDir, _ = a.store.GetSetting("download_dir")
-	raw, err := a.store.GetSetting("sync_threshold")
-	threshold, parseErr := strconv.ParseFloat(raw, 64)
-	if err == nil && parseErr == nil {
-		view.SyncThreshold = threshold
+	view.MpvPath = cache["mpv_path"]
+	view.Anime4KEnabled = parseSettingBool(cache["anime4k_enabled"], false)
+	view.Anime4KShadersReady = mpv.Anime4KInstalled(configDir)
+	view.DownloadDir = cache["download_dir"]
+	if raw, ok := cache["sync_threshold"]; ok {
+		if threshold, parseErr := strconv.ParseFloat(raw, 64); parseErr == nil {
+			view.SyncThreshold = threshold
+		}
 	}
-	view.DownloadRateLimit = settingInt64(a.store, "download_rate_limit")
-	view.UploadRateLimit = settingInt64(a.store, "upload_rate_limit")
-	view.MaxConcurrentDownloads = torrentx.ClampMaxConcurrent(settingInt(a.store, "max_concurrent_downloads", 1))
-	rawSeedRatio, err := a.store.GetSetting("seed_ratio")
-	seedRatio, parseSeedErr := strconv.ParseFloat(rawSeedRatio, 64)
-	if err == nil && parseSeedErr == nil {
-		view.SeedRatio = torrentx.ClampSeedRatio(seedRatio)
+	view.DownloadRateLimit = parseSettingInt64(cache["download_rate_limit"])
+	view.UploadRateLimit = parseSettingInt64(cache["upload_rate_limit"])
+	view.MaxConcurrentDownloads = torrentx.ClampMaxConcurrent(parseSettingInt(cache["max_concurrent_downloads"], 1))
+	if raw, ok := cache["seed_ratio"]; ok {
+		if seedRatio, parseErr := strconv.ParseFloat(raw, 64); parseErr == nil {
+			view.SeedRatio = torrentx.ClampSeedRatio(seedRatio)
+		}
 	}
-	view.NetworkMode, _ = a.store.GetSetting("network_mode")
+	view.NetworkMode = cache["network_mode"]
 	if view.NetworkMode == "" {
 		view.NetworkMode = networking.ModeSystem
 	}
-	view.Socks5Address, _ = a.store.GetSetting("socks5_address")
+	view.Socks5Address = cache["socks5_address"]
 	if view.Socks5Address == "" {
 		view.Socks5Address = "127.0.0.1:1080"
 	}
-	view.HttpProxyURL, _ = a.store.GetSetting("http_proxy_url")
+	view.HttpProxyURL = cache["http_proxy_url"]
 	if view.HttpProxyURL == "" {
 		view.HttpProxyURL = "http://127.0.0.1:8080"
 	}
-	view.DiscordRpcEnabled = settingBool(a.store, "discord_rpc_enabled", false)
-	storedChannel, _ := a.store.GetSetting("update_channel")
-	parsedChannel, err := update.ParseChannel(storedChannel)
+	view.DiscordRpcEnabled = parseSettingBool(cache["discord_rpc_enabled"], false)
+	parsedChannel, err := update.ParseChannel(cache["update_channel"])
 	if err != nil {
 		view.UpdateChannel = update.DefaultChannel(version)
 	} else {
 		view.UpdateChannel = parsedChannel
 	}
-	view.RSSPollIntervalMinutes = settingInt(a.store, "rss_poll_interval_minutes", 30)
+	view.RSSPollIntervalMinutes = parseSettingInt(cache["rss_poll_interval_minutes"], 30)
 	if view.RSSPollIntervalMinutes < 5 {
 		view.RSSPollIntervalMinutes = 5
 	}
 	if view.RSSPollIntervalMinutes > 1440 {
 		view.RSSPollIntervalMinutes = 1440
 	}
-	view.DownloadNotifications = settingBool(a.store, "download_notifications", true)
-	view.RSSAutoDownload = settingBool(a.store, "rss_auto_download", false)
-	view.RSSAutoDownloadLibraryOnly = settingBool(a.store, "rss_auto_download_library_only", true)
-	view.CloseToTray = settingBool(a.store, "close_to_tray", false)
-	return view, nil
+	view.DownloadNotifications = parseSettingBool(cache["download_notifications"], true)
+	view.RSSAutoDownload = parseSettingBool(cache["rss_auto_download"], false)
+	view.RSSAutoDownloadLibraryOnly = parseSettingBool(cache["rss_auto_download_library_only"], true)
+	view.CloseToTray = parseSettingBool(cache["close_to_tray"], false)
+	return view
 }
 
 func (a *App) setSettings(pairs map[string]string) error {
@@ -312,6 +366,7 @@ func (a *App) setSettings(pairs map[string]string) error {
 			return err
 		}
 	}
+	a.invalidateSettingsCache()
 	return nil
 }
 
@@ -326,9 +381,8 @@ func formatBool(value bool) string {
 	return "false"
 }
 
-func settingInt64(store *storage.Store, key string) int64 {
-	raw, err := store.GetSetting(key)
-	if err != nil {
+func parseSettingInt64(raw string) int64 {
+	if raw == "" {
 		return 0
 	}
 	value, err := strconv.ParseInt(raw, 10, 64)
@@ -345,12 +399,10 @@ func normalizeRateLimit(value int64) int64 {
 	return value
 }
 
-func settingBool(store *storage.Store, key string, defaultValue bool) bool {
-	raw, err := store.GetSetting(key)
-	if err != nil {
-		return defaultValue
-	}
+func parseSettingBool(raw string, defaultValue bool) bool {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "":
+		return defaultValue
 	case "0", "false", "no", "off":
 		return false
 	case "1", "true", "yes", "on":
@@ -360,9 +412,8 @@ func settingBool(store *storage.Store, key string, defaultValue bool) bool {
 	}
 }
 
-func settingInt(store *storage.Store, key string, defaultValue int) int {
-	raw, err := store.GetSetting(key)
-	if err != nil {
+func parseSettingInt(raw string, defaultValue int) int {
+	if raw == "" {
 		return defaultValue
 	}
 	value, err := strconv.Atoi(raw)

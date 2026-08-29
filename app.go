@@ -54,6 +54,9 @@ type App struct {
 	playMu sync.Mutex
 	play   *playSession
 
+	settingsMu    sync.RWMutex
+	settingsCache map[string]string
+
 	loginMu     sync.Mutex
 	loginSrv    *http.Server
 	loginCancel context.CancelFunc
