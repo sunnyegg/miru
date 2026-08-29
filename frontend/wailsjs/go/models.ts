@@ -284,7 +284,6 @@ export namespace main {
 	    updateChannel: string;
 	    rssPollIntervalMinutes: number;
 	    discordRpcEnabled: boolean;
-	    discordAppId: string;
 	    downloadNotifications: boolean;
 	    rssAutoDownload: boolean;
 	    rssAutoDownloadLibraryOnly: boolean;
@@ -311,7 +310,6 @@ export namespace main {
 	        this.updateChannel = source["updateChannel"];
 	        this.rssPollIntervalMinutes = source["rssPollIntervalMinutes"];
 	        this.discordRpcEnabled = source["discordRpcEnabled"];
-	        this.discordAppId = source["discordAppId"];
 	        this.downloadNotifications = source["downloadNotifications"];
 	        this.rssAutoDownload = source["rssAutoDownload"];
 	        this.rssAutoDownloadLibraryOnly = source["rssAutoDownloadLibraryOnly"];

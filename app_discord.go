@@ -3,18 +3,14 @@ package main
 import (
 	"errors"
 	"path/filepath"
-	"strings"
 
 	"github.com/sunnyegg/miru/internal/mpv"
 	"github.com/sunnyegg/miru/internal/storage"
 )
 
-var errMissingDiscordAppID = errors.New("set DISCORD_APP_ID in .env or Settings")
+var errMissingDiscordAppID = errors.New("set DISCORD_APP_ID in .env")
 
-func (a *App) discordAppID(settings SettingsView) string {
-	if appID := strings.TrimSpace(settings.DiscordAppID); appID != "" {
-		return appID
-	}
+func discordAppIDFromEnv() string {
 	return envTrim("DISCORD_APP_ID")
 }
 
@@ -36,7 +32,7 @@ func (a *App) syncDiscordPresence(settings SettingsView, animeTitle string, epis
 		a.discord.Clear()
 		return
 	}
-	appID := a.discordAppID(settings)
+	appID := discordAppIDFromEnv()
 	if appID == "" {
 		a.logDebugErr("discord rpc", errMissingDiscordAppID)
 		return

@@ -41,6 +41,7 @@ jobs:
           cat > .env <<EOF
           ANILIST_CLIENT_ID=${{ secrets.ANILIST_CLIENT_ID }}
           ANILIST_CLIENT_SECRET=${{ secrets.ANILIST_CLIENT_SECRET }}
+          DISCORD_APP_ID=${{ secrets.DISCORD_APP_ID }}
           EOF
 
       - name: Stamp version
@@ -116,6 +117,7 @@ jobs:
           cat > .env <<EOF
           ANILIST_CLIENT_ID=${{ secrets.ANILIST_CLIENT_ID }}
           ANILIST_CLIENT_SECRET=${{ secrets.ANILIST_CLIENT_SECRET }}
+          DISCORD_APP_ID=${{ secrets.DISCORD_APP_ID }}
           EOF
 
       - name: Stamp version
