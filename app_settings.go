@@ -24,6 +24,15 @@ func (a *App) GetSettings() (SettingsView, error) {
 	return a.loadSettings()
 }
 
+func (a *App) SaveDesktopSettings(closeToTray bool) error {
+	if err := a.ready(); err != nil {
+		return err
+	}
+	return a.setSettings(map[string]string{
+		"close_to_tray": formatBool(closeToTray),
+	})
+}
+
 func (a *App) SavePlaybackSettings(mpvPath string, anime4KEnabled, discordRpcEnabled bool, discordAppID string) error {
 	if err := a.ready(); err != nil {
 		return err
@@ -298,6 +307,7 @@ func (a *App) loadSettings() (SettingsView, error) {
 	view.DownloadNotifications = settingBool(a.store, "download_notifications", true)
 	view.RSSAutoDownload = settingBool(a.store, "rss_auto_download", false)
 	view.RSSAutoDownloadLibraryOnly = settingBool(a.store, "rss_auto_download_library_only", true)
+	view.CloseToTray = settingBool(a.store, "close_to_tray", false)
 	return view, nil
 }
 

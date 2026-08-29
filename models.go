@@ -20,6 +20,7 @@ type SettingsView struct {
 	DownloadNotifications      bool    `json:"downloadNotifications"`
 	RSSAutoDownload            bool    `json:"rssAutoDownload"`
 	RSSAutoDownloadLibraryOnly bool    `json:"rssAutoDownloadLibraryOnly"`
+	CloseToTray                bool    `json:"closeToTray"`
 }
 
 type EpisodeView struct {

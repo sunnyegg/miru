@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/anacrolix/torrent v1.61.0
 	github.com/gen2brain/beeep v0.11.2
+	github.com/gogpu/systray v0.2.8
 	github.com/hugolgst/rich-go v0.0.0-20240715122152-74618cc1ace2
 	github.com/nssteinbrenner/anitogo v1.0.0
 	github.com/wailsapp/wails/v2 v2.15.0
@@ -52,6 +53,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
+	github.com/go-webgpu/goffi v0.6.3 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect

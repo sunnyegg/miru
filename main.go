@@ -28,6 +28,13 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 15, G: 15, B: 35, A: 1},
 		OnStartup:        app.startup,
 		OnShutdown:       app.shutdown,
+		OnBeforeClose:    app.beforeClose,
+		SingleInstanceLock: &options.SingleInstanceLock{
+			UniqueId: "com.sunnyegg.miru",
+			OnSecondInstanceLaunch: func(_ options.SecondInstanceData) {
+				app.showWindow()
+			},
+		},
 		Bind: []interface{}{
 			app,
 		},
