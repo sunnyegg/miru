@@ -42,6 +42,7 @@ There is no separate config file. Settings live in the SQLite `settings` table.
 - Config/DB: `$XDG_CONFIG_HOME/miru/app_data.db` (usually `~/.config/miru/app_data.db`)
 - AniList token fallback (no Keyring): `~/.config/miru/anilist.token`
 - Cache: `$XDG_CACHE_HOME/miru` (usually `~/.cache/miru`)
+- Log: `$XDG_DATA_HOME/miru/Miru.log` (rotates to `Miru.log.1` at 5MB on startup; usually `~/.local/share/miru/Miru.log`)
 - Default downloads: `~/Downloads/miru`
 
 `.env` in the repo root is build/dev only (AniList client ID/secret). It is not copied into `~/.config/miru/`.

@@ -32,6 +32,34 @@ func TestMigrateAndSettings(t *testing.T) {
 	}
 }
 
+func TestAllSettings(t *testing.T) {
+	store := openTestStore(t)
+	if err := store.SetSetting("a", "1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetSetting("b", "2"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.AllSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got["a"] != "1" || got["b"] != "2" {
+		t.Fatalf("AllSettings = %v", got)
+	}
+}
+
+func TestAllSettingsEmpty(t *testing.T) {
+	store := openTestStore(t)
+	got, err := store.AllSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("AllSettings on empty = %v", got)
+	}
+}
+
 func TestSyncEventsUnique(t *testing.T) {
 	store := openTestStore(t)
 	if err := store.RecordSync(21, 3); err != nil {

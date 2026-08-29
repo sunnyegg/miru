@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -110,6 +111,9 @@ func (p *Player) Play(mpvPath, mediaPath string, startSeconds float64, glslShade
 	}
 	for _, shaderPath := range glslShaders {
 		args = append(args, "--glsl-shader="+shaderPath)
+	}
+	if len(glslShaders) > 0 {
+		log.Printf("mpv: launching with %d Anime4K shader(s)", len(glslShaders))
 	}
 	args = append(args, mediaPath)
 
