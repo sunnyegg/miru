@@ -26,7 +26,12 @@ export function LibraryUnlistedSection({
 
   return (
     <section className="shrink-0">
-      <h3 className="mb-3 text-sm font-medium text-muted-foreground">Unlisted</h3>
+      <div className="mb-3 flex items-baseline gap-2">
+        <h3 className="text-sm font-medium text-foreground">Local library</h3>
+        {!loading && shows.length > 0 && (
+          <span className="text-xs text-muted-foreground">{shows.length}</span>
+        )}
+      </div>
       <LibraryPosterGrid
         loading={loading}
         loadError={loadError}

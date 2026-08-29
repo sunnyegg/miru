@@ -3,10 +3,11 @@ import {
   torrentSearchQuery,
   watchingPosterCaption,
   watchingPosterSubcaption,
-  type WatchingShowItem,
 } from '../lib/libraryWatching'
 import type {ShowGroup} from '../lib/groupEpisodes'
 import type {WatchingEntryView} from '../lib/types'
+import {LibraryPosterCard} from './LibraryPosterCard'
+import {LibraryPosterCarousel} from './LibraryPosterCarousel'
 import {Skeleton} from '@/components/ui/skeleton'
 
 type Props = {
@@ -14,67 +15,9 @@ type Props = {
   localShows: ShowGroup[]
   loading: boolean
   highlightedKey: string | null
+  excludeHeroKey?: string | null
   onOpenShow: (localShowKey: string) => void
   onFindTorrent: (query: string) => void
-}
-
-function WatchingPoster({
-  item,
-  active,
-  onOpenShow,
-  onFindTorrent,
-}: {
-  item: WatchingShowItem
-  active: boolean
-  onOpenShow: (localShowKey: string) => void
-  onFindTorrent: (query: string) => void
-}) {
-  const caption = watchingPosterCaption(item)
-  const subcaption = watchingPosterSubcaption(item)
-
-  function handleClick() {
-    if (item.hasLocalFiles && item.localShowKey) {
-      onOpenShow(item.localShowKey)
-      return
-    }
-    const episodeNumber = item.newEpisodeNumber ?? item.progress + 1
-    onFindTorrent(torrentSearchQuery(item.title, episodeNumber))
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      aria-pressed={active}
-      className={`group flex w-full cursor-pointer flex-col text-left transition-colors duration-200 motion-reduce:transition-none ${
-        active ? 'outline-2 outline-offset-2 outline-accent' : ''
-      }`}
-    >
-      {item.coverImage ? (
-        <img
-          src={item.coverImage}
-          alt=""
-          referrerPolicy="no-referrer"
-          className="aspect-square w-full bg-muted object-cover"
-        />
-      ) : (
-        <span className="flex aspect-square w-full items-end bg-muted p-2 text-xs text-muted-foreground">
-          {item.title}
-        </span>
-      )}
-      <span className="mt-2 truncate text-sm font-medium">{item.title}</span>
-      <span
-        className={`truncate text-xs ${caption.accent ? 'text-accent' : 'text-muted-foreground'}`}
-      >
-        {caption.text}
-      </span>
-      {subcaption && (
-        <span className="truncate text-xs text-muted-foreground opacity-0 transition-opacity duration-200 group-hover:opacity-100 motion-reduce:opacity-100 motion-reduce:transition-none">
-          {subcaption}
-        </span>
-      )}
-    </button>
-  )
 }
 
 export function LibraryWatchingSection({
@@ -82,50 +25,75 @@ export function LibraryWatchingSection({
   localShows,
   loading,
   highlightedKey,
+  excludeHeroKey = null,
   onOpenShow,
   onFindTorrent,
 }: Props) {
   if (!loading && entries.length === 0) {
     return (
-      <section className="mb-5 shrink-0">
-        <h3 className="mb-3 text-sm font-medium text-muted-foreground">Watching</h3>
-        <p className="border border-dashed border-border/40 p-8 text-sm text-muted-foreground">
+      <section className="mb-8 shrink-0">
+        <div className="mb-3 flex items-baseline gap-2">
+          <h3 className="text-sm font-medium text-foreground">Watching</h3>
+        </div>
+        <p className="text-sm text-muted-foreground">
           Nothing on your AniList Watching list yet. Add titles from the Watching tab to track them here.
         </p>
       </section>
     )
   }
 
-  const items = buildWatchingShowItems(entries, localShows)
+  const allItems = buildWatchingShowItems(entries, localShows)
+  const items = excludeHeroKey
+    ? allItems.filter((item) => item.key !== excludeHeroKey)
+    : allItems
 
   return (
-    <section className="mb-5 shrink-0">
-      <h3 className="mb-3 text-sm font-medium text-muted-foreground">Watching</h3>
+    <section className="mb-8 shrink-0">
+      <div className="mb-3 flex items-baseline gap-2">
+        <h3 className="text-sm font-medium text-foreground">Watching</h3>
+        {!loading && allItems.length > 0 && (
+          <span className="text-xs text-muted-foreground">{allItems.length}</span>
+        )}
+      </div>
       {loading ? (
-        <ul
-          className="grid grid-cols-[repeat(auto-fill,minmax(min(8.5rem,100%),1fr))] gap-3 p-1"
-          aria-busy="true"
-          aria-label="Loading Watching list"
-        >
+        <LibraryPosterCarousel ariaLabel="Loading Watching list" ariaBusy>
           {Array.from({length: 4}, (_, index) => (
-            <li key={index}>
-              <Skeleton className="aspect-square w-full animate-pulse" />
+            <li key={index} className="w-44 shrink-0 sm:w-48">
+              <Skeleton className="aspect-[2/3] w-full animate-pulse" />
             </li>
           ))}
-        </ul>
-      ) : (
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(8.5rem,100%),1fr))] gap-3 p-1">
-          {items.map((item) => (
-            <li key={item.key}>
-              <WatchingPoster
-                item={item}
-                active={item.key === highlightedKey}
-                onOpenShow={onOpenShow}
-                onFindTorrent={onFindTorrent}
-              />
-            </li>
-          ))}
-        </ul>
+        </LibraryPosterCarousel>
+      ) : items.length === 0 ? null : (
+        <LibraryPosterCarousel ariaLabel="Watching shelf">
+          {items.map((item) => {
+            const caption = watchingPosterCaption(item)
+            const subcaption = watchingPosterSubcaption(item)
+
+            function handleClick() {
+              if (item.hasLocalFiles && item.localShowKey) {
+                onOpenShow(item.localShowKey)
+                return
+              }
+              const episodeNumber = item.newEpisodeNumber ?? item.progress + 1
+              onFindTorrent(torrentSearchQuery(item.title, episodeNumber))
+            }
+
+            return (
+              <li key={item.key}>
+                <LibraryPosterCard
+                  title={item.title}
+                  coverImage={item.coverImage}
+                  caption={caption.text}
+                  subcaption={subcaption}
+                  accentCaption={caption.accent}
+                  active={item.key === highlightedKey}
+                  size="shelf"
+                  onClick={handleClick}
+                />
+              </li>
+            )
+          })}
+        </LibraryPosterCarousel>
       )}
     </section>
   )

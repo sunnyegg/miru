@@ -105,9 +105,15 @@ export type WatchingEntryView = {
   titleRomaji: string
   titleEnglish: string
   coverImage: string
+  bannerImage: string
   totalEpisodes: number
   mediaStatus: string
   nextAiringEpisode: number
+}
+
+export type StreamingEpisodeThumbnailView = {
+  episodeNumber: number
+  thumbnail: string
 }
 
 export type NyaaResultView = {

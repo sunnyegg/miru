@@ -1,6 +1,7 @@
 import {
   Calendar,
   ChevronLeft,
+  ChevronRight,
   Download,
   Eye,
   Folder,
@@ -44,6 +45,10 @@ export function IconSettings({className}: IconProps) {
 
 export function IconBack({className}: IconProps) {
   return <ChevronLeft className={className} {...stroke} />
+}
+
+export function IconChevronRight({className}: IconProps) {
+  return <ChevronRight className={className} {...stroke} />
 }
 
 export function IconPlay({className}: IconProps) {

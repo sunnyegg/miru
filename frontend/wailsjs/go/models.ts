@@ -312,6 +312,20 @@ export namespace main {
 	        this.rssAutoDownloadLibraryOnly = source["rssAutoDownloadLibraryOnly"];
 	    }
 	}
+	export class StreamingEpisodeThumbnailView {
+	    episodeNumber: number;
+	    thumbnail: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new StreamingEpisodeThumbnailView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.episodeNumber = source["episodeNumber"];
+	        this.thumbnail = source["thumbnail"];
+	    }
+	}
 	export class UpdateInfo {
 	    current: string;
 	    latest: string;
@@ -347,6 +361,7 @@ export namespace main {
 	    titleRomaji: string;
 	    titleEnglish: string;
 	    coverImage: string;
+	    bannerImage: string;
 	    totalEpisodes: number;
 	    mediaStatus: string;
 	    nextAiringEpisode: number;
@@ -369,6 +384,7 @@ export namespace main {
 	        this.titleRomaji = source["titleRomaji"];
 	        this.titleEnglish = source["titleEnglish"];
 	        this.coverImage = source["coverImage"];
+	        this.bannerImage = source["bannerImage"];
 	        this.totalEpisodes = source["totalEpisodes"];
 	        this.mediaStatus = source["mediaStatus"];
 	        this.nextAiringEpisode = source["nextAiringEpisode"];

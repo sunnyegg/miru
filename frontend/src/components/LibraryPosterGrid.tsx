@@ -1,4 +1,5 @@
 import type {ShowGroup} from '../lib/groupEpisodes'
+import {LibraryPosterCard} from './LibraryPosterCard'
 import {Alert} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 import {Skeleton} from '@/components/ui/skeleton'
@@ -49,10 +50,14 @@ export function LibraryPosterGrid({
 }: Props) {
   if (loading) {
     return (
-      <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(8.5rem,100%),1fr))] gap-3 p-1" aria-busy="true" aria-label="Loading library">
+      <ul
+        className="grid grid-cols-[repeat(auto-fill,minmax(min(12rem,100%),1fr))] gap-5 p-1"
+        aria-busy="true"
+        aria-label="Loading library"
+      >
         {Array.from({length: 8}, (_, index) => (
           <li key={index}>
-            <Skeleton className="aspect-square w-full animate-pulse" />
+            <Skeleton className="aspect-[2/3] w-full animate-pulse" />
           </li>
         ))}
       </ul>
@@ -78,7 +83,7 @@ export function LibraryPosterGrid({
       return null
     }
     return (
-      <div className="flex h-full min-h-48 items-end">
+      <div className="flex min-h-32 items-end">
         <p className="max-w-md text-sm text-muted-foreground">
           No local shows yet. Import a file, or finish a torrent download and it will land here.
         </p>
@@ -87,45 +92,20 @@ export function LibraryPosterGrid({
   }
 
   return (
-    <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(8.5rem,100%),1fr))] gap-3 p-1">
-      {shows.map((show) => {
-        const active = show.key === highlightedKey
-        const subcaption = posterSubcaption(show)
-        return (
-          <li key={show.key}>
-            <button
-              type="button"
-              onClick={() => onSelectShow(show.key)}
-              aria-pressed={active}
-              className={`group flex w-full cursor-pointer flex-col text-left transition-colors duration-200 motion-reduce:transition-none ${
-                active ? 'outline-2 outline-offset-2 outline-accent' : ''
-              }`}
-            >
-              {show.coverImage ? (
-                <img
-                  src={show.coverImage}
-                  alt=""
-                  referrerPolicy="no-referrer"
-                  className="aspect-square w-full bg-muted object-cover"
-                />
-              ) : (
-                <span className="flex aspect-square w-full items-end bg-muted p-2 text-xs text-muted-foreground">
-                  {show.title}
-                </span>
-              )}
-              <span className="mt-2 truncate text-sm font-medium">{show.title}</span>
-              <span className="truncate text-xs text-muted-foreground">
-                {posterCaption(show)}
-              </span>
-              {subcaption && (
-                <span className="truncate text-xs text-muted-foreground opacity-0 transition-opacity duration-200 group-hover:opacity-100 motion-reduce:opacity-100 motion-reduce:transition-none">
-                  {subcaption}
-                </span>
-              )}
-            </button>
-          </li>
-        )
-      })}
+    <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(12rem,100%),1fr))] gap-5 p-1">
+      {shows.map((show) => (
+        <li key={show.key}>
+          <LibraryPosterCard
+            title={show.title}
+            coverImage={show.coverImage}
+            caption={posterCaption(show)}
+            subcaption={posterSubcaption(show)}
+            active={show.key === highlightedKey}
+            size="grid"
+            onClick={() => onSelectShow(show.key)}
+          />
+        </li>
+      ))}
     </ul>
   )
 }

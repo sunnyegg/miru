@@ -105,9 +105,15 @@ type WatchingEntryView struct {
 	TitleRomaji       string        `json:"titleRomaji"`
 	TitleEnglish      string        `json:"titleEnglish"`
 	CoverImage        string        `json:"coverImage"`
+	BannerImage       string        `json:"bannerImage"`
 	TotalEpisodes     int           `json:"totalEpisodes"`
 	MediaStatus       string        `json:"mediaStatus"`
 	NextAiringEpisode int           `json:"nextAiringEpisode"`
+}
+
+type StreamingEpisodeThumbnailView struct {
+	EpisodeNumber int    `json:"episodeNumber"`
+	Thumbnail     string `json:"thumbnail"`
 }
 
 type NyaaResultView struct {

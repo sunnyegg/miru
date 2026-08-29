@@ -22,6 +22,7 @@ export default function App() {
   const [libraryKey, setLibraryKey] = useState(0)
   const [authKey, setAuthKey] = useState(0)
   const [playing, setPlaying] = useState<PlaybackEvent | null>(null)
+  const [lastPlayback, setLastPlayback] = useState<PlaybackEvent | null>(null)
   const [searchPrefill, setSearchPrefill] = useState('')
   const [bootDone, setBootDone] = useState(false)
   const [appVersion, setAppVersion] = useState('')
@@ -134,8 +135,13 @@ export default function App() {
       })
     })
     EventsOn('library:changed', () => setLibraryKey((n) => n + 1))
-    EventsOn('mpv:progress', (payload: PlaybackEvent) => setPlaying(payload))
-    EventsOn('mpv:ended', () => setPlaying(null))
+    EventsOn('mpv:progress', (payload: PlaybackEvent) => {
+      setPlaying(payload)
+      setLastPlayback(payload)
+    })
+    EventsOn('mpv:ended', () => {
+      setPlaying(null)
+    })
     EventsOn('sync:result', (payload: SyncEvent) => {
       showNotice(payload.message, !payload.ok)
       if (payload.ok) {
@@ -202,6 +208,7 @@ export default function App() {
               refreshKey={libraryKey}
               authKey={authKey}
               playing={playing}
+              lastPlayback={lastPlayback}
               onFindTorrent={openSearchForTorrent}
               onReady={() => setBootDone(true)}
             />

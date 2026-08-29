@@ -322,6 +322,7 @@ func toWatchingEntryViews(entries []anilist.CurrentEntry) []WatchingEntryView {
 			TitleRomaji:       entry.TitleRomaji,
 			TitleEnglish:      entry.TitleEnglish,
 			CoverImage:        entry.CoverImage,
+			BannerImage:       entry.BannerImage,
 			TotalEpisodes:     entry.TotalEpisodes,
 			MediaStatus:       entry.MediaStatus,
 			NextAiringEpisode: entry.NextAiringEpisode,

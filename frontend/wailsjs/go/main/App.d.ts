@@ -47,6 +47,8 @@ export function ListRSSFeedItems(arg1:boolean):Promise<Array<main.RSSFeedItemVie
 
 export function ListRSSFeeds():Promise<Array<main.RSSFeedView>>;
 
+export function ListStreamingEpisodeThumbnails(arg1:number):Promise<Array<main.StreamingEpisodeThumbnailView>>;
+
 export function LogoutAnilist():Promise<void>;
 
 export function MarkAllRSSFeedItemsSeen():Promise<void>;
