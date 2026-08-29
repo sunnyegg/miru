@@ -141,10 +141,10 @@ func (c *Client) GetAnime(id int) (Anime, error) {
 	  Media(id: $id, type: ANIME) {
 	    id
 	    title { romaji english }
-	    coverImage { large }
+	    coverImage { extraLarge large }
 	    episodes
 	    status
-	    description(asHtml: false)
+	    description(asHtml: true)
 	  }
 	}`
 	var out struct {
@@ -412,7 +412,8 @@ type gqlMedia struct {
 		English string `json:"english"`
 	} `json:"title"`
 	CoverImage struct {
-		Large string `json:"large"`
+		ExtraLarge string `json:"extraLarge"`
+		Large      string `json:"large"`
 	} `json:"coverImage"`
 	Episodes       int    `json:"episodes"`
 	Status         string `json:"status"`
@@ -550,7 +551,7 @@ func (m gqlMedia) toAnime() Anime {
 		ID:            m.ID,
 		TitleRomaji:   m.Title.Romaji,
 		TitleEnglish:  m.Title.English,
-		CoverImage:    m.CoverImage.Large,
+		CoverImage:    bestCoverImage(m.CoverImage.ExtraLarge, m.CoverImage.Large),
 		TotalEpisodes: m.Episodes,
 		Status:        m.Status,
 		Synopsis:      m.Description,
