@@ -150,3 +150,9 @@ type UpdateInfo struct {
 	ReleaseURL string `json:"releaseUrl"`
 	AssetName  string `json:"assetName"`
 }
+
+type UpdateProgress struct {
+	Downloaded int64  `json:"downloaded"`
+	Total      int64  `json:"total"`
+	Phase      string `json:"phase"`
+}

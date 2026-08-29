@@ -27,6 +27,7 @@ import type {
   AnilistStatus as Status,
   SettingsView as SettingsForm,
   UpdateInfo,
+  UpdateProgress,
 } from '../lib/types'
 import {useSettingsStore, type SettingsTab} from '../stores/settingsStore'
 import {cn} from '@/lib/utils'
@@ -59,6 +60,7 @@ type Props = {
   notice: (msg: string, isError?: boolean) => void
   appVersion: string
   update: UpdateInfo | null
+  updateProgress: UpdateProgress | null
   checkingUpdate: boolean
   applyingUpdate: boolean
   onCheckUpdate: () => void
@@ -87,6 +89,7 @@ export function SettingsView({
   notice,
   appVersion,
   update,
+  updateProgress,
   checkingUpdate,
   applyingUpdate,
   onCheckUpdate,
@@ -413,6 +416,7 @@ export function SettingsView({
                 appVersion={appVersion}
                 form={form}
                 update={update}
+                updateProgress={updateProgress}
                 saving={saving === 'updates'}
                 checkingUpdate={checkingUpdate}
                 applyingUpdate={applyingUpdate}

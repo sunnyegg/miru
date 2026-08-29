@@ -61,6 +61,14 @@ func (a *App) ApplyUpdate() error {
 		return errors.New("already up to date")
 	}
 
+	progress := func(downloaded, total int64) {
+		runtime.EventsEmit(a.ctx, "update:progress", UpdateProgress{
+			Downloaded: downloaded,
+			Total:      total,
+			Phase:      "downloading",
+		})
+	}
+
 	exe, err := os.Executable()
 	if err != nil {
 		return err
@@ -68,10 +76,16 @@ func (a *App) ApplyUpdate() error {
 	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
 		exe = resolved
 	}
-	installed, err := update.Apply(a.ctx, &downloadClient, release.AssetURL, release.AssetName, exe)
+	installed, err := update.ApplyWithProgress(a.ctx, &downloadClient, release.AssetURL, release.AssetName, exe, progress)
 	if err != nil {
 		return err
 	}
+
+	runtime.EventsEmit(a.ctx, "update:progress", UpdateProgress{
+		Downloaded: 0,
+		Total:      0,
+		Phase:      "installing",
+	})
 
 	a.forceQuit.Store(true)
 	a.shutdown(a.ctx)
