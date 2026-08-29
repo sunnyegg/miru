@@ -76,6 +76,7 @@ type CurrentEntry struct {
 	TitleRomaji       string    `json:"titleRomaji"`
 	TitleEnglish      string    `json:"titleEnglish"`
 	CoverImage        string    `json:"coverImage"`
+	BannerImage       string    `json:"bannerImage"`
 	TotalEpisodes     int       `json:"totalEpisodes"`
 	MediaStatus       string    `json:"mediaStatus"`
 	NextAiringEpisode int       `json:"nextAiringEpisode"`

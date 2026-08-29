@@ -2,6 +2,8 @@ package main
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
 	"path/filepath"
 
 	"github.com/sunnyegg/miru/internal/anilist"
@@ -25,6 +27,34 @@ func (a *App) ListEpisodes() ([]EpisodeView, error) {
 	}
 	a.applyAnilistProgress(out)
 	return out, nil
+}
+
+func (a *App) ListStreamingEpisodeThumbnails(mediaID int) ([]StreamingEpisodeThumbnailView, error) {
+	if err := a.ready(); err != nil {
+		return nil, err
+	}
+	if mediaID <= 0 {
+		return nil, errors.New("invalid anime id")
+	}
+	return loadCachedJSON(a, fmt.Sprintf("streaming:%d", mediaID), apiCacheTTL, func() ([]StreamingEpisodeThumbnailView, error) {
+		token, _ := a.tokens.Get()
+		client, err := a.newAnilist(token)
+		if err != nil {
+			return nil, err
+		}
+		thumbnails, err := client.StreamingEpisodeThumbnails(mediaID)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]StreamingEpisodeThumbnailView, 0, len(thumbnails))
+		for _, thumbnail := range thumbnails {
+			out = append(out, StreamingEpisodeThumbnailView{
+				EpisodeNumber: thumbnail.EpisodeNumber,
+				Thumbnail:     thumbnail.Thumbnail,
+			})
+		}
+		return out, nil
+	})
 }
 
 func (a *App) applyAnilistProgress(episodes []EpisodeView) {

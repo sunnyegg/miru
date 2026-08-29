@@ -1,16 +1,24 @@
 import {episodeSlots, type ShowGroup} from '../lib/groupEpisodes'
 import {torrentSearchQuery} from '../lib/libraryWatching'
 import type {PlaybackEvent} from '../lib/types'
-import {IconPlay} from './Icons'
 import {Button} from '@/components/ui/button'
+import {cn} from '@/lib/utils'
 
 type Props = {
   show: ShowGroup
   playing: PlaybackEvent | null
+  lastPlayback: PlaybackEvent | null
   busyId: number | null
+  episodeThumbnails: Record<number, string>
   onPlay: (episodeId: number) => void
   onFindTorrent?: (query: string) => void
 }
+
+const rowClassName = 'flex min-h-[4.5rem] items-center gap-3 bg-card/60 px-4 py-1'
+const episodeActionButtonClassName = 'w-32 shrink-0 justify-center'
+const episodeNumberClassName = 'w-10 shrink-0 tabular-nums text-sm'
+const titleClassName = 'block truncate text-base font-medium'
+const subtitleClassName = 'block truncate text-sm'
 
 function slotKey(slot: ReturnType<typeof episodeSlots>[number]): string {
   if (slot.file) {
@@ -26,7 +34,76 @@ function episodeLabel(number: number, displayTitle?: string): string {
   return displayTitle || 'Episode'
 }
 
-export function LibraryEpisodeList({show, playing, busyId, onPlay, onFindTorrent}: Props) {
+function episodeThumbnailUrl(
+  episodeNumber: number,
+  episodeThumbnails: Record<number, string>,
+  showCover: string,
+): string {
+  if (episodeNumber > 0 && episodeThumbnails[episodeNumber]) {
+    return episodeThumbnails[episodeNumber]
+  }
+  return showCover
+}
+
+function EpisodeThumbnail({
+  imageUrl,
+  dimmed = false,
+}: {
+  imageUrl: string
+  dimmed?: boolean
+}) {
+  if (!imageUrl) {
+    return (
+      <span
+        className="aspect-video h-16 w-28 shrink-0 bg-muted"
+        aria-hidden="true"
+      />
+    )
+  }
+
+  return (
+    <img
+      src={imageUrl}
+      alt=""
+      referrerPolicy="no-referrer"
+      className={cn(
+        'aspect-video h-16 w-28 shrink-0 bg-muted object-cover',
+        dimmed && 'opacity-50',
+      )}
+      aria-hidden="true"
+    />
+  )
+}
+
+function episodePlaybackState(
+  episodeId: number,
+  playing: PlaybackEvent | null,
+  lastPlayback: PlaybackEvent | null,
+): {highlighted: boolean; isPlaying: boolean; percent: number} {
+  if (playing?.episodeId === episodeId) {
+    const percent = Number.isFinite(playing.percent)
+      ? Math.min(100, Math.max(0, playing.percent))
+      : 0
+    return {highlighted: true, isPlaying: true, percent}
+  }
+  if (lastPlayback?.episodeId === episodeId) {
+    const percent = Number.isFinite(lastPlayback.percent)
+      ? Math.min(100, Math.max(0, lastPlayback.percent))
+      : 0
+    return {highlighted: true, isPlaying: false, percent}
+  }
+  return {highlighted: false, isPlaying: false, percent: 0}
+}
+
+export function LibraryEpisodeList({
+  show,
+  playing,
+  lastPlayback,
+  busyId,
+  episodeThumbnails,
+  onPlay,
+  onFindTorrent,
+}: Props) {
   const slots = episodeSlots(show)
 
   function findTorrentForEpisode(episodeNumber: number) {
@@ -37,7 +114,7 @@ export function LibraryEpisodeList({show, playing, busyId, onPlay, onFindTorrent
   }
 
   return (
-    <ul className="flex flex-col gap-1" aria-label={`Episodes for ${show.title}`}>
+    <ul className="flex flex-col gap-2.5" aria-label={`Episodes for ${show.title}`}>
       {slots.map((slot) => {
         const label = episodeLabel(slot.number, slot.file?.displayTitle)
         const subtitle = slot.kind === 'upcoming'
@@ -45,20 +122,22 @@ export function LibraryEpisodeList({show, playing, busyId, onPlay, onFindTorrent
           : slot.kind === 'missing'
             ? 'No file'
             : slot.file?.filePath.split(/[\\/]/).pop() || slot.file?.displayTitle || ''
+        const thumbnailUrl = episodeThumbnailUrl(slot.number, episodeThumbnails, show.coverImage)
 
         if (slot.kind === 'upcoming') {
           return (
             <li key={slotKey(slot)}>
               <div
                 aria-label={`${label}, ${subtitle}`}
-                className="flex min-h-11 items-center gap-3 bg-card px-3 text-muted-foreground transition-colors duration-200 motion-reduce:transition-none"
+                className={cn(rowClassName, 'text-muted-foreground')}
               >
-                <span className="w-8 shrink-0 tabular-nums text-xs">
+                <EpisodeThumbnail imageUrl={thumbnailUrl} dimmed />
+                <span className={episodeNumberClassName}>
                   {slot.number > 0 ? slot.number : '—'}
                 </span>
-                <span className="min-w-0 flex-1 py-2">
-                  <span className="block truncate text-sm">{label}</span>
-                  <span className="block truncate text-xs">{subtitle}</span>
+                <span className="min-w-0 flex-1 py-2.5">
+                  <span className={titleClassName}>{label}</span>
+                  <span className={subtitleClassName}>{subtitle}</span>
                 </span>
               </div>
             </li>
@@ -68,17 +147,19 @@ export function LibraryEpisodeList({show, playing, busyId, onPlay, onFindTorrent
         if (slot.kind === 'missing' && onFindTorrent && slot.number > 0) {
           return (
             <li key={slotKey(slot)}>
-              <div className="flex min-h-11 items-center gap-3 bg-card px-3 transition-colors duration-200 motion-reduce:transition-none">
-                <span className="w-8 shrink-0 tabular-nums text-xs text-muted-foreground">
+              <div className={rowClassName}>
+                <EpisodeThumbnail imageUrl={thumbnailUrl} dimmed />
+                <span className={cn(episodeNumberClassName, 'text-muted-foreground')}>
                   {slot.number}
                 </span>
-                <span className="min-w-0 flex-1 py-2">
-                  <span className="block truncate text-sm">{label}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>
+                <span className="min-w-0 flex-1 py-2.5">
+                  <span className={titleClassName}>{label}</span>
+                  <span className={cn(subtitleClassName, 'text-muted-foreground')}>{subtitle}</span>
                 </span>
                 <Button
                   type="button"
                   variant="secondary"
+                  className={episodeActionButtonClassName}
                   onClick={() => findTorrentForEpisode(slot.number)}
                 >
                   Find torrent
@@ -93,14 +174,15 @@ export function LibraryEpisodeList({show, playing, busyId, onPlay, onFindTorrent
             <li key={slotKey(slot)}>
               <div
                 aria-label={`${label}, ${subtitle}`}
-                className="flex min-h-11 items-center gap-3 bg-card px-3 text-muted-foreground transition-colors duration-200 motion-reduce:transition-none"
+                className={cn(rowClassName, 'text-muted-foreground')}
               >
-                <span className="w-8 shrink-0 tabular-nums text-xs">
+                <EpisodeThumbnail imageUrl={thumbnailUrl} dimmed />
+                <span className={episodeNumberClassName}>
                   {slot.number > 0 ? slot.number : '—'}
                 </span>
-                <span className="min-w-0 flex-1 py-2">
-                  <span className="block truncate text-sm">{label}</span>
-                  <span className="block truncate text-xs">{subtitle}</span>
+                <span className="min-w-0 flex-1 py-2.5">
+                  <span className={titleClassName}>{label}</span>
+                  <span className={subtitleClassName}>{subtitle}</span>
                 </span>
               </div>
             </li>
@@ -108,55 +190,56 @@ export function LibraryEpisodeList({show, playing, busyId, onPlay, onFindTorrent
         }
 
         const episode = slot.file
-        const isPlaying = playing?.episodeId === episode.id
         const isBusy = busyId === episode.id
-        const progress = isPlaying && Number.isFinite(playing?.percent)
-          ? Math.min(100, Math.max(0, playing.percent))
-          : 0
+        const playback = episodePlaybackState(episode.id, playing, lastPlayback)
 
         return (
           <li key={slotKey(slot)}>
-            <button
-              type="button"
-              onClick={() => onPlay(episode.id)}
-              disabled={isBusy}
-              aria-label={isBusy ? `Starting ${label}` : `Play ${label}`}
-              className={`relative flex min-h-11 w-full cursor-pointer items-center gap-3 overflow-hidden border-l-2 bg-card px-3 text-left transition-colors duration-200 hover:bg-muted/40 motion-reduce:transition-none ${
-                isPlaying ? 'border-l-accent' : 'border-l-transparent'
-              } ${isBusy ? 'cursor-not-allowed opacity-50' : ''}`}
+            <div
+              className={cn(
+                'relative overflow-hidden border-l-2',
+                rowClassName,
+                playback.highlighted ? 'border-l-accent' : 'border-l-transparent',
+                isBusy && 'opacity-50',
+              )}
             >
-              {isPlaying && (
+              {playback.highlighted && playback.percent > 0 && (
                 <div
                   className="pointer-events-none absolute inset-x-0 bottom-0 h-2 bg-muted"
                   role="progressbar"
                   aria-label={`Playback progress for ${label}`}
                   aria-valuemin={0}
                   aria-valuemax={100}
-                  aria-valuenow={Math.round(progress)}
-                  aria-valuetext={`${Math.round(progress)}% played`}
+                  aria-valuenow={Math.round(playback.percent)}
+                  aria-valuetext={`${Math.round(playback.percent)}% played`}
                 >
                   <div
-                    className="h-full bg-accent transition-[width] duration-200 motion-reduce:transition-none"
-                    style={{width: `${progress}%`}}
+                    className={cn(
+                      'h-full bg-accent',
+                      playback.isPlaying && 'transition-[width] duration-200 motion-reduce:transition-none',
+                    )}
+                    style={{width: `${playback.percent}%`}}
                   />
                 </div>
               )}
-              <span className="w-8 shrink-0 tabular-nums text-xs text-muted-foreground">
+              <EpisodeThumbnail imageUrl={thumbnailUrl} />
+              <span className={cn(episodeNumberClassName, 'text-muted-foreground')}>
                 {slot.number > 0 ? slot.number : '—'}
               </span>
-              <span className="min-w-0 flex-1 pb-2 pt-2">
-                <span className="block truncate text-sm font-medium">{label}</span>
-                <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>
+              <span className="min-w-0 flex-1 py-2.5">
+                <span className={titleClassName}>{label}</span>
+                <span className={cn(subtitleClassName, 'text-muted-foreground')}>{subtitle}</span>
               </span>
-              {isPlaying && (
-                <span className="shrink-0 text-accent" style={{width: 16, height: 16}}>
-                  <IconPlay className="size-full" />
-                </span>
-              )}
-              {isBusy && (
-                <span className="shrink-0 text-xs text-muted-foreground">Starting…</span>
-              )}
-            </button>
+              <Button
+                type="button"
+                variant="default"
+                className={episodeActionButtonClassName}
+                disabled={isBusy}
+                onClick={() => onPlay(episode.id)}
+              >
+                {isBusy ? 'Starting…' : 'Play'}
+              </Button>
+            </div>
           </li>
         )
       })}

@@ -66,7 +66,8 @@ func (c *Client) ListMediaList(status string) ([]CurrentEntry, error) {
 	      media {
 	        id
 	        title { romaji english }
-	        coverImage { large }
+	        coverImage { extraLarge large }
+	        bannerImage
 	        episodes
 	        status
 	        nextAiringEpisode { episode }
@@ -397,6 +398,13 @@ func fuzzyDateVariable(date FuzzyDate) any {
 	}
 }
 
+func bestCoverImage(extraLarge, large string) string {
+	if extraLarge != "" {
+		return extraLarge
+	}
+	return large
+}
+
 type gqlMedia struct {
 	ID    int `json:"id"`
 	Title struct {
@@ -484,8 +492,10 @@ type gqlCurrentEntry struct {
 			English string `json:"english"`
 		} `json:"title"`
 		CoverImage struct {
-			Large string `json:"large"`
+			ExtraLarge string `json:"extraLarge"`
+			Large      string `json:"large"`
 		} `json:"coverImage"`
+		BannerImage       string `json:"bannerImage"`
 		Episodes          int    `json:"episodes"`
 		Status            string `json:"status"`
 		NextAiringEpisode *struct {
@@ -511,7 +521,8 @@ func (e gqlCurrentEntry) toCurrentEntry() CurrentEntry {
 		CompletedAt:       FuzzyDate{Year: e.CompletedAt.Year, Month: e.CompletedAt.Month, Day: e.CompletedAt.Day},
 		TitleRomaji:       e.Media.Title.Romaji,
 		TitleEnglish:      e.Media.Title.English,
-		CoverImage:        e.Media.CoverImage.Large,
+		CoverImage:        bestCoverImage(e.Media.CoverImage.ExtraLarge, e.Media.CoverImage.Large),
+		BannerImage:       e.Media.BannerImage,
 		TotalEpisodes:     e.Media.Episodes,
 		MediaStatus:       e.Media.Status,
 		NextAiringEpisode: nextAiringEpisode,

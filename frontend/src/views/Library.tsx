@@ -4,6 +4,7 @@ import {
   ImportLocalFile,
   ListAnimeList,
   ListEpisodes,
+  ListStreamingEpisodeThumbnails,
   PlayEpisode,
   SearchAnime,
   SetAnimeListStatus,
@@ -11,9 +12,11 @@ import {
 import {errorMessage} from '../lib/format'
 import {groupEpisodes, visibleLibraryEpisodes} from '../lib/groupEpisodes'
 import type {AnimeView, EpisodeView, PlaybackEvent, WatchingEntryView} from '../lib/types'
-import {LibraryAddToWatchingBanner} from '../components/LibraryAddToWatchingBanner'
+import {pickContinueHeroKey} from '../lib/libraryWatching'
+import {LibraryContinueHero} from '../components/LibraryContinueHero'
 import {LibraryMatchSheet, type LibraryMatchPicker} from '../components/LibraryMatchSheet'
 import {LibraryEpisodeList} from '../components/LibraryEpisodeList'
+import {LibraryShowDetailHero} from '../components/LibraryShowDetailHero'
 import {LibraryUnlistedSection} from '../components/LibraryUnlistedSection'
 import {LibraryWatchingSection} from '../components/LibraryWatchingSection'
 import {IconBack} from '../components/Icons'
@@ -24,11 +27,12 @@ type Props = {
   refreshKey: number
   authKey: number
   playing: PlaybackEvent | null
+  lastPlayback: PlaybackEvent | null
   onFindTorrent: (query: string) => void
   onReady?: () => void
 }
 
-export function LibraryView({notice, refreshKey, authKey, playing, onFindTorrent, onReady}: Props) {
+export function LibraryView({notice, refreshKey, authKey, playing, lastPlayback, onFindTorrent, onReady}: Props) {
   const [episodes, setEpisodes] = useState<EpisodeView[]>([])
   const [watchingEntries, setWatchingEntries] = useState<WatchingEntryView[]>([])
   const [loading, setLoading] = useState(true)
@@ -41,6 +45,7 @@ export function LibraryView({notice, refreshKey, authKey, playing, onFindTorrent
   const [addingToWatching, setAddingToWatching] = useState(false)
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [picker, setPicker] = useState<LibraryMatchPicker | null>(null)
+  const [episodeThumbnails, setEpisodeThumbnails] = useState<Record<number, string>>({})
   const skippedMatchIds = useRef(new Set<number>())
   const readySignaled = useRef(false)
 
@@ -65,6 +70,34 @@ export function LibraryView({notice, refreshKey, authKey, playing, onFindTorrent
     const owner = shows.find((show) => show.episodes.some((episode) => episode.id === playing.episodeId))
     return owner?.key ?? null
   }, [shows, playing])
+
+  const continueHeroKey = useMemo(
+    () => pickContinueHeroKey(
+      watchingEntries,
+      shows,
+      playingShowKey,
+      lastPlayback?.episodeId ?? null,
+    ),
+    [watchingEntries, shows, playingShowKey, lastPlayback?.episodeId],
+  )
+
+  const selectedAnilistId = useMemo(() => {
+    if (!selectedShow?.bound) {
+      return 0
+    }
+    const match = selectedShow.key.match(/^anilist:(\d+)$/)
+    if (!match) {
+      return 0
+    }
+    return Number(match[1])
+  }, [selectedShow])
+
+  const selectedWatchingEntry = useMemo(() => {
+    if (selectedAnilistId <= 0) {
+      return null
+    }
+    return watchingEntries.find((entry) => entry.mediaId === selectedAnilistId) ?? null
+  }, [watchingEntries, selectedAnilistId])
 
   async function reloadWatching() {
     setWatchingLoading(true)
@@ -117,6 +150,38 @@ export function LibraryView({notice, refreshKey, authKey, playing, onFindTorrent
       setSelectedKey(null)
     }
   }, [shows, selectedKey])
+
+  useEffect(() => {
+    if (selectedAnilistId <= 0) {
+      setEpisodeThumbnails({})
+      return
+    }
+
+    let cancelled = false
+    void (async () => {
+      try {
+        const rows = await ListStreamingEpisodeThumbnails(selectedAnilistId)
+        if (cancelled) {
+          return
+        }
+        const mapped: Record<number, string> = {}
+        for (const row of rows ?? []) {
+          if (row.thumbnail) {
+            mapped[row.episodeNumber] = row.thumbnail
+          }
+        }
+        setEpisodeThumbnails(mapped)
+      } catch {
+        if (!cancelled) {
+          setEpisodeThumbnails({})
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedAnilistId])
 
   async function openMatcher(episode: EpisodeView, candidates: AnimeView[] = []) {
     const query = (episode.displayTitle || episode.animeTitle).replace(/\s+—\s+Episode\s+\d+\s*$/i, '').trim()
@@ -298,19 +363,23 @@ export function LibraryView({notice, refreshKey, authKey, playing, onFindTorrent
 
   return (
     <section className="flex h-full min-h-0 flex-col">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 px-5 pt-5 pb-3">
+      <header className="flex shrink-0 flex-wrap items-end justify-between gap-3 px-5 pt-5 pb-3">
         {selectedShow ? (
-          <div className="flex min-w-0 items-center gap-2">
-            <Button type="button" variant="ghost" onClick={backToGrid} style={{gap: 8, paddingInline: 12}}>
-              <span className="shrink-0" style={{width: 16, height: 16}}>
-                <IconBack className="size-full" />
-              </span>
-              Back
-            </Button>
-            <h2 className="min-w-0 truncate text-2xl font-semibold tracking-tight">{selectedShow.title}</h2>
-          </div>
+          <Button type="button" variant="ghost" onClick={backToGrid} style={{gap: 8, paddingInline: 12}}>
+            <span className="shrink-0" style={{width: 16, height: 16}}>
+              <IconBack className="size-full" />
+            </span>
+            Back
+          </Button>
         ) : (
-          <h2 className="text-2xl font-semibold tracking-tight">Library</h2>
+          <div className="min-w-0">
+            <h2 className="text-2xl font-semibold tracking-tight">Library</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {watchingLoading && loading
+                ? 'Loading…'
+                : `${watchingEntries.length} watching · ${gridShows.length} local`}
+            </p>
+          </div>
         )}
         <Button type="button" variant="secondary" onClick={() => void onImport()} disabled={importing}>
           {importing ? 'Importing…' : 'Import file'}
@@ -332,35 +401,44 @@ export function LibraryView({notice, refreshKey, authKey, playing, onFindTorrent
       <div className="min-h-0 flex-1 overflow-auto px-5 pt-2 pb-4">
         {selectedShow ? (
           <>
-            {selectedShowIsUnlisted && (
-              <LibraryAddToWatchingBanner
-                show={selectedShow}
-                saving={addingToWatching}
-                onAddToWatching={() => void addSelectedToWatching()}
-                onMatchAnilist={openMatcherForSelectedShow}
-              />
-            )}
+            <LibraryShowDetailHero
+              show={selectedShow}
+              bannerImage={selectedWatchingEntry?.bannerImage ?? ''}
+              showAddToWatching={selectedShowIsUnlisted}
+              saving={addingToWatching}
+              onAddToWatching={() => void addSelectedToWatching()}
+              onMatchAnilist={openMatcherForSelectedShow}
+            />
             <LibraryEpisodeList
               show={selectedShow}
               playing={playing}
+              lastPlayback={lastPlayback}
               busyId={busyId}
+              episodeThumbnails={episodeThumbnails}
               onPlay={(episodeId) => void onPlay(episodeId)}
               onFindTorrent={onFindTorrent}
             />
           </>
         ) : (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col">
+            <LibraryContinueHero
+              entries={watchingEntries}
+              localShows={shows}
+              playing={playing}
+              lastPlayback={lastPlayback}
+              playingShowKey={playingShowKey}
+              onOpenShow={openWatchingShow}
+              onFindTorrent={onFindTorrent}
+            />
             <LibraryWatchingSection
               entries={watchingEntries}
               localShows={shows}
               loading={watchingLoading}
               highlightedKey={playingShowKey}
+              excludeHeroKey={continueHeroKey}
               onOpenShow={openWatchingShow}
               onFindTorrent={onFindTorrent}
             />
-            {watchingEntries.length > 0 && (
-              <div className="h-px w-full bg-border/40" aria-hidden="true" />
-            )}
             <LibraryUnlistedSection
               loading={loading}
               loadError={loadError}

@@ -6,6 +6,7 @@ export type WatchingShowItem = {
   key: string
   title: string
   coverImage: string
+  bannerImage: string
   progress: number
   totalEpisodes: number
   mediaStatus: string
@@ -83,6 +84,7 @@ export function buildWatchingShowItems(
       key: `anilist:${entry.mediaId}`,
       title: showTitle(entry),
       coverImage: entry.coverImage || localShow?.coverImage || '',
+      bannerImage: entry.bannerImage,
       progress: entry.progress,
       totalEpisodes: entry.totalEpisodes,
       mediaStatus: entry.mediaStatus,
@@ -140,4 +142,42 @@ export function watchingPosterSubcaption(item: WatchingShowItem): string | null 
 export function torrentSearchQuery(title: string, episodeNumber: number): string {
   const paddedEpisode = String(episodeNumber).padStart(2, '0')
   return `${title} ${paddedEpisode}`
+}
+
+export function showKeyForEpisodeId(localShows: ShowGroup[], episodeId: number): string | null {
+  if (episodeId <= 0) {
+    return null
+  }
+  for (const show of localShows) {
+    if (show.episodes.some((episode) => episode.id === episodeId)) {
+      return show.key
+    }
+  }
+  return null
+}
+
+export function pickContinueHeroKey(
+  entries: WatchingEntryView[],
+  localShows: ShowGroup[],
+  playingShowKey: string | null,
+  lastPlaybackEpisodeId: number | null = null,
+): string | null {
+  if (playingShowKey) {
+    return playingShowKey
+  }
+  const lastWatchedShowKey = showKeyForEpisodeId(localShows, lastPlaybackEpisodeId ?? 0)
+  if (lastWatchedShowKey) {
+    return lastWatchedShowKey
+  }
+  const items = buildWatchingShowItems(entries, localShows)
+  const candidate = items.find((item) => {
+    if (!item.hasLocalFiles) {
+      return false
+    }
+    if (item.totalEpisodes > 0 && item.progress >= item.totalEpisodes) {
+      return false
+    }
+    return true
+  })
+  return candidate?.key ?? null
 }

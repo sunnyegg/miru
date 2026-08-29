@@ -90,6 +90,10 @@ export function ListRSSFeeds() {
   return window['go']['main']['App']['ListRSSFeeds']();
 }
 
+export function ListStreamingEpisodeThumbnails(arg1) {
+  return window['go']['main']['App']['ListStreamingEpisodeThumbnails'](arg1);
+}
+
 export function LogoutAnilist() {
   return window['go']['main']['App']['LogoutAnilist']();
 }
