@@ -13,6 +13,7 @@ import {CalendarView} from './views/Calendar'
 import {SettingsView} from './views/Settings'
 import {Alert} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
+import {TooltipProvider} from '@/components/ui/tooltip'
 import {toast} from '@/components/ui/toast'
 import type {DownloadView, PlaybackEvent, SyncEvent, TabId, UpdateInfo} from './lib/types'
 
@@ -181,6 +182,7 @@ export default function App() {
   }
 
   return (
+    <TooltipProvider delay={300}>
     <div className="flex h-full bg-background text-foreground">
       <Sidebar current={tab} onChange={setTab} />
       <div className="relative flex min-w-0 flex-1 flex-col bg-background">
@@ -265,5 +267,6 @@ export default function App() {
         notice={showNotice}
       />
     </div>
+    </TooltipProvider>
   )
 }
