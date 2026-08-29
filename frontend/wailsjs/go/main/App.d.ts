@@ -17,6 +17,8 @@ export function CancelDownload(arg1:number):Promise<void>;
 
 export function CheckForUpdate():Promise<main.UpdateInfo>;
 
+export function ConfirmWindowClose(arg1:string,arg2:boolean):Promise<void>;
+
 export function CountNewRSSFeedItems():Promise<number>;
 
 export function DetectMpv():Promise<string>;
@@ -84,6 +86,8 @@ export function SaveAnilistSettings(arg1:number):Promise<void>;
 export function SaveAnilistToken(arg1:string):Promise<void>;
 
 export function SaveAnimeListEntry(arg1:main.AnimeListEntryInput):Promise<void>;
+
+export function SaveDesktopSettings(arg1:boolean):Promise<void>;
 
 export function SaveDownloadSettings(arg1:string,arg2:number,arg3:number,arg4:number,arg5:number,arg6:boolean,arg7:boolean,arg8:boolean):Promise<void>;
 

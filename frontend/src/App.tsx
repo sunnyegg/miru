@@ -4,6 +4,7 @@ import {ApplyUpdate, AppVersion, CheckForUpdate, InitError} from '../wailsjs/go/
 import {errorMessage} from './lib/format'
 import {Sidebar} from './components/Sidebar'
 import {Splash} from './components/Splash'
+import {CloseToTrayDialog} from './components/CloseToTrayDialog'
 import {LibraryView} from './views/Library'
 import {WatchingView} from './views/Watching'
 import {SearchView} from './views/Search'
@@ -30,6 +31,7 @@ export default function App() {
   const [showUpdateBanner, setShowUpdateBanner] = useState(true)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
   const [applyingUpdate, setApplyingUpdate] = useState(false)
+  const [closePromptOpen, setClosePromptOpen] = useState(false)
 
   function showNotice(text: string, error = false) {
     toast.add({
@@ -157,6 +159,9 @@ export default function App() {
       const label = count === 1 ? '1 RSS item' : `${count} RSS items`
       showNotice(`Auto-added ${label} for download`)
     })
+    EventsOn('window:close-prompt', () => {
+      setClosePromptOpen(true)
+    })
 
     return () => {
       EventsOff('torrent:progress')
@@ -166,6 +171,7 @@ export default function App() {
       EventsOff('sync:result')
       EventsOff('anilist:connected')
       EventsOff('rss:auto_queued')
+      EventsOff('window:close-prompt')
     }
   }, [])
 
@@ -253,6 +259,11 @@ export default function App() {
           </div>
         )}
       </div>
+      <CloseToTrayDialog
+        open={closePromptOpen}
+        onOpenChange={setClosePromptOpen}
+        notice={showNotice}
+      />
     </div>
   )
 }

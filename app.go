@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sunnyegg/miru/internal/anilist"
@@ -20,6 +21,7 @@ import (
 	"github.com/sunnyegg/miru/internal/torrentx"
 	"github.com/sunnyegg/miru/internal/update"
 
+	"github.com/gogpu/systray"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -53,6 +55,11 @@ type App struct {
 
 	feedPollerMu sync.Mutex
 	feedPoller   *feedPoller
+
+	trayMu    sync.Mutex
+	tray      *systray.SystemTray
+	trayReady atomic.Bool
+	forceQuit atomic.Bool
 }
 
 type playSession struct {
@@ -80,10 +87,13 @@ func (a *App) startup(ctx context.Context) {
 	if err := a.init(); err != nil {
 		a.initErr = err
 		runtime.LogError(ctx, redactError(err))
+		return
 	}
+	a.startTray()
 }
 
 func (a *App) shutdown(_ context.Context) {
+	a.stopTray()
 	a.feedPollerMu.Lock()
 	if a.feedPoller != nil {
 		a.feedPoller.stop()

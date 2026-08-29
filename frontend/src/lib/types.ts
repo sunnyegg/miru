@@ -20,6 +20,7 @@ export type SettingsView = {
   downloadNotifications: boolean
   rssAutoDownload: boolean
   rssAutoDownloadLibraryOnly: boolean
+  closeToTray: boolean
 }
 
 export type EpisodeView = {

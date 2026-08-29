@@ -8,6 +8,7 @@ import {
   PickDownloadDir,
   PickMpvPath,
   SaveAnilistSettings,
+  SaveDesktopSettings,
   SaveDownloadSettings,
   SaveNetworkSettings,
   SavePlaybackSettings,
@@ -44,6 +45,7 @@ const empty: SettingsView = {
   downloadNotifications: true,
   rssAutoDownload: false,
   rssAutoDownloadLibraryOnly: true,
+  closeToTray: false,
 }
 
 type Props = {
@@ -58,7 +60,7 @@ type Props = {
   onOpenRelease: () => void
 }
 
-type SettingsSection = 'playback' | 'downloads' | 'network' | 'anilist' | 'updates'
+type SettingsSection = 'desktop' | 'playback' | 'downloads' | 'network' | 'anilist' | 'updates'
 
 export function SettingsView({
   notice,
@@ -101,6 +103,7 @@ export function SettingsView({
         downloadNotifications: settings?.downloadNotifications ?? true,
         rssAutoDownload: settings?.rssAutoDownload ?? false,
         rssAutoDownloadLibraryOnly: settings?.rssAutoDownloadLibraryOnly ?? true,
+        closeToTray: settings?.closeToTray ?? false,
       })
       setStatus(anilist ?? {connected: false, username: ''})
     } catch (err) {
@@ -221,6 +224,49 @@ export function SettingsView({
         </Alert>
       ) : (
         <div className="flex max-w-3xl flex-col gap-5">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            void saveSection(
+              'desktop',
+              () => SaveDesktopSettings(form.closeToTray),
+              'Desktop saved',
+            )
+          }}
+        >
+          <Card>
+            <h3 className="text-sm font-medium">Desktop</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Control what happens when you close the Miru window.
+            </p>
+            <div className="mt-4 flex items-start gap-3">
+              <input
+                id="closeToTray"
+                type="checkbox"
+                checked={form.closeToTray}
+                onChange={(event) =>
+                  setForm((current) => ({...current, closeToTray: event.target.checked}))
+                }
+                className="mt-1 size-4 shrink-0 accent-primary"
+              />
+              <div>
+                <Label htmlFor="closeToTray">Close to system tray</Label>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Hide Miru instead of quitting so downloads and RSS polling keep running. Use the
+                  tray icon to show Miru again or quit fully.
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Requires a system tray host (KDE, GNOME with SNI, Waybar, and similar). If no tray
+                  is available, Miru stays open when you close the window.
+                </p>
+              </div>
+            </div>
+            <Button type="submit" disabled={saving === 'desktop'} className="mt-4 w-fit">
+              {saving === 'desktop' ? 'Saving…' : 'Save'}
+            </Button>
+          </Card>
+        </form>
+
         <form
           onSubmit={(e) => {
             e.preventDefault()

@@ -14,7 +14,7 @@ the [issue tracker](https://github.com/sunnyegg/miru/issues).
 - **Search** — Nyaa and Tokyo Toshokan RSS with pagination
 - **Downloads** — built-in BitTorrent for magnet and `.torrent` links, with file selection, a concurrent limit, queue, bandwidth caps, and seeding across restarts
 - **Airing** — weekly schedule of upcoming episodes from your AniList list
-- **Settings** — MPV path, Anime4K upscaling, Discord Rich Presence, download folder, speed limits, max concurrent downloads, seed ratio, RSS poll interval, auto-download from RSS, desktop notifications, network mode (system / direct / SOCKS5 / HTTP proxy), AniList, and About
+- **Settings** — MPV path, Anime4K upscaling, Discord Rich Presence, close to system tray, download folder, speed limits, max concurrent downloads, seed ratio, RSS poll interval, auto-download from RSS, desktop notifications, network mode (system / direct / SOCKS5 / HTTP proxy), AniList, and About
 - **Updates** — Miru checks GitHub Releases and can update and restart from **Settings → About**
 
 ## Download

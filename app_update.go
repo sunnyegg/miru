@@ -72,6 +72,7 @@ func (a *App) ApplyUpdate() error {
 		return err
 	}
 
+	a.forceQuit.Store(true)
 	a.shutdown(a.ctx)
 	if err := update.Restart(exe, os.Args, os.Environ()); err != nil {
 		restartErr := fmt.Errorf("update installed but restart failed: %w; restart Miru manually", err)

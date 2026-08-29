@@ -1,6 +1,8 @@
 # Build Directory
 
-The build directory is used to house all the build files and assets for your application. 
+The build directory is used to house all the build files and assets for your application.
+
+- `appicon.png` — application icon (window title bar, task switcher, and platform bundles). Miru embeds this in `main.go` for Linux dev builds; `wails build` also uses it for Windows `.ico` and macOS `.icns`.
 
 The structure is:
 

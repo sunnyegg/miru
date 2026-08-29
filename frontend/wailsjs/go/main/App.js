@@ -30,6 +30,10 @@ export function CheckForUpdate() {
   return window['go']['main']['App']['CheckForUpdate']();
 }
 
+export function ConfirmWindowClose(arg1, arg2) {
+  return window['go']['main']['App']['ConfirmWindowClose'](arg1, arg2);
+}
+
 export function CountNewRSSFeedItems() {
   return window['go']['main']['App']['CountNewRSSFeedItems']();
 }
@@ -164,6 +168,10 @@ export function SaveAnilistToken(arg1) {
 
 export function SaveAnimeListEntry(arg1) {
   return window['go']['main']['App']['SaveAnimeListEntry'](arg1);
+}
+
+export function SaveDesktopSettings(arg1) {
+  return window['go']['main']['App']['SaveDesktopSettings'](arg1);
 }
 
 export function SaveDownloadSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {

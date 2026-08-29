@@ -13,6 +13,9 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+//go:embed build/appicon.png
+var appIconPNG []byte
+
 func main() {
 	applyWaylandNVIDIAWorkaround()
 
@@ -28,10 +31,18 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 15, G: 15, B: 35, A: 1},
 		OnStartup:        app.startup,
 		OnShutdown:       app.shutdown,
+		OnBeforeClose:    app.beforeClose,
+		SingleInstanceLock: &options.SingleInstanceLock{
+			UniqueId: "com.sunnyegg.miru",
+			OnSecondInstanceLaunch: func(_ options.SecondInstanceData) {
+				app.showWindow()
+			},
+		},
 		Bind: []interface{}{
 			app,
 		},
 		Linux: &linux.Options{
+			Icon:                appIconPNG,
 			WindowIsTranslucent: false,
 		},
 	})
