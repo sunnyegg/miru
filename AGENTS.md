@@ -19,7 +19,7 @@ Go: guard clauses over nested `if`. Invert the empty/error case and return. Extr
 ## Frontend
 
 - App lives in `frontend/`. UI primitives are shadcn in `frontend/src/components/ui/`.
-- Visual rules are in `DESIGN.md`: zero radius, 44px controls, purple only as the hit (Play, progress, selected mark). Use Tailwind tokens (`bg-background`, `text-muted-foreground`, `border-border`). Do not add CSS modules or new hex colors.
+- Zero radius, 44px controls, purple only as the hit (Play, progress, selected mark). Use Tailwind tokens (`bg-background`, `text-muted-foreground`, `border-border`). Do not add CSS modules or new hex colors.
 - Library poster grid and episode list stay custom. Do not flatten them into generic shadcn layouts.
 - Views import icons from `frontend/src/components/Icons.tsx`, not Lucide directly.
 
