@@ -1,9 +1,9 @@
 import type {Dispatch, FormEvent, SetStateAction} from 'react'
 import type {SettingsView} from '../../lib/types'
+import {LabelWithHint} from '../LabelWithHint'
 import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from '@/components/ui/card'
 import {Input} from '@/components/ui/input'
-import {Label} from '@/components/ui/label'
 import {NativeSelect, NativeSelectOption} from '@/components/ui/native-select'
 
 type Props = {
@@ -33,9 +33,7 @@ export function SettingsNetworkPanel({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Label htmlFor="networkMode" className="mb-2">
-            Connection mode
-          </Label>
+          <LabelWithHint htmlFor="networkMode" label="Connection mode" />
           <NativeSelect
             id="networkMode"
             value={form.networkMode}
@@ -50,9 +48,12 @@ export function SettingsNetworkPanel({
           </NativeSelect>
           {form.networkMode === 'socks5' && (
             <>
-              <Label htmlFor="socks5Address" className="mt-4 mb-2">
-                SOCKS5 address
-              </Label>
+              <LabelWithHint
+                htmlFor="socks5Address"
+                label="SOCKS5 address"
+                className="mt-4 mb-2 flex items-center gap-1"
+                hint="Torrent traffic uses TCP through this proxy. UDP, DHT, and inbound peers are disabled."
+              />
               <Input
                 id="socks5Address"
                 value={form.socks5Address}
@@ -62,17 +63,16 @@ export function SettingsNetworkPanel({
                 placeholder="127.0.0.1:1080"
                 className="bg-card"
               />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Torrent traffic uses TCP through this proxy. UDP, DHT, and inbound peers are
-                disabled.
-              </p>
             </>
           )}
           {form.networkMode === 'http_proxy' && (
             <>
-              <Label htmlFor="httpProxyUrl" className="mt-4 mb-2">
-                Proxy URL
-              </Label>
+              <LabelWithHint
+                htmlFor="httpProxyUrl"
+                label="Proxy URL"
+                className="mt-4 mb-2 flex items-center gap-1"
+                hint="HTTP and HTTPS traffic routes through this proxy. Use http:// or https:// with host and port."
+              />
               <Input
                 id="httpProxyUrl"
                 value={form.httpProxyUrl}
@@ -82,10 +82,6 @@ export function SettingsNetworkPanel({
                 placeholder="http://127.0.0.1:8080"
                 className="bg-card"
               />
-              <p className="mt-1 text-xs text-muted-foreground">
-                HTTP and HTTPS traffic routes through this proxy. Use http:// or https:// with host
-                and port.
-              </p>
             </>
           )}
         </CardContent>

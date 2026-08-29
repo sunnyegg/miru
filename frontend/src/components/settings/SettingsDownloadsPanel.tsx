@@ -1,10 +1,10 @@
 import type {Dispatch, FormEvent, SetStateAction} from 'react'
 import type {SettingsView} from '../../lib/types'
+import {SettingsCheckboxRow} from './SettingsCheckboxRow'
+import {SettingsField} from './SettingsField'
 import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from '@/components/ui/card'
 import {Input} from '@/components/ui/input'
-import {Label} from '@/components/ui/label'
-import {SettingsField} from './SettingsField'
 
 type Props = {
   form: SettingsView
@@ -42,7 +42,12 @@ export function SettingsDownloadsPanel({form, setForm, saving, onSubmit, onPickD
           </SettingsField>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <SettingsField label="Download speed limit (KB/s)" htmlFor="downloadRateLimit" className="mt-0">
+            <SettingsField
+              label="Download speed limit (KB/s)"
+              htmlFor="downloadRateLimit"
+              hint="0 = unlimited"
+              className="mt-0"
+            >
               <Input
                 id="downloadRateLimit"
                 type="number"
@@ -54,9 +59,13 @@ export function SettingsDownloadsPanel({form, setForm, saving, onSubmit, onPickD
                 }
                 className="w-full bg-card"
               />
-              <p className="mt-1 text-xs text-muted-foreground">0 = unlimited</p>
             </SettingsField>
-            <SettingsField label="Upload speed limit (KB/s)" htmlFor="uploadRateLimit" className="mt-0">
+            <SettingsField
+              label="Upload speed limit (KB/s)"
+              htmlFor="uploadRateLimit"
+              hint="0 = unlimited"
+              className="mt-0"
+            >
               <Input
                 id="uploadRateLimit"
                 type="number"
@@ -68,9 +77,13 @@ export function SettingsDownloadsPanel({form, setForm, saving, onSubmit, onPickD
                 }
                 className="w-full bg-card"
               />
-              <p className="mt-1 text-xs text-muted-foreground">0 = unlimited</p>
             </SettingsField>
-            <SettingsField label="Max concurrent downloads" htmlFor="maxConcurrentDownloads" className="mt-0">
+            <SettingsField
+              label="Max concurrent downloads"
+              htmlFor="maxConcurrentDownloads"
+              hint="Queued torrents start when a slot is free."
+              className="mt-0"
+            >
               <Input
                 id="maxConcurrentDownloads"
                 type="number"
@@ -86,11 +99,13 @@ export function SettingsDownloadsPanel({form, setForm, saving, onSubmit, onPickD
                 }
                 className="w-full bg-card"
               />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Queued torrents start when a slot is free.
-              </p>
             </SettingsField>
-            <SettingsField label="Seed ratio" htmlFor="seedRatio" className="mt-0">
+            <SettingsField
+              label="Seed ratio"
+              htmlFor="seedRatio"
+              hint="Upload ratio before auto-finish (0.5 = half the download size). 0 stops seeding right away."
+              className="mt-0"
+            >
               <Input
                 id="seedRatio"
                 type="number"
@@ -103,12 +118,13 @@ export function SettingsDownloadsPanel({form, setForm, saving, onSubmit, onPickD
                 }
                 className="w-full bg-card"
               />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Upload ratio before auto-finish (0.5 = half the download size). 0 stops seeding right
-                away.
-              </p>
             </SettingsField>
-            <SettingsField label="RSS poll interval (minutes)" htmlFor="rssPollIntervalMinutes" className="mt-0">
+            <SettingsField
+              label="RSS poll interval (minutes)"
+              htmlFor="rssPollIntervalMinutes"
+              hint="How often subscribed RSS feeds are checked in the background (5–1440)."
+              className="mt-0"
+            >
               <Input
                 id="rssPollIntervalMinutes"
                 type="number"
@@ -124,68 +140,34 @@ export function SettingsDownloadsPanel({form, setForm, saving, onSubmit, onPickD
                 }
                 className="w-full bg-card"
               />
-              <p className="mt-1 text-xs text-muted-foreground">
-                How often subscribed RSS feeds are checked in the background (5–1440).
-              </p>
             </SettingsField>
           </div>
 
-          <div className="flex items-start gap-3">
-            <input
-              id="rssAutoDownload"
-              type="checkbox"
-              checked={form.rssAutoDownload}
-              onChange={(event) =>
-                setForm((current) => ({...current, rssAutoDownload: event.target.checked}))
-              }
-              className="mt-1 size-4 shrink-0 accent-primary"
-            />
-            <div>
-              <Label htmlFor="rssAutoDownload">Auto-download new RSS items</Label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Queue torrent downloads when subscribed feeds publish new items with magnet links.
-              </p>
-            </div>
-          </div>
+          <SettingsCheckboxRow
+            id="rssAutoDownload"
+            label="Auto-download new RSS items"
+            hint="Queue torrent downloads when subscribed feeds publish new items with magnet links."
+            checked={form.rssAutoDownload}
+            onChange={(value) => setForm((current) => ({...current, rssAutoDownload: value}))}
+          />
           {form.rssAutoDownload && (
-            <div className="flex items-start gap-3">
-              <input
-                id="rssAutoDownloadLibraryOnly"
-                type="checkbox"
-                checked={form.rssAutoDownloadLibraryOnly}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    rssAutoDownloadLibraryOnly: event.target.checked,
-                  }))
-                }
-                className="mt-1 size-4 shrink-0 accent-primary"
-              />
-              <div>
-                <Label htmlFor="rssAutoDownloadLibraryOnly">Only your library</Label>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Only auto-download when the item title matches an anime in your local library.
-                </p>
-              </div>
-            </div>
-          )}
-          <div className="flex items-start gap-3">
-            <input
-              id="downloadNotifications"
-              type="checkbox"
-              checked={form.downloadNotifications}
-              onChange={(event) =>
-                setForm((current) => ({...current, downloadNotifications: event.target.checked}))
+            <SettingsCheckboxRow
+              id="rssAutoDownloadLibraryOnly"
+              label="Only your library"
+              hint="Only auto-download when the item title matches an anime in your local library."
+              checked={form.rssAutoDownloadLibraryOnly}
+              onChange={(value) =>
+                setForm((current) => ({...current, rssAutoDownloadLibraryOnly: value}))
               }
-              className="mt-1 size-4 shrink-0 accent-primary"
             />
-            <div>
-              <Label htmlFor="downloadNotifications">Desktop notifications</Label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Show an OS notification when a download you started finishes in the background.
-              </p>
-            </div>
-          </div>
+          )}
+          <SettingsCheckboxRow
+            id="downloadNotifications"
+            label="Desktop notifications"
+            hint="Show an OS notification when a download you started finishes in the background."
+            checked={form.downloadNotifications}
+            onChange={(value) => setForm((current) => ({...current, downloadNotifications: value}))}
+          />
         </CardContent>
         <CardFooter>
           <Button type="submit" variant="secondary" disabled={saving}>

@@ -1,7 +1,7 @@
 import type {SettingsView, UpdateInfo} from '../../lib/types'
+import {LabelWithHint} from '../LabelWithHint'
 import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
-import {Label} from '@/components/ui/label'
 import {NativeSelect, NativeSelectOption} from '@/components/ui/native-select'
 
 type Props = {
@@ -36,9 +36,11 @@ export function SettingsAboutPanel({
         <CardDescription>Version {appVersion || 'dev'}</CardDescription>
       </CardHeader>
       <CardContent>
-        <Label htmlFor="updateChannel" className="mb-2">
-          Update channel
-        </Label>
+        <LabelWithHint
+          htmlFor="updateChannel"
+          label="Update channel"
+          hint="Prerelease includes alpha and beta builds. Stable ignores them."
+        />
         <NativeSelect
           id="updateChannel"
           value={form.updateChannel}
@@ -48,9 +50,6 @@ export function SettingsAboutPanel({
           <NativeSelectOption value="stable">Stable</NativeSelectOption>
           <NativeSelectOption value="prerelease">Prerelease</NativeSelectOption>
         </NativeSelect>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Prerelease includes alpha and beta builds. Stable ignores them.
-        </p>
         {update?.available ? (
           <>
             <p className="mt-3 text-sm">Miru {update.latest} is available.</p>

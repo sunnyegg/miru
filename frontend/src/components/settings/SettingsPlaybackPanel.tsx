@@ -1,11 +1,21 @@
 import type {Dispatch, FormEvent, SetStateAction} from 'react'
 import type {SettingsView} from '../../lib/types'
+import {SettingsCheckboxRow} from './SettingsCheckboxRow'
+import {SettingsField} from './SettingsField'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from '@/components/ui/card'
 import {Input} from '@/components/ui/input'
-import {Label} from '@/components/ui/label'
-import {SettingsField} from './SettingsField'
+
+const mpvPathHint = 'MPV path changes take effect after restart.'
+
+const anime4kHint =
+  'Applies Anime4K Mode A shaders when MPV starts. Shaders are cached in your Miru config folder.'
+
+const discordRpcHint =
+  'Show the anime you are watching on your Discord profile while MPV is playing. Discord Rich Presence requires the Discord desktop app to be running.'
+
+const discordAppIdHint = 'Leave empty to use DISCORD_APP_ID from the build .env file.'
 
 type Props = {
   form: SettingsView
@@ -31,8 +41,8 @@ export function SettingsPlaybackPanel({
           <CardTitle>Playback</CardTitle>
           <CardDescription>MPV binary used to play episodes.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <SettingsField label="MPV path" htmlFor="mpvPath">
+        <CardContent className="flex flex-col gap-4">
+          <SettingsField label="MPV path" htmlFor="mpvPath" hint={mpvPathHint} className="mt-0">
             <div className="flex flex-wrap gap-2">
               <Input
                 id="mpvPath"
@@ -48,52 +58,36 @@ export function SettingsPlaybackPanel({
               </Button>
             </div>
           </SettingsField>
-          <div className="mt-4">
-            <label className="flex min-h-11 cursor-pointer items-center gap-3">
-              <input
-                type="checkbox"
-                checked={form.anime4kEnabled}
-                onChange={(event) =>
-                  setForm((current) => ({...current, anime4kEnabled: event.target.checked}))
-                }
-                className="size-4 accent-primary"
-              />
-              <span className="text-sm">Enable Anime4K upscaling</span>
-            </label>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Applies Anime4K Mode A shaders when MPV starts. Shaders are cached in your Miru config
-              folder.
-            </p>
-            {form.anime4kEnabled && !form.anime4kShadersReady && (
-              <Alert variant="destructive" className="mt-3">
-                <AlertDescription>
-                  Anime4K shaders are not installed yet. Save playback settings to download them.
-                </AlertDescription>
-              </Alert>
-            )}
-            {form.anime4kEnabled && form.anime4kShadersReady && (
-              <p className="mt-2 text-xs text-muted-foreground">Anime4K shaders are installed.</p>
-            )}
-          </div>
-          <div className="mt-4 flex items-start gap-3">
-            <input
-              id="discordRpcEnabled"
-              type="checkbox"
-              checked={form.discordRpcEnabled}
-              onChange={(event) =>
-                setForm((current) => ({...current, discordRpcEnabled: event.target.checked}))
-              }
-              className="mt-1 size-4 shrink-0 accent-primary"
-            />
-            <div>
-              <Label htmlFor="discordRpcEnabled">Discord Rich Presence</Label>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Show the anime you are watching on your Discord profile while MPV is playing.
-              </p>
-            </div>
-          </div>
+          <SettingsCheckboxRow
+            id="anime4kEnabled"
+            label="Enable Anime4K upscaling"
+            hint={anime4kHint}
+            checked={form.anime4kEnabled}
+            onChange={(value) => setForm((current) => ({...current, anime4kEnabled: value}))}
+          />
+          {form.anime4kEnabled && !form.anime4kShadersReady && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                Anime4K shaders are not installed yet. Save playback settings to download them.
+              </AlertDescription>
+            </Alert>
+          )}
+          {form.anime4kEnabled && form.anime4kShadersReady && (
+            <p className="text-xs text-muted-foreground">Anime4K shaders are installed.</p>
+          )}
+          <SettingsCheckboxRow
+            id="discordRpcEnabled"
+            label="Discord Rich Presence"
+            hint={discordRpcHint}
+            checked={form.discordRpcEnabled}
+            onChange={(value) => setForm((current) => ({...current, discordRpcEnabled: value}))}
+          />
           {form.discordRpcEnabled && (
-            <SettingsField label="Discord application ID" htmlFor="discordAppId">
+            <SettingsField
+              label="Discord application ID"
+              htmlFor="discordAppId"
+              hint={discordAppIdHint}
+            >
               <Input
                 id="discordAppId"
                 value={form.discordAppId}
@@ -103,15 +97,8 @@ export function SettingsPlaybackPanel({
                 placeholder="From the Discord Developer Portal"
                 className="bg-card"
               />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Leave empty to use DISCORD_APP_ID from the build .env file.
-              </p>
             </SettingsField>
           )}
-          <p className="mt-4 text-xs text-muted-foreground">
-            Discord Rich Presence requires the Discord desktop app to be running. MPV path changes
-            take effect after restart.
-          </p>
         </CardContent>
         <CardFooter>
           <Button type="submit" variant="secondary" disabled={saving}>

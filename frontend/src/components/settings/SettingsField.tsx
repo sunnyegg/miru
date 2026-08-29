@@ -1,19 +1,18 @@
 import type {ReactNode} from 'react'
-import {Label} from '@/components/ui/label'
+import {LabelWithHint} from '../LabelWithHint'
 
 type Props = {
   label: string
   htmlFor: string
+  hint?: ReactNode
   className?: string
   children: ReactNode
 }
 
-export function SettingsField({label, htmlFor, className, children}: Props) {
+export function SettingsField({label, htmlFor, hint, className, children}: Props) {
   return (
     <div className={className ?? 'mt-4'}>
-      <Label htmlFor={htmlFor} className="mb-2">
-        {label}
-      </Label>
+      <LabelWithHint htmlFor={htmlFor} label={label} hint={hint} />
       {children}
     </div>
   )

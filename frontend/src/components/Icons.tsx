@@ -2,6 +2,7 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  CircleHelp,
   Download,
   Eye,
   Folder,
@@ -57,4 +58,8 @@ export function IconPlay({className}: IconProps) {
 
 export function IconFolder({className}: IconProps) {
   return <Folder className={className} {...stroke} />
+}
+
+export function IconHelp({className}: IconProps) {
+  return <CircleHelp className={className} {...stroke} />
 }
