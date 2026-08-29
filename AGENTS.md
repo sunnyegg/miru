@@ -56,6 +56,8 @@ Always run the relevant checks before considering work done.
 
 Do not leave broken code — if a check fails, fix it before handing off.
 
+Update documentation in the same change when behavior, settings, data paths, dependencies, or workflows change. `README.md` for user-facing features and setup; `AGENTS.md` for agent conventions and dev workflow; `docs/` for benchmarks and deep dives. Do not leave docs contradicting the code.
+
 ## Verifying PRs
 
 Verify pull requests yourself. Do not ask the user to run manual test-plan checkboxes when automated coverage already exists.
