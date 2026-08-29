@@ -3,7 +3,9 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os/exec"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 	"time"
 
@@ -245,8 +247,21 @@ func (a *App) OpenDownloadFolder() error {
 	if settings.DownloadDir == "" {
 		return errors.New("set a download folder in Settings first")
 	}
-	runtime.BrowserOpenURL(a.ctx, "file://"+settings.DownloadDir)
-	return nil
+	downloadDir := filepath.Clean(settings.DownloadDir)
+	return openPathInFileManager(downloadDir)
+}
+
+func openPathInFileManager(path string) error {
+	switch goruntime.GOOS {
+	case "linux":
+		return exec.Command("xdg-open", path).Start()
+	case "darwin":
+		return exec.Command("open", path).Start()
+	case "windows":
+		return exec.Command("explorer", path).Start()
+	default:
+		return fmt.Errorf("open folder is not supported on %s", goruntime.GOOS)
+	}
 }
 
 func (a *App) ingestTorrentFiles(files []string) {

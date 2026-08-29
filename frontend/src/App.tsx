@@ -16,6 +16,7 @@ import {Button} from '@/components/ui/button'
 import {TooltipProvider} from '@/components/ui/tooltip'
 import {toast} from '@/components/ui/toast'
 import type {DownloadView, PlaybackEvent, SyncEvent, TabId, UpdateInfo} from './lib/types'
+import {useSearchStore} from './stores/searchStore'
 
 export default function App() {
   const [tab, setTab] = useState<TabId>('library')
@@ -25,7 +26,6 @@ export default function App() {
   const [authKey, setAuthKey] = useState(0)
   const [playing, setPlaying] = useState<PlaybackEvent | null>(null)
   const [lastPlayback, setLastPlayback] = useState<PlaybackEvent | null>(null)
-  const [searchPrefill, setSearchPrefill] = useState('')
   const [bootDone, setBootDone] = useState(false)
   const [appVersion, setAppVersion] = useState('')
   const [update, setUpdate] = useState<UpdateInfo | null>(null)
@@ -177,7 +177,7 @@ export default function App() {
   }, [])
 
   function openSearchForTorrent(query: string) {
-    setSearchPrefill(query)
+    void useSearchStore.getState().prefillSearch(query, showNotice)
     setTab('search')
   }
 
@@ -232,8 +232,6 @@ export default function App() {
             <SearchView
               notice={showNotice}
               onDownloads={() => setTab('downloads')}
-              prefillQuery={searchPrefill}
-              onPrefillConsumed={() => setSearchPrefill('')}
             />
           )}
           {tab === 'downloads' && <DownloadsView notice={showNotice} jobs={jobs} onJobs={setJobs} />}
