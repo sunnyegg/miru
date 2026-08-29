@@ -4,7 +4,9 @@ import (
 	"embed"
 	"os"
 
+	"github.com/sunnyegg/miru/internal/paths"
 	"github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/logger"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
@@ -19,12 +21,19 @@ var appIconPNG []byte
 func main() {
 	applyWaylandNVIDIAWorkaround()
 
+	dirs, err := paths.Resolve()
+	if err != nil {
+		println("Error:", err.Error())
+		os.Exit(1)
+	}
+
 	app := NewApp()
 
-	err := wails.Run(&options.App{
+	err = wails.Run(&options.App{
 		Title:  "Miru",
 		Width:  1200,
 		Height: 800,
+		Logger: logger.NewFileLogger(dirs.LogFile()),
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 
@@ -98,4 +99,24 @@ func truncateLogText(text string) string {
 		return text
 	}
 	return string(runes[:maxDebugLogRunes]) + "…"
+}
+
+const maxLogFileBytes = 5 * 1024 * 1024
+
+func rotateLogFile(path string, maxBytes int64) error {
+	info, err := os.Stat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if info.Size() <= maxBytes {
+		return nil
+	}
+	archive := path + ".1"
+	if err := os.Remove(archive); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return os.Rename(path, archive)
 }

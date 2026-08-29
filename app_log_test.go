@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -69,5 +71,74 @@ func TestRedactErrorTruncates(t *testing.T) {
 	}
 	if len([]rune(got)) != maxDebugLogRunes+1 {
 		t.Fatalf("len = %d", len([]rune(got)))
+	}
+}
+
+func TestRotateLogFileUnderThreshold(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "Miru.log")
+	if err := os.WriteFile(path, []byte("small"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := rotateLogFile(path, 5*1024*1024); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("original file should remain: %v", err)
+	}
+	if _, err := os.Stat(path + ".1"); !os.IsNotExist(err) {
+		t.Fatalf("archive should not exist, got err=%v", err)
+	}
+}
+
+func TestRotateLogFileOverThreshold(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "Miru.log")
+	big := strings.Repeat("x", 6*1024*1024)
+	if err := os.WriteFile(path, []byte(big), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := rotateLogFile(path, 5*1024*1024); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("original should be gone, got err=%v", err)
+	}
+	info, err := os.Stat(path + ".1")
+	if err != nil {
+		t.Fatalf("archive should exist: %v", err)
+	}
+	if info.Size() != int64(len(big)) {
+		t.Fatalf("archive size = %d, want %d", info.Size(), len(big))
+	}
+}
+
+func TestRotateLogFileReplacesArchive(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "Miru.log")
+	oldArchive := filepath.Join(dir, "Miru.log.1")
+	if err := os.WriteFile(oldArchive, []byte("stale"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	big := strings.Repeat("y", 6*1024*1024)
+	if err := os.WriteFile(path, []byte(big), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := rotateLogFile(path, 5*1024*1024); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(oldArchive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Size() != int64(len(big)) {
+		t.Fatalf("archive size = %d, want %d", info.Size(), len(big))
+	}
+}
+
+func TestRotateLogFileMissing(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "Miru.log")
+	if err := rotateLogFile(path, 5*1024*1024); err != nil {
+		t.Fatalf("missing file should be a no-op, got %v", err)
 	}
 }

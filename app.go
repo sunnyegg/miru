@@ -92,6 +92,12 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	if dirs, err := paths.Resolve(); err == nil {
+		a.dirs = dirs
+		if rotateErr := rotateLogFile(dirs.LogFile(), maxLogFileBytes); rotateErr != nil {
+			fmt.Fprintln(os.Stderr, "rotate log:", rotateErr)
+		}
+	}
 	if err := a.init(); err != nil {
 		a.initErr = err
 		runtime.LogError(ctx, redactError(err))
