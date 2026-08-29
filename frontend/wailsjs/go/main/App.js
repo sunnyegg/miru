@@ -54,6 +54,10 @@ export function FinishDownload(arg1) {
   return window['go']['main']['App']['FinishDownload'](arg1);
 }
 
+export function GetAnime(arg1) {
+  return window['go']['main']['App']['GetAnime'](arg1);
+}
+
 export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
 }

@@ -1,41 +1,15 @@
 import {useEffect, useMemo, useState} from 'react'
 import {ListAiringSchedule} from '../../wailsjs/go/main/App'
+import {AiringAgendaLayout} from '../components/AiringAgendaLayout'
+import {buildWeekDays, groupSchedulesByDay, startOfMonday} from '../lib/calendar'
 import {errorMessage} from '../lib/format'
 import type {AiringScheduleView} from '../lib/types'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
-import {Card} from '@/components/ui/card'
-import {Skeleton} from '@/components/ui/skeleton'
-
-const dayFormatter = new Intl.DateTimeFormat(undefined, {
-  weekday: 'long',
-  month: 'long',
-  day: 'numeric',
-})
-
-const timeFormatter = new Intl.DateTimeFormat(undefined, {
-  hour: 'numeric',
-  minute: '2-digit',
-})
-
-function startOfMonday(date: Date): Date {
-  const start = new Date(date)
-  start.setHours(0, 0, 0, 0)
-  const day = start.getDay()
-  const daysSinceMonday = (day + 6) % 7
-  start.setDate(start.getDate() - daysSinceMonday)
-  return start
-}
-
-function dateKey(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
 
 export function CalendarView() {
   const [weekOffset, setWeekOffset] = useState(0)
+  const [scrollToTodayRequest, setScrollToTodayRequest] = useState(0)
   const [schedules, setSchedules] = useState<AiringScheduleView[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -46,24 +20,9 @@ export function CalendarView() {
     return start
   }, [weekOffset])
 
-  const days = useMemo(() => {
-    return Array.from({length: 7}, (_, index) => {
-      const day = new Date(weekStart)
-      day.setDate(day.getDate() + index)
-      return day
-    })
-  }, [weekStart])
+  const days = useMemo(() => buildWeekDays(weekStart), [weekStart])
 
-  const schedulesByDay = useMemo(() => {
-    const grouped = new Map<string, AiringScheduleView[]>()
-    for (const schedule of schedules) {
-      const key = dateKey(new Date(schedule.airingAt * 1000))
-      const current = grouped.get(key) ?? []
-      current.push(schedule)
-      grouped.set(key, current)
-    }
-    return grouped
-  }, [schedules])
+  const schedulesByDay = useMemo(() => groupSchedulesByDay(schedules), [schedules])
 
   async function loadSchedules() {
     setLoading(true)
@@ -90,14 +49,23 @@ export function CalendarView() {
     <section className="flex h-full flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold">Airing Calendar</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Upcoming episodes from AniList, shown in your local time.</p>
+          <h2 className="text-2xl font-semibold">Airing</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Upcoming episodes from AniList, shown in your local time.
+          </p>
         </div>
         <div className="flex flex-wrap gap-2" aria-label="Calendar navigation">
           <Button type="button" variant="muted" onClick={() => setWeekOffset((offset) => offset - 1)}>
             Previous
           </Button>
-          <Button type="button" variant="secondary" onClick={() => setWeekOffset(0)} disabled={weekOffset === 0}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              setWeekOffset(0)
+              setScrollToTodayRequest((request) => request + 1)
+            }}
+          >
             Today
           </Button>
           <Button type="button" variant="muted" onClick={() => setWeekOffset((offset) => offset + 1)}>
@@ -112,26 +80,7 @@ export function CalendarView() {
         {days[6].toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric'})}
       </p>
 
-      {loading ? (
-        <div className="grid gap-4 lg:grid-cols-2" aria-busy="true" aria-label="Loading airing schedule">
-          {Array.from({length: 4}, (_, i) => (
-            <Card key={i}>
-              <Skeleton className="h-4 w-1/3 animate-pulse" />
-              <ul className="mt-3 flex flex-col gap-3">
-                {Array.from({length: 3}, (_, j) => (
-                  <li key={j} className="flex items-center gap-3">
-                    <Skeleton className="h-14 w-10 shrink-0 animate-pulse" />
-                    <div className="flex flex-1 flex-col gap-2">
-                      <Skeleton className="h-3 w-2/3 animate-pulse" />
-                      <Skeleton className="h-3 w-1/3 animate-pulse" />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          ))}
-        </div>
-      ) : error ? (
+      {error ? (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
           <AlertAction>
@@ -141,37 +90,12 @@ export function CalendarView() {
           </AlertAction>
         </Alert>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {days.map((day) => {
-            const entries = schedulesByDay.get(dateKey(day)) ?? []
-            return (
-              <Card key={dateKey(day)}>
-                  <h3 className="font-medium">{dayFormatter.format(day)}</h3>
-                  {entries.length === 0 ? (
-                    <p className="mt-4 text-sm text-muted-foreground">No episodes scheduled.</p>
-                  ) : (
-                    <ul className="mt-3 flex flex-col gap-3">
-                      {entries.map((schedule) => (
-                        <li key={schedule.id} className="flex items-center gap-3">
-                          {schedule.coverImage ? (
-                            <img src={schedule.coverImage} alt="" width={40} height={56} className="h-14 w-10 object-cover" />
-                          ) : (
-                            <span className="h-14 w-10 bg-muted" aria-hidden="true" />
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">{schedule.titleEnglish || schedule.titleRomaji}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Episode {schedule.episode} · {timeFormatter.format(new Date(schedule.airingAt * 1000))}
-                            </p>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-              </Card>
-            )
-          })}
-        </div>
+        <AiringAgendaLayout
+          days={days}
+          schedulesByDay={schedulesByDay}
+          loading={loading}
+          scrollToTodayRequest={scrollToTodayRequest}
+        />
       )}
     </section>
   )

@@ -29,6 +29,8 @@ export function DownloadStatus():Promise<torrentx.JobView>;
 
 export function FinishDownload(arg1:number):Promise<void>;
 
+export function GetAnime(arg1:number):Promise<main.AnimeView>;
+
 export function GetSettings():Promise<main.SettingsView>;
 
 export function ImportLocalFile():Promise<main.ImportResult>;

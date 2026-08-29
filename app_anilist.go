@@ -193,6 +193,28 @@ func (a *App) ListAiringSchedule(start, end int64) ([]AiringScheduleView, error)
 	})
 }
 
+func (a *App) GetAnime(mediaID int) (AnimeView, error) {
+	if err := a.ready(); err != nil {
+		return AnimeView{}, err
+	}
+	if mediaID <= 0 {
+		return AnimeView{}, errors.New("invalid anime id")
+	}
+	return loadCachedJSON(a, fmt.Sprintf("anime:%d", mediaID), apiCacheTTL, func() (AnimeView, error) {
+		token, _ := a.tokens.Get()
+		client, err := a.newAnilist(token)
+		if err != nil {
+			return AnimeView{}, err
+		}
+		anime, err := client.GetAnime(mediaID)
+		if err != nil {
+			return AnimeView{}, err
+		}
+		views := toAnimeViews([]anilist.Anime{anime})
+		return views[0], nil
+	})
+}
+
 func (a *App) ListCurrentlyWatching() ([]WatchingEntryView, error) {
 	return a.ListAnimeList("CURRENT")
 }
