@@ -468,12 +468,24 @@ func TestEpisodeBind(t *testing.T) {
 	if err := store.SetResumePosition(id, 123.5); err != nil {
 		t.Fatal(err)
 	}
+	if err := store.UnbindEpisode(id); err != nil {
+		t.Fatal(err)
+	}
 	ep, err = store.GetEpisode(id)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if ep.AnilistID.Valid {
+		t.Fatalf("anilist should be cleared, got %+v", ep.AnilistID)
+	}
+	if ep.EpisodeNumber.Valid {
+		t.Fatalf("episode number should be cleared, got %+v", ep.EpisodeNumber)
+	}
 	if ep.ResumePosition != 123.5 {
 		t.Fatalf("resume = %v", ep.ResumePosition)
+	}
+	if !ep.LastPlayedAt.Valid || ep.LastPlayedAt.String == "" {
+		t.Fatalf("last played = %+v", ep.LastPlayedAt)
 	}
 	_ = sql.NullInt64{}
 }

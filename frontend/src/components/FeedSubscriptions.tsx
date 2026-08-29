@@ -1,19 +1,9 @@
-import {useEffect, useState} from 'react'
-import {
-  AddRSSFeed,
-  InspectTorrent,
-  ListRSSFeedItems,
-  ListRSSFeeds,
-  MarkAllRSSFeedItemsSeen,
-  MarkRSSFeedItemsSeen,
-  PollRSSFeedsNow,
-  RemoveRSSFeed,
-  SetRSSFeedEnabled,
-  StartTorrent,
-} from '../../wailsjs/go/main/App'
-import {EventsOff, EventsOn} from '../../wailsjs/runtime/runtime'
+import {useEffect, useMemo, useState} from 'react'
+import {InspectTorrent, StartTorrent} from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
-import type {RSSFeedItemView, RSSFeedView, TorrentContentsView, TorrentFileView} from '../lib/types'
+import type {TorrentContentsView, TorrentFileView} from '../lib/types'
+import {useFeedStore} from '../stores/feedStore'
+import {useNavigationStore} from '../stores/navigationStore'
 import {TorrentFileSheet} from './TorrentFileSheet'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {Badge} from '@/components/ui/badge'
@@ -25,7 +15,6 @@ import {Skeleton} from '@/components/ui/skeleton'
 
 type Props = {
   notice: (msg: string, isError?: boolean) => void
-  onDownloads: () => void
 }
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -33,17 +22,27 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: 'short',
 })
 
-export function FeedSubscriptions({notice, onDownloads}: Props) {
-  const [feeds, setFeeds] = useState<RSSFeedView[]>([])
-  const [items, setItems] = useState<RSSFeedItemView[]>([])
+export function FeedSubscriptions({notice}: Props) {
+  const goToDownloads = useNavigationStore((state) => state.setTab)
+  const feeds = useFeedStore((state) => state.feeds)
+  const items = useFeedStore((state) => state.items)
+  const showNewOnly = useFeedStore((state) => state.showNewOnly)
+  const loading = useFeedStore((state) => state.loading)
+  const error = useFeedStore((state) => state.error)
+  const setShowNewOnly = useFeedStore((state) => state.setShowNewOnly)
+  const reload = useFeedStore((state) => state.reload)
+  const addFeed = useFeedStore((state) => state.addFeed)
+  const removeFeed = useFeedStore((state) => state.removeFeed)
+  const toggleFeed = useFeedStore((state) => state.toggleFeed)
+  const pollNow = useFeedStore((state) => state.pollNow)
+  const markAllSeen = useFeedStore((state) => state.markAllSeen)
+  const markSeen = useFeedStore((state) => state.markSeen)
+
   const [feedURL, setFeedURL] = useState('')
   const [feedTitle, setFeedTitle] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [adding, setAdding] = useState(false)
   const [polling, setPolling] = useState(false)
   const [starting, setStarting] = useState<number | null>(null)
-  const [showNewOnly, setShowNewOnly] = useState(true)
   const [picker, setPicker] = useState<{
     source: string
     contents: TorrentContentsView
@@ -52,104 +51,34 @@ export function FeedSubscriptions({notice, onDownloads}: Props) {
   } | null>(null)
   const [confirming, setConfirming] = useState(false)
 
-  async function reload() {
-    setError('')
-    try {
-      const [loadedFeeds, loadedItems] = await Promise.all([
-        ListRSSFeeds(),
-        ListRSSFeedItems(showNewOnly),
-      ])
-      setFeeds(loadedFeeds ?? [])
-      setItems(loadedItems ?? [])
-    } catch (err) {
-      setError(errorMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
     void reload()
-    EventsOn('feeds:updated', () => {
-      void reload()
-    })
-    return () => {
-      EventsOff('feeds:updated')
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showNewOnly])
+  }, [])
 
-  async function addFeed() {
-    const trimmedURL = feedURL.trim()
-    if (!trimmedURL) {
-      notice('Enter an RSS feed URL', true)
-      return
-    }
+  async function submitFeed() {
     setAdding(true)
     try {
-      await AddRSSFeed(trimmedURL, feedTitle.trim())
-      setFeedURL('')
-      setFeedTitle('')
-      notice('Feed subscribed')
-      await reload()
-    } catch (err) {
-      notice(errorMessage(err), true)
+      const added = await addFeed(feedURL, feedTitle, notice)
+      if (added) {
+        setFeedURL('')
+        setFeedTitle('')
+      }
     } finally {
       setAdding(false)
     }
   }
 
-  async function removeFeed(feed: RSSFeedView) {
-    try {
-      await RemoveRSSFeed(feed.id)
-      notice('Feed removed')
-      await reload()
-    } catch (err) {
-      notice(errorMessage(err), true)
-    }
-  }
-
-  async function toggleFeed(feed: RSSFeedView) {
-    try {
-      await SetRSSFeedEnabled(feed.id, !feed.enabled)
-      await reload()
-    } catch (err) {
-      notice(errorMessage(err), true)
-    }
-  }
-
-  async function pollNow() {
+  async function pollFeedsNow() {
     setPolling(true)
     try {
-      await PollRSSFeedsNow()
-      notice('Feeds polled')
-      await reload()
-    } catch (err) {
-      notice(errorMessage(err), true)
+      await pollNow(notice)
     } finally {
       setPolling(false)
     }
   }
 
-  async function markAllSeen() {
-    try {
-      await MarkAllRSSFeedItemsSeen()
-      await reload()
-    } catch (err) {
-      notice(errorMessage(err), true)
-    }
-  }
-
-  async function markSeen(item: RSSFeedItemView) {
-    try {
-      await MarkRSSFeedItemsSeen([item.id])
-      await reload()
-    } catch (err) {
-      notice(errorMessage(err), true)
-    }
-  }
-
-  async function download(item: RSSFeedItemView, itemIndex: number) {
+  async function download(item: typeof items[number], itemIndex: number) {
     const source = item.magnet || item.link
     if (!source) {
       notice('This item has no torrent link', true)
@@ -201,7 +130,7 @@ export function FeedSubscriptions({notice, onDownloads}: Props) {
       await StartTorrent(picker.source, files)
       setPicker(null)
       notice('Download added')
-      onDownloads()
+      goToDownloads('downloads')
     } catch (err) {
       notice(errorMessage(err), true)
     } finally {
@@ -209,7 +138,10 @@ export function FeedSubscriptions({notice, onDownloads}: Props) {
     }
   }
 
-  const totalNew = feeds.reduce((sum, feed) => sum + feed.newCount, 0)
+  const totalNew = useMemo(
+    () => feeds.reduce((sum, feed) => sum + feed.newCount, 0),
+    [feeds],
+  )
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
@@ -217,7 +149,7 @@ export function FeedSubscriptions({notice, onDownloads}: Props) {
         className="flex shrink-0 flex-wrap gap-2 bg-card p-4"
         onSubmit={(event) => {
           event.preventDefault()
-          void addFeed()
+          void submitFeed()
         }}
       >
         <div className="min-w-0 flex-1 space-y-2">
@@ -251,21 +183,21 @@ export function FeedSubscriptions({notice, onDownloads}: Props) {
       </form>
 
       <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <Button type="button" variant="muted" disabled={polling} onClick={() => void pollNow()}>
+        <Button type="button" variant="muted" disabled={polling} onClick={() => void pollFeedsNow()}>
           {polling ? 'Polling…' : 'Poll now'}
         </Button>
         <Button
           type="button"
           variant="muted"
           disabled={totalNew === 0}
-          onClick={() => void markAllSeen()}
+          onClick={() => void markAllSeen(notice)}
         >
           Mark all seen
         </Button>
         <Button
           type="button"
           variant={showNewOnly ? 'secondary' : 'muted'}
-          onClick={() => setShowNewOnly((current) => !current)}
+          onClick={() => void setShowNewOnly(!showNewOnly)}
         >
           {showNewOnly ? 'Showing new' : 'Showing all'}
         </Button>
@@ -313,7 +245,7 @@ export function FeedSubscriptions({notice, onDownloads}: Props) {
                             <Button
                               type="button"
                               variant="muted"
-                              onClick={() => void toggleFeed(feed)}
+                              onClick={() => void toggleFeed(feed, notice)}
                             >
                               {feed.enabled ? 'Pause' : 'Resume'}
                             </Button>
@@ -321,7 +253,7 @@ export function FeedSubscriptions({notice, onDownloads}: Props) {
                               type="button"
                               variant="ghost"
                               className="text-destructive hover:text-destructive"
-                              onClick={() => void removeFeed(feed)}
+                              onClick={() => void removeFeed(feed, notice)}
                             >
                               Remove
                             </Button>
@@ -358,7 +290,7 @@ export function FeedSubscriptions({notice, onDownloads}: Props) {
                               <Button
                                 type="button"
                                 variant="muted"
-                                onClick={() => void markSeen(item)}
+                                onClick={() => void markSeen(item, notice)}
                               >
                                 Mark seen
                               </Button>

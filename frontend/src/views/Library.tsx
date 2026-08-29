@@ -2,16 +2,17 @@ import {useEffect, useMemo, useRef, useState} from 'react'
 import {
   BindEpisode,
   ImportLocalFile,
-  ListAnimeList,
-  ListEpisodes,
   ListStreamingEpisodeThumbnails,
   PlayEpisode,
   SearchAnime,
   SetAnimeListStatus,
+  UnbindEpisode,
 } from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
 import {groupEpisodes, visibleLibraryEpisodes} from '../lib/groupEpisodes'
-import type {AnimeView, EpisodeView, PlaybackEvent, WatchingEntryView} from '../lib/types'
+import type {AnimeView, EpisodeView} from '../lib/types'
+import {useLibraryStore} from '../stores/libraryStore'
+import {usePlaybackStore} from '../stores/playbackStore'
 import {pickContinueHeroKey} from '../lib/libraryWatching'
 import {LibraryContinueHero} from '../components/LibraryContinueHero'
 import {LibraryMatchSheet, type LibraryMatchPicker} from '../components/LibraryMatchSheet'
@@ -24,29 +25,34 @@ import {Button} from '@/components/ui/button'
 
 type Props = {
   notice: (msg: string, isError?: boolean) => void
-  refreshKey: number
-  authKey: number
-  playing: PlaybackEvent | null
-  lastPlayback: PlaybackEvent | null
   onFindTorrent: (query: string) => void
   onReady?: () => void
 }
 
-export function LibraryView({notice, refreshKey, authKey, playing, lastPlayback, onFindTorrent, onReady}: Props) {
-  const [episodes, setEpisodes] = useState<EpisodeView[]>([])
-  const [watchingEntries, setWatchingEntries] = useState<WatchingEntryView[]>([])
-  const [loading, setLoading] = useState(true)
-  const [watchingLoading, setWatchingLoading] = useState(true)
-  const [loadError, setLoadError] = useState('')
+export function LibraryView({notice, onFindTorrent, onReady}: Props) {
+  const episodes = useLibraryStore((state) => state.episodes)
+  const watchingEntries = useLibraryStore((state) => state.watchingEntries)
+  const loading = useLibraryStore((state) => state.loading)
+  const watchingLoading = useLibraryStore((state) => state.watchingLoading)
+  const loadError = useLibraryStore((state) => state.loadError)
+  const selectedKey = useLibraryStore((state) => state.selectedKey)
+  const setSelectedKey = useLibraryStore((state) => state.setSelectedKey)
+  const reload = useLibraryStore((state) => state.reload)
+  const reloadWatching = useLibraryStore((state) => state.reloadWatching)
+  const playing = usePlaybackStore((state) => state.playing)
+  const lastPlayback = usePlaybackStore((state) => state.lastPlayback)
+
   const [busyId, setBusyId] = useState<number | null>(null)
   const [importing, setImporting] = useState(false)
   const [searching, setSearching] = useState(false)
   const [bindingAnimeId, setBindingAnimeId] = useState<number | null>(null)
   const [addingToWatching, setAddingToWatching] = useState(false)
-  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [unmatching, setUnmatching] = useState(false)
+  const [unmatchingEpisodeId, setUnmatchingEpisodeId] = useState<number | null>(null)
   const [picker, setPicker] = useState<LibraryMatchPicker | null>(null)
   const [episodeThumbnails, setEpisodeThumbnails] = useState<Record<number, string>>({})
   const skippedMatchIds = useRef(new Set<number>())
+  const bindingEpisodeId = useRef<number | null>(null)
   const readySignaled = useRef(false)
 
   const libraryEpisodes = useMemo(() => visibleLibraryEpisodes(episodes), [episodes])
@@ -77,8 +83,9 @@ export function LibraryView({notice, refreshKey, authKey, playing, lastPlayback,
       shows,
       playingShowKey,
       lastPlayback?.episodeId ?? null,
+      episodes,
     ),
-    [watchingEntries, shows, playingShowKey, lastPlayback?.episodeId],
+    [watchingEntries, shows, playingShowKey, lastPlayback?.episodeId, episodes],
   )
 
   const selectedAnilistId = useMemo(() => {
@@ -99,40 +106,11 @@ export function LibraryView({notice, refreshKey, authKey, playing, lastPlayback,
     return watchingEntries.find((entry) => entry.mediaId === selectedAnilistId) ?? null
   }, [watchingEntries, selectedAnilistId])
 
-  async function reloadWatching() {
-    setWatchingLoading(true)
-    try {
-      const result = await ListAnimeList('CURRENT')
-      setWatchingEntries(result ?? [])
-    } catch {
-      setWatchingEntries([])
-    } finally {
-      setWatchingLoading(false)
-    }
-  }
-
-  async function reload() {
-    setLoadError('')
-    try {
-      const rows = await ListEpisodes()
-      setEpisodes(rows ?? [])
-    } catch (err) {
-      const message = errorMessage(err)
-      setLoadError(message)
-      if (episodes.length > 0) {
-        notice(message, true)
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
-    void reload()
+    void reload(notice)
     void reloadWatching()
-    // reload/reloadWatching are local; refreshKey/authKey are the real triggers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshKey, authKey])
+  }, [])
 
   useEffect(() => {
     if (!loading && !readySignaled.current) {
@@ -149,7 +127,7 @@ export function LibraryView({notice, refreshKey, authKey, playing, lastPlayback,
     if (selectedKey && !shows.some((show) => show.key === selectedKey)) {
       setSelectedKey(null)
     }
-  }, [shows, selectedKey])
+  }, [shows, selectedKey, setSelectedKey])
 
   useEffect(() => {
     if (selectedAnilistId <= 0) {
@@ -207,7 +185,7 @@ export function LibraryView({notice, refreshKey, authKey, playing, lastPlayback,
   }
 
   useEffect(() => {
-    if (loading || picker || importing) {
+    if (loading || picker || importing || bindingEpisodeId.current !== null) {
       return
     }
     const unbound = libraryEpisodes.find((episode) => {
@@ -228,7 +206,7 @@ export function LibraryView({notice, refreshKey, authKey, playing, lastPlayback,
       if (!result?.episode?.id) {
         return
       }
-      await reload()
+      await reload(notice)
       if (!result.autoBound) {
         await openMatcher(result.episode, result.candidates ?? [])
       }
@@ -280,14 +258,17 @@ export function LibraryView({notice, refreshKey, authKey, playing, lastPlayback,
       return
     }
     const episodeId = picker.episode.id
+    bindingEpisodeId.current = episodeId
     setBindingAnimeId(anilistId)
     try {
       await BindEpisode(episodeId, anilistId)
+      skippedMatchIds.current.add(episodeId)
+      await reload(notice)
       setPicker((current) => current?.episode.id === episodeId ? null : current)
-      await reload()
     } catch (err) {
       notice(errorMessage(err), true)
     } finally {
+      bindingEpisodeId.current = null
       setBindingAnimeId(null)
     }
   }
@@ -344,6 +325,71 @@ export function LibraryView({notice, refreshKey, authKey, playing, lastPlayback,
     void openMatcher(episode)
   }
 
+  async function unmatchEpisode(episodeId: number) {
+    if (unmatching || unmatchingEpisodeId !== null) {
+      return
+    }
+
+    bindingEpisodeId.current = episodeId
+    setUnmatchingEpisodeId(episodeId)
+    try {
+      await UnbindEpisode(episodeId)
+      skippedMatchIds.current.delete(episodeId)
+      await reload(notice)
+      const updatedShows = groupEpisodes(visibleLibraryEpisodes(useLibraryStore.getState().episodes))
+      const updatedShow = updatedShows.find((show) => {
+        return show.episodes.some((episode) => episode.id === episodeId)
+      })
+      if (updatedShow) {
+        setSelectedKey(updatedShow.key)
+      } else {
+        setSelectedKey(null)
+      }
+      notice('AniList match removed')
+    } catch (err) {
+      notice(errorMessage(err), true)
+    } finally {
+      bindingEpisodeId.current = null
+      setUnmatchingEpisodeId(null)
+    }
+  }
+
+  async function unmatchSelectedShow() {
+    if (!selectedShow || !selectedShow.bound || unmatching || unmatchingEpisodeId !== null) {
+      return
+    }
+    const boundEpisodes = selectedShow.episodes.filter((episode) => episode.bound)
+    if (boundEpisodes.length === 0) {
+      return
+    }
+
+    const firstEpisodeId = boundEpisodes[0].id
+    bindingEpisodeId.current = firstEpisodeId
+    setUnmatching(true)
+    try {
+      for (const episode of boundEpisodes) {
+        await UnbindEpisode(episode.id)
+        skippedMatchIds.current.delete(episode.id)
+      }
+      await reload(notice)
+      const updatedShows = groupEpisodes(visibleLibraryEpisodes(useLibraryStore.getState().episodes))
+      const updatedShow = updatedShows.find((show) => {
+        return show.episodes.some((episode) => episode.id === firstEpisodeId)
+      })
+      if (updatedShow) {
+        setSelectedKey(updatedShow.key)
+      } else {
+        setSelectedKey(null)
+      }
+      notice('AniList match removed')
+    } catch (err) {
+      notice(errorMessage(err), true)
+    } finally {
+      bindingEpisodeId.current = null
+      setUnmatching(false)
+    }
+  }
+
   function backToGrid() {
     setSelectedKey(null)
   }
@@ -357,8 +403,8 @@ export function LibraryView({notice, refreshKey, authKey, playing, lastPlayback,
   }
 
   function retryLoad() {
-    setLoading(true)
-    void reload()
+    useLibraryStore.setState({loading: true})
+    void reload(notice)
   }
 
   return (
@@ -406,16 +452,20 @@ export function LibraryView({notice, refreshKey, authKey, playing, lastPlayback,
               bannerImage={selectedWatchingEntry?.bannerImage ?? ''}
               showAddToWatching={selectedShowIsUnlisted}
               saving={addingToWatching}
+              unmatching={unmatching}
               onAddToWatching={() => void addSelectedToWatching()}
               onMatchAnilist={openMatcherForSelectedShow}
+              onUnmatchAnilist={() => void unmatchSelectedShow()}
             />
             <LibraryEpisodeList
               show={selectedShow}
               playing={playing}
               lastPlayback={lastPlayback}
               busyId={busyId}
+              unmatchingEpisodeId={unmatchingEpisodeId}
               episodeThumbnails={episodeThumbnails}
               onPlay={(episodeId) => void onPlay(episodeId)}
+              onUnmatch={selectedShow.bound ? (episodeId) => void unmatchEpisode(episodeId) : undefined}
               onFindTorrent={onFindTorrent}
             />
           </>
@@ -424,6 +474,7 @@ export function LibraryView({notice, refreshKey, authKey, playing, lastPlayback,
             <LibraryContinueHero
               entries={watchingEntries}
               localShows={shows}
+              libraryEpisodes={episodes}
               playing={playing}
               lastPlayback={lastPlayback}
               playingShowKey={playingShowKey}

@@ -37,6 +37,8 @@ export type EpisodeView = {
   totalEpisodes: number
   mediaStatus: string
   nextAiringEpisode: number
+  resumePosition: number
+  lastPlayedAt: string
 }
 
 export type AnimeView = {

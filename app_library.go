@@ -179,6 +179,16 @@ func (a *App) BindEpisode(episodeID int64, anilistID int) error {
 	return a.store.BindEpisode(episodeID, anilistID, episodeNum)
 }
 
+func (a *App) UnbindEpisode(episodeID int64) error {
+	if err := a.ready(); err != nil {
+		return err
+	}
+	if _, err := a.store.GetEpisode(episodeID); err != nil {
+		return err
+	}
+	return a.store.UnbindEpisode(episodeID)
+}
+
 func (a *App) importPath(path string) (ImportResult, error) {
 	path = filepath.Clean(path)
 	if absolute, err := filepath.Abs(path); err == nil {
@@ -296,6 +306,10 @@ func toEpisodeView(e storage.Episode) EpisodeView {
 	}
 	if view.DisplayTitle == "" {
 		view.DisplayTitle = filepath.Base(e.FilePath)
+	}
+	view.ResumePosition = e.ResumePosition
+	if e.LastPlayedAt.Valid {
+		view.LastPlayedAt = e.LastPlayedAt.String
 	}
 	return view
 }

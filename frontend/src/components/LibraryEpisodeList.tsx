@@ -9,8 +9,10 @@ type Props = {
   playing: PlaybackEvent | null
   lastPlayback: PlaybackEvent | null
   busyId: number | null
+  unmatchingEpisodeId: number | null
   episodeThumbnails: Record<number, string>
   onPlay: (episodeId: number) => void
+  onUnmatch?: (episodeId: number) => void
   onFindTorrent?: (query: string) => void
 }
 
@@ -100,8 +102,10 @@ export function LibraryEpisodeList({
   playing,
   lastPlayback,
   busyId,
+  unmatchingEpisodeId,
   episodeThumbnails,
   onPlay,
+  onUnmatch,
   onFindTorrent,
 }: Props) {
   const slots = episodeSlots(show)
@@ -191,6 +195,7 @@ export function LibraryEpisodeList({
 
         const episode = slot.file
         const isBusy = busyId === episode.id
+        const isUnmatching = unmatchingEpisodeId === episode.id
         const playback = episodePlaybackState(episode.id, playing, lastPlayback)
 
         return (
@@ -200,7 +205,7 @@ export function LibraryEpisodeList({
                 'relative overflow-hidden border-l-2',
                 rowClassName,
                 playback.highlighted ? 'border-l-accent' : 'border-l-transparent',
-                isBusy && 'opacity-50',
+                (isBusy || isUnmatching) && 'opacity-50',
               )}
             >
               {playback.highlighted && playback.percent > 0 && (
@@ -230,15 +235,28 @@ export function LibraryEpisodeList({
                 <span className={titleClassName}>{label}</span>
                 <span className={cn(subtitleClassName, 'text-muted-foreground')}>{subtitle}</span>
               </span>
-              <Button
-                type="button"
-                variant="default"
-                className={episodeActionButtonClassName}
-                disabled={isBusy}
-                onClick={() => onPlay(episode.id)}
-              >
-                {isBusy ? 'Starting…' : 'Play'}
-              </Button>
+              <div className="flex shrink-0 gap-2">
+                {episode.bound && onUnmatch && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className={episodeActionButtonClassName}
+                    disabled={isBusy || isUnmatching || unmatchingEpisodeId !== null}
+                    onClick={() => onUnmatch(episode.id)}
+                  >
+                    {isUnmatching ? 'Removing…' : 'Unmatch'}
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="default"
+                  className={episodeActionButtonClassName}
+                  disabled={isBusy || isUnmatching}
+                  onClick={() => onPlay(episode.id)}
+                >
+                  {isBusy ? 'Starting…' : 'Play'}
+                </Button>
+              </div>
             </div>
           </li>
         )

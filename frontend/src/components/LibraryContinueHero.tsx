@@ -8,12 +8,13 @@ import {
   watchingPosterCaption,
   type WatchingShowItem,
 } from '../lib/libraryWatching'
-import type {PlaybackEvent, WatchingEntryView} from '../lib/types'
+import type {EpisodeView, PlaybackEvent, WatchingEntryView} from '../lib/types'
 import {Button} from '@/components/ui/button'
 
 type Props = {
   entries: WatchingEntryView[]
   localShows: ShowGroup[]
+  libraryEpisodes: EpisodeView[]
   playing: PlaybackEvent | null
   lastPlayback: PlaybackEvent | null
   playingShowKey: string | null
@@ -58,6 +59,7 @@ function findWatchingItem(items: WatchingShowItem[], key: string): WatchingShowI
 export function LibraryContinueHero({
   entries,
   localShows,
+  libraryEpisodes,
   playing,
   lastPlayback,
   playingShowKey,
@@ -70,8 +72,9 @@ export function LibraryContinueHero({
       localShows,
       playingShowKey,
       lastPlayback?.episodeId ?? null,
+      libraryEpisodes,
     ),
-    [entries, localShows, playingShowKey, lastPlayback?.episodeId],
+    [entries, localShows, playingShowKey, lastPlayback?.episodeId, libraryEpisodes],
   )
 
   const watchingItems = useMemo(

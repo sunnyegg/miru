@@ -11,7 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const currentVersion = 7
+const currentVersion = 8
 
 var ErrNotFound = errors.New("not found")
 
@@ -89,6 +89,11 @@ func (s *Store) migrate() error {
 	}
 	if version < 7 {
 		if _, err := tx.Exec(schemaV7); err != nil {
+			return err
+		}
+	}
+	if version < 8 {
+		if _, err := tx.Exec(schemaV8); err != nil {
 			return err
 		}
 	}
@@ -254,6 +259,10 @@ CREATE TABLE IF NOT EXISTS rss_feed_items (
 CREATE INDEX IF NOT EXISTS rss_feed_items_new_idx
     ON rss_feed_items(feed_id, is_new)
     WHERE is_new = 1;
+`
+
+const schemaV8 = `
+ALTER TABLE episode_downloads ADD COLUMN last_played_at DATETIME;
 `
 
 func (s *Store) GetSetting(key string) (string, error) {

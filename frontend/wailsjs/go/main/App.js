@@ -237,3 +237,7 @@ export function StartTorrentURL(arg1) {
 export function TestNetworkConnection(arg1, arg2, arg3) {
   return window['go']['main']['App']['TestNetworkConnection'](arg1, arg2, arg3);
 }
+
+export function UnbindEpisode(arg1) {
+  return window['go']['main']['App']['UnbindEpisode'](arg1);
+}

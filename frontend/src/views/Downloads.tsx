@@ -1,7 +1,6 @@
 import {useEffect, useState} from 'react'
 import {
   CancelDownload,
-  DownloadHistory,
   FinishDownload,
   InspectTorrent,
   OpenDownloadFolder,
@@ -14,7 +13,8 @@ import {
 } from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
 import {groupDownloads, type DownloadGroup} from '../lib/downloadGroups'
-import type {DownloadView, TorrentContentsView, TorrentFileView} from '../lib/types'
+import type {TorrentContentsView, TorrentFileView} from '../lib/types'
+import {useDownloadStore} from '../stores/downloadStore'
 import {AddTorrentDialog} from '../components/AddTorrentDialog'
 import {DeleteDownloadDialog} from '../components/DeleteDownloadDialog'
 import {DownloadJobCard} from '../components/DownloadJobCard'
@@ -26,8 +26,6 @@ import {cn} from '@/lib/utils'
 
 type Props = {
   notice: (msg: string, isError?: boolean) => void
-  jobs: DownloadView[]
-  onJobs: (jobs: DownloadView[]) => void
 }
 
 type PickerState = {
@@ -43,9 +41,13 @@ const downloadTabs: {group: DownloadGroup; label: string}[] = [
   {group: 'completed', label: 'Completed'},
 ]
 
-export function DownloadsView({notice, jobs, onJobs}: Props) {
+export function DownloadsView({notice}: Props) {
+  const jobs = useDownloadStore((state) => state.jobs)
+  const activeTab = useDownloadStore((state) => state.activeTab)
+  const setActiveTab = useDownloadStore((state) => state.setActiveTab)
+  const loadHistory = useDownloadStore((state) => state.loadHistory)
+
   const [addDialogOpen, setAddDialogOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<DownloadGroup>('downloading')
   const [busy, setBusy] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
   const [deleteFilesConfirmId, setDeleteFilesConfirmId] = useState<number | null>(null)
@@ -69,7 +71,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
   async function refreshHistory() {
     setLoadError('')
     try {
-      onJobs((await DownloadHistory()) ?? [])
+      await loadHistory()
     } catch (err) {
       setLoadError(errorMessage(err))
     }

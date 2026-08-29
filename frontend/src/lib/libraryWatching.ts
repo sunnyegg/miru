@@ -1,5 +1,5 @@
 import type {ShowGroup} from './groupEpisodes'
-import type {WatchingEntryView} from './types'
+import type {EpisodeView, WatchingEntryView} from './types'
 
 export type WatchingShowItem = {
   mediaId: number
@@ -156,16 +156,52 @@ export function showKeyForEpisodeId(localShows: ShowGroup[], episodeId: number):
   return null
 }
 
+export function lastWatchedEpisodeIdFromLibrary(episodes: EpisodeView[]): number | null {
+  let latestEpisodeId: number | null = null
+  let latestPlayedAt = 0
+
+  for (const episode of episodes) {
+    if (!episode.lastPlayedAt) {
+      continue
+    }
+    const playedAt = Date.parse(episode.lastPlayedAt)
+    if (Number.isNaN(playedAt) || playedAt <= latestPlayedAt) {
+      continue
+    }
+    latestPlayedAt = playedAt
+    latestEpisodeId = episode.id
+  }
+
+  if (latestEpisodeId !== null) {
+    return latestEpisodeId
+  }
+
+  let resumeEpisodeId: number | null = null
+  let highestResumePosition = 0
+  for (const episode of episodes) {
+    if (episode.resumePosition <= highestResumePosition) {
+      continue
+    }
+    highestResumePosition = episode.resumePosition
+    resumeEpisodeId = episode.id
+  }
+
+  return resumeEpisodeId
+}
+
 export function pickContinueHeroKey(
   entries: WatchingEntryView[],
   localShows: ShowGroup[],
   playingShowKey: string | null,
   lastPlaybackEpisodeId: number | null = null,
+  libraryEpisodes: EpisodeView[] = [],
 ): string | null {
   if (playingShowKey) {
     return playingShowKey
   }
-  const lastWatchedShowKey = showKeyForEpisodeId(localShows, lastPlaybackEpisodeId ?? 0)
+  const rememberedEpisodeId =
+    lastPlaybackEpisodeId ?? lastWatchedEpisodeIdFromLibrary(libraryEpisodes)
+  const lastWatchedShowKey = showKeyForEpisodeId(localShows, rememberedEpisodeId ?? 0)
   if (lastWatchedShowKey) {
     return lastWatchedShowKey
   }

@@ -2,6 +2,7 @@ import {IconCalendar, IconDownload, IconLibrary, IconSearch, IconSettings, IconW
 import {Button} from '@/components/ui/button'
 import {cn} from '@/lib/utils'
 import type {TabId} from '../lib/types'
+import {useNavigationStore} from '../stores/navigationStore'
 
 const destinations: {id: TabId; label: string; icon: typeof IconLibrary}[] = [
   {id: 'library', label: 'Library', icon: IconLibrary},
@@ -10,11 +11,6 @@ const destinations: {id: TabId; label: string; icon: typeof IconLibrary}[] = [
   {id: 'downloads', label: 'Downloads', icon: IconDownload},
   {id: 'calendar', label: 'Airing', icon: IconCalendar},
 ]
-
-type Props = {
-  current: TabId
-  onChange: (id: TabId) => void
-}
 
 function NavButton({
   id,
@@ -49,7 +45,10 @@ function NavButton({
   )
 }
 
-export function Sidebar({current, onChange}: Props) {
+export function Sidebar() {
+  const current = useNavigationStore((state) => state.tab)
+  const onChange = useNavigationStore((state) => state.setTab)
+
   return (
     <nav
       className="flex w-12 shrink-0 flex-col border-r border-border bg-bezel py-4 sm:w-44"

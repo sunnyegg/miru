@@ -1,14 +1,17 @@
 import {libraryHeroBackgroundImage} from '../lib/anilistImage'
 import type {ShowGroup} from '../lib/groupEpisodes'
 import {LibraryAddToWatchingBanner} from './LibraryAddToWatchingBanner'
+import {Button} from '@/components/ui/button'
 
 type Props = {
   show: ShowGroup
   bannerImage?: string
   showAddToWatching: boolean
   saving: boolean
+  unmatching: boolean
   onAddToWatching: () => void
   onMatchAnilist: () => void
+  onUnmatchAnilist: () => void
 }
 
 function progressSummary(show: ShowGroup): string {
@@ -31,8 +34,10 @@ export function LibraryShowDetailHero({
   bannerImage = '',
   showAddToWatching,
   saving,
+  unmatching,
   onAddToWatching,
   onMatchAnilist,
+  onUnmatchAnilist,
 }: Props) {
   const heroBackground = libraryHeroBackgroundImage(
     bannerImage ? {bannerImage, coverImage: show.coverImage} : null,
@@ -66,6 +71,18 @@ export function LibraryShowDetailHero({
                 onAddToWatching={onAddToWatching}
                 onMatchAnilist={onMatchAnilist}
               />
+            </div>
+          )}
+          {show.bound && (
+            <div className="mt-4">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={unmatching}
+                onClick={onUnmatchAnilist}
+              >
+                {unmatching ? 'Removing match…' : 'Unmatch AniList'}
+              </Button>
             </div>
           )}
         </div>

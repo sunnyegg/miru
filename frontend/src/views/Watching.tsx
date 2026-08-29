@@ -1,8 +1,8 @@
 import {useEffect, useState} from 'react'
-import {ListAnimeList, SaveAnimeListEntry, SearchAnime, SetAnimeListStatus} from '../../wailsjs/go/main/App'
 import {WatchingEditSheet} from '../components/WatchingEditSheet'
-import {errorMessage} from '../lib/format'
-import type {AnimeListEntryInput, AnimeView, WatchingEntryView} from '../lib/types'
+import type {AnimeListEntryInput} from '../lib/types'
+import {useNavigationStore} from '../stores/navigationStore'
+import {useWatchingStore, type ListFilter} from '../stores/watchingStore'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
@@ -10,18 +10,8 @@ import {Input} from '@/components/ui/input'
 import {Skeleton} from '@/components/ui/skeleton'
 
 type Props = {
-  refreshKey: number
   notice: (msg: string, isError?: boolean) => void
-  onSettings: () => void
 }
-
-type ListFilter =
-  | 'CURRENT'
-  | 'COMPLETED'
-  | 'PLANNING'
-  | 'PAUSED'
-  | 'DROPPED'
-  | 'REPEATING'
 
 const listFilters: {value: ListFilter; label: string}[] = [
   {value: 'CURRENT', label: 'Watching'},
@@ -55,101 +45,53 @@ function mediaStatusLabel(status: string): string {
   return mediaStatusLabels[status] ?? status
 }
 
-export function WatchingView({refreshKey, notice, onSettings}: Props) {
-  const [listFilter, setListFilter] = useState<ListFilter>('CURRENT')
-  const [entries, setEntries] = useState<WatchingEntryView[]>([])
-  const [loading, setLoading] = useState(true)
-  const [notConnected, setNotConnected] = useState(false)
-  const [error, setError] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<AnimeView[]>([])
-  const [searching, setSearching] = useState(false)
-  const [searchError, setSearchError] = useState('')
+export function WatchingView({notice}: Props) {
+  const goToSettings = useNavigationStore((state) => state.setTab)
+  const listFilter = useWatchingStore((state) => state.listFilter)
+  const entries = useWatchingStore((state) => state.entries)
+  const loading = useWatchingStore((state) => state.loading)
+  const notConnected = useWatchingStore((state) => state.notConnected)
+  const error = useWatchingStore((state) => state.error)
+  const searchQuery = useWatchingStore((state) => state.searchQuery)
+  const searchResults = useWatchingStore((state) => state.searchResults)
+  const searching = useWatchingStore((state) => state.searching)
+  const searchError = useWatchingStore((state) => state.searchError)
+  const setSearchQuery = useWatchingStore((state) => state.setSearchQuery)
+  const selectFilter = useWatchingStore((state) => state.selectFilter)
+  const loadList = useWatchingStore((state) => state.loadList)
+  const searchAnime = useWatchingStore((state) => state.searchAnime)
+  const markWatching = useWatchingStore((state) => state.markWatching)
+  const saveEntry = useWatchingStore((state) => state.saveEntry)
+
   const [busyMediaId, setBusyMediaId] = useState<number | null>(null)
-  const [editingEntry, setEditingEntry] = useState<WatchingEntryView | null>(null)
+  const [editingEntry, setEditingEntry] = useState<(typeof entries)[number] | null>(null)
   const [savingEntry, setSavingEntry] = useState(false)
 
-  async function loadList(filter: ListFilter = listFilter) {
-    setLoading(true)
-    setNotConnected(false)
-    setError('')
-    try {
-      const result = await ListAnimeList(filter)
-      setEntries(result ?? [])
-    } catch (err) {
-      const message = errorMessage(err)
-      if (message === 'AniList not connected') {
-        setNotConnected(true)
-        setEntries([])
-      } else {
-        setError(message)
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
+  useEffect(() => {
+    void loadList()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  async function searchAnime() {
-    const trimmed = searchQuery.trim()
-    if (!trimmed) {
-      setSearchError('Enter an anime title to search.')
-      return
-    }
-    setSearching(true)
-    setSearchError('')
-    try {
-      const found = await SearchAnime(trimmed)
-      setSearchResults(found ?? [])
-    } catch (err) {
-      setSearchError(errorMessage(err))
-      setSearchResults([])
-    } finally {
-      setSearching(false)
-    }
-  }
-
-  async function markWatching(mediaId: number) {
+  async function markWatchingWithBusy(mediaId: number) {
     setBusyMediaId(mediaId)
     try {
-      await SetAnimeListStatus(mediaId, 'CURRENT', 0)
-      notice('Added to Watching')
-      setSearchResults((current) =>
-        current.map((anime) =>
-          anime.id === mediaId ? {...anime, listStatus: 'CURRENT'} : anime
-        )
-      )
-      await loadList(listFilter)
-    } catch (err) {
-      notice(errorMessage(err), true)
+      await markWatching(mediaId, notice)
     } finally {
       setBusyMediaId(null)
     }
   }
 
-  async function saveEntry(input: AnimeListEntryInput) {
+  async function saveEntryWithState(input: AnimeListEntryInput) {
     setSavingEntry(true)
     try {
-      await SaveAnimeListEntry(input)
-      notice('List entry updated')
+      await saveEntry(input, notice)
       setEditingEntry(null)
-      await loadList(listFilter)
-    } catch (err) {
-      notice(errorMessage(err), true)
+    } catch {
+      // notice handled in store
     } finally {
       setSavingEntry(false)
     }
   }
-
-  function selectFilter(filter: ListFilter) {
-    setListFilter(filter)
-    void loadList(filter)
-  }
-
-  useEffect(() => {
-    void loadList()
-    // loadList closes over current listFilter via state setter; refreshKey is the trigger.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshKey])
 
   const filterLabel = listStatusLabel(listFilter)
   const emptyCopy = `Nothing on your ${filterLabel} list. Switch filter, or search AniList above to add a title.`
@@ -169,7 +111,7 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
               key={filter.value}
               type="button"
               variant={listFilter === filter.value ? 'muted' : 'ghost'}
-              onClick={() => selectFilter(filter.value)}
+              onClick={() => void selectFilter(filter.value)}
             >
               {filter.label}
             </Button>
@@ -237,7 +179,7 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
                       {!onList && (
                         <Button
                           type="button"
-                          onClick={() => void markWatching(anime.id)}
+                          onClick={() => void markWatchingWithBusy(anime.id)}
                           disabled={busyMediaId !== null}
                           aria-busy={busyMediaId === anime.id}
                         >
@@ -273,7 +215,7 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
           <p className="mt-1 text-sm text-muted-foreground">
             Sign in with AniList from Settings, then return here to load your anime list.
           </p>
-          <Button type="button" variant="secondary" className="mt-4" onClick={onSettings}>
+          <Button type="button" variant="secondary" className="mt-4" onClick={() => goToSettings('settings')}>
             Open Settings
           </Button>
         </Card>
@@ -333,7 +275,7 @@ export function WatchingView({refreshKey, notice, onSettings}: Props) {
           entry={editingEntry}
           saving={savingEntry}
           onClose={() => setEditingEntry(null)}
-          onSave={(input) => void saveEntry(input)}
+          onSave={(input) => void saveEntryWithState(input)}
         />
       )}
     </section>

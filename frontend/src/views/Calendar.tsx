@@ -1,18 +1,19 @@
-import {useEffect, useMemo, useState} from 'react'
-import {ListAiringSchedule} from '../../wailsjs/go/main/App'
+import {useEffect, useMemo} from 'react'
 import {AiringAgendaLayout} from '../components/AiringAgendaLayout'
 import {buildWeekDays, groupSchedulesByDay, startOfMonday} from '../lib/calendar'
-import {errorMessage} from '../lib/format'
-import type {AiringScheduleView} from '../lib/types'
+import {useCalendarStore} from '../stores/calendarStore'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 
 export function CalendarView() {
-  const [weekOffset, setWeekOffset] = useState(0)
-  const [scrollToTodayRequest, setScrollToTodayRequest] = useState(0)
-  const [schedules, setSchedules] = useState<AiringScheduleView[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const weekOffset = useCalendarStore((state) => state.weekOffset)
+  const scrollToTodayRequest = useCalendarStore((state) => state.scrollToTodayRequest)
+  const schedules = useCalendarStore((state) => state.schedules)
+  const loading = useCalendarStore((state) => state.loading)
+  const error = useCalendarStore((state) => state.error)
+  const setWeekOffset = useCalendarStore((state) => state.setWeekOffset)
+  const goToToday = useCalendarStore((state) => state.goToToday)
+  const loadSchedules = useCalendarStore((state) => state.loadSchedules)
 
   const weekStart = useMemo(() => {
     const start = startOfMonday(new Date())
@@ -24,26 +25,10 @@ export function CalendarView() {
 
   const schedulesByDay = useMemo(() => groupSchedulesByDay(schedules), [schedules])
 
-  async function loadSchedules() {
-    setLoading(true)
-    setError('')
-    try {
-      const start = Math.floor(weekStart.getTime() / 1000)
-      const end = Math.floor(days[6].getTime() / 1000) + 24 * 60 * 60
-      const result = await ListAiringSchedule(Math.max(0, start - 1), end)
-      setSchedules(result ?? [])
-    } catch (err) {
-      setError(errorMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
     void loadSchedules()
-    // loadSchedules closes over current weekStart/days; rely on deps to refire.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weekStart, days])
+  }, [weekOffset])
 
   return (
     <section className="flex h-full flex-col gap-6">
@@ -58,14 +43,7 @@ export function CalendarView() {
           <Button type="button" variant="muted" onClick={() => setWeekOffset((offset) => offset - 1)}>
             Previous
           </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => {
-              setWeekOffset(0)
-              setScrollToTodayRequest((request) => request + 1)
-            }}
-          >
+          <Button type="button" variant="secondary" onClick={() => goToToday()}>
             Today
           </Button>
           <Button type="button" variant="muted" onClick={() => setWeekOffset((offset) => offset + 1)}>
