@@ -20,6 +20,14 @@ export type ListFilter =
   | 'DROPPED'
   | 'REPEATING'
 
+export type QuickAddStatus = 'CURRENT' | 'PLANNING' | 'COMPLETED'
+
+const quickAddNotices: Record<QuickAddStatus, string> = {
+  CURRENT: 'Added to Watching',
+  PLANNING: 'Added to Planning',
+  COMPLETED: 'Added to Completed',
+}
+
 type NoticeFn = (message: string, isError?: boolean) => void
 
 type WatchingState = {
@@ -33,10 +41,16 @@ type WatchingState = {
   searching: boolean
   searchError: string
   setSearchQuery: (query: string) => void
+  clearSearch: () => void
   selectFilter: (filter: ListFilter) => Promise<void>
   loadList: (filter?: ListFilter) => Promise<void>
   searchAnime: () => Promise<void>
-  markWatching: (mediaId: number, notice: NoticeFn) => Promise<void>
+  setListStatus: (
+    mediaId: number,
+    status: QuickAddStatus,
+    totalEpisodes: number,
+    notice: NoticeFn,
+  ) => Promise<void>
   saveEntry: (input: AnimeListEntryInput, notice: NoticeFn) => Promise<void>
 }
 
@@ -52,6 +66,8 @@ export const useWatchingStore = create<WatchingState>((set, get) => ({
   searchError: '',
 
   setSearchQuery: (query) => set({searchQuery: query}),
+
+  clearSearch: () => set({searchQuery: '', searchResults: [], searchError: ''}),
 
   loadList: async (filter) => {
     const listFilter = filter ?? get().listFilter
@@ -93,13 +109,13 @@ export const useWatchingStore = create<WatchingState>((set, get) => ({
     }
   },
 
-  markWatching: async (mediaId, notice) => {
+  setListStatus: async (mediaId, status, totalEpisodes, notice) => {
     try {
-      await SetAnimeListStatus(mediaId, 'CURRENT', 0)
-      notice('Added to Watching')
+      await SetAnimeListStatus(mediaId, status, totalEpisodes)
+      notice(quickAddNotices[status])
       set((state) => ({
         searchResults: state.searchResults.map((anime) =>
-          anime.id === mediaId ? {...anime, listStatus: 'CURRENT'} : anime,
+          anime.id === mediaId ? {...anime, listStatus: status} : anime,
         ),
       }))
       await get().loadList()

@@ -257,7 +257,9 @@ func (a *App) SetAnimeListStatus(mediaID int, status string, totalEpisodes int) 
 		return errors.New("invalid anime id")
 	}
 	status = strings.ToUpper(strings.TrimSpace(status))
-	if status != "CURRENT" && status != "COMPLETED" {
+	switch status {
+	case "CURRENT", "COMPLETED", "PLANNING":
+	default:
 		return fmt.Errorf("unsupported list status %q", status)
 	}
 	token, err := a.tokens.Get()
