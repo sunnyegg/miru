@@ -1,7 +1,8 @@
-import {useEffect, useRef, useState} from 'react'
-import {InspectTorrent, SearchNyaa, SearchTokyoToshokan, StartTorrent} from '../../wailsjs/go/main/App'
+import {useRef, useState} from 'react'
+import {InspectTorrent, StartTorrent} from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
 import type {NyaaResultView, TorrentContentsView, TorrentFileView} from '../lib/types'
+import {useSearchStore, type SearchSource} from '../stores/searchStore'
 import {TorrentFileSheet} from '../components/TorrentFileSheet'
 import {FeedSubscriptions} from '../components/FeedSubscriptions'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
@@ -15,12 +16,7 @@ import {Skeleton} from '@/components/ui/skeleton'
 type Props = {
   notice: (msg: string, isError?: boolean) => void
   onDownloads: () => void
-  prefillQuery?: string
-  onPrefillConsumed?: () => void
 }
-
-type SearchSource = 'nyaa' | 'tokyotosho'
-type SearchMode = 'search' | 'feeds'
 
 const PAGE_SIZE = 10
 
@@ -29,15 +25,21 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: 'short',
 })
 
-export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed}: Props) {
-  const [mode, setMode] = useState<SearchMode>('search')
-  const [query, setQuery] = useState('')
-  const [source, setSource] = useState<SearchSource>('nyaa')
-  const [submittedQuery, setSubmittedQuery] = useState('')
-  const [results, setResults] = useState<NyaaResultView[]>([])
-  const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+export function SearchView({notice, onDownloads}: Props) {
+  const mode = useSearchStore((state) => state.mode)
+  const query = useSearchStore((state) => state.query)
+  const source = useSearchStore((state) => state.source)
+  const submittedQuery = useSearchStore((state) => state.submittedQuery)
+  const results = useSearchStore((state) => state.results)
+  const page = useSearchStore((state) => state.page)
+  const loading = useSearchStore((state) => state.loading)
+  const error = useSearchStore((state) => state.error)
+  const setMode = useSearchStore((state) => state.setMode)
+  const setQuery = useSearchStore((state) => state.setQuery)
+  const setPage = useSearchStore((state) => state.setPage)
+  const changeSource = useSearchStore((state) => state.changeSource)
+  const runSearch = useSearchStore((state) => state.runSearch)
+
   const [starting, setStarting] = useState<number | null>(null)
   const [picker, setPicker] = useState<{
     source: string
@@ -47,7 +49,6 @@ export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed
   } | null>(null)
   const [confirming, setConfirming] = useState(false)
   const resultsScrollRef = useRef<HTMLDivElement>(null)
-  const prefillHandled = useRef('')
 
   const sourceLabel = source === 'tokyotosho' ? 'Tokyo Toshokan' : 'Nyaa'
   const pageStart = (page - 1) * PAGE_SIZE
@@ -55,59 +56,32 @@ export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed
   const lastPage = Math.max(1, Math.ceil(results.length / PAGE_SIZE))
   const showPager = results.length > PAGE_SIZE
 
-  async function search(searchQuery = query, searchSource = source) {
-    const trimmed = searchQuery.trim()
-    if (!trimmed) {
-      setError('Enter an anime title to search.')
-      return
-    }
-    setLoading(true)
-    setError('')
-    setSubmittedQuery(trimmed)
-    try {
-      const found = searchSource === 'tokyotosho'
-        ? await SearchTokyoToshokan(trimmed)
-        : await SearchNyaa(trimmed)
-      setResults(found ?? [])
-      setPage(1)
-      resultsScrollRef.current?.scrollTo({top: 0})
-    } catch (err) {
-      const message = errorMessage(err)
-      setError(message)
-      notice(message, true)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function changeSource(nextSource: SearchSource) {
-    setSource(nextSource)
-    if (submittedQuery) {
-      await search(submittedQuery, nextSource)
-    }
+  async function search(searchQuery?: string, searchSource?: SearchSource) {
+    await runSearch(notice, searchQuery, searchSource)
+    resultsScrollRef.current?.scrollTo({top: 0})
   }
 
   async function download(result: NyaaResultView, resultIndex: number) {
-    const source = result.link || result.magnet
-    if (!source) {
+    const torrentSource = result.link || result.magnet
+    if (!torrentSource) {
       notice('This result has no torrent link', true)
       return
     }
     setStarting(resultIndex)
     setPicker({
-      source,
+      source: torrentSource,
       contents: {name: result.title, bytesTotal: 0, files: []},
       loading: true,
       error: '',
     })
     try {
-      const contents = await InspectTorrent(source)
+      const contents = await InspectTorrent(torrentSource)
       setPicker((current) => {
-        if (!current || current.source !== source) {
+        if (!current || current.source !== torrentSource) {
           return current
         }
         return {
-          source,
+          source: torrentSource,
           contents: contents ?? {name: result.title, bytesTotal: 0, files: []},
           loading: false,
           error: '',
@@ -115,11 +89,11 @@ export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed
       })
     } catch (err) {
       setPicker((current) => {
-        if (!current || current.source !== source) {
+        if (!current || current.source !== torrentSource) {
           return current
         }
         return {
-          source,
+          source: torrentSource,
           contents: {name: result.title, bytesTotal: 0, files: []},
           loading: false,
           error: errorMessage(err),
@@ -151,21 +125,6 @@ export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed
     setPage(nextPage)
     resultsScrollRef.current?.scrollTo({top: 0})
   }
-
-  useEffect(() => {
-    const trimmed = prefillQuery?.trim()
-    if (!trimmed || prefillHandled.current === trimmed) {
-      return
-    }
-    prefillHandled.current = trimmed
-    if (!query.trim()) {
-      setQuery(trimmed)
-    }
-    void search(trimmed)
-    onPrefillConsumed?.()
-    // Fires only when prefillQuery changes; query/search/onPrefillConsumed are read but not triggers.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefillQuery])
 
   return (
     <section className="flex h-full min-h-0 flex-col gap-6 overflow-hidden">
@@ -210,7 +169,7 @@ export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed
           id="search-source"
           className="w-auto min-w-44 shrink-0"
           value={source}
-          onChange={(event) => void changeSource(event.target.value as SearchSource)}
+          onChange={(event) => void changeSource(event.target.value as SearchSource, notice)}
         >
           <NativeSelectOption value="nyaa">Nyaa</NativeSelectOption>
           <NativeSelectOption value="tokyotosho">Tokyo Toshokan</NativeSelectOption>
@@ -231,8 +190,8 @@ export function SearchView({notice, onDownloads, prefillQuery, onPrefillConsumed
       <div ref={resultsScrollRef} className="min-h-0 flex-1 overflow-auto">
         {loading ? (
           <ul className="flex flex-col gap-2" aria-busy="true" aria-label={`Loading ${sourceLabel} results`}>
-            {Array.from({length: 5}, (_, i) => (
-              <li key={i} className="flex items-center gap-3 bg-card p-3">
+            {Array.from({length: 5}, (_, index) => (
+              <li key={index} className="flex items-center gap-3 bg-card p-3">
                 <Skeleton className="h-12 w-12 shrink-0 animate-pulse" />
                 <div className="flex flex-1 flex-col gap-2">
                   <Skeleton className="h-4 w-2/3 animate-pulse" />
