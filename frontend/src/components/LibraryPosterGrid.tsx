@@ -6,7 +6,7 @@ import {Skeleton} from '@/components/ui/skeleton'
 function posterCaption(show: ShowGroup): string {
   if (!show.bound) {
     const count = show.episodes.length
-    return `${count} episode${count === 1 ? '' : 's'} · not linked`
+    return `${count} episode${count === 1 ? '' : 's'} · not linked to AniList`
   }
   if (show.totalEpisodes > 0) {
     const remaining = show.totalEpisodes - show.progress
@@ -23,7 +23,7 @@ function posterSubcaption(show: ShowGroup): string | null {
     return `Next: Ep ${show.progress + 1}`
   }
   if (!show.bound) {
-    return 'Tap to match AniList'
+    return 'Click to match AniList'
   }
   return null
 }

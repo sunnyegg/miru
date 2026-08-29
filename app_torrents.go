@@ -243,7 +243,7 @@ func (a *App) OpenDownloadFolder() error {
 		return err
 	}
 	if settings.DownloadDir == "" {
-		return errors.New("download folder is empty")
+		return errors.New("set a download folder in Settings first")
 	}
 	runtime.BrowserOpenURL(a.ctx, "file://"+settings.DownloadDir)
 	return nil

@@ -204,12 +204,15 @@ export function SettingsView({
     <section className="flex h-full flex-col gap-6">
       <header>
         <h2 className="text-2xl font-semibold">Settings</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Playback, downloads, networking, and AniList.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Playback, downloads, networking, AniList, and updates.</p>
       </header>
 
       {loadError ? (
         <Alert variant="destructive">
-          <AlertDescription>{loadError}</AlertDescription>
+          <AlertDescription>
+            <span className="block font-medium">Settings could not be loaded</span>
+            <span className="mt-1 block">{loadError}</span>
+          </AlertDescription>
           <AlertAction>
             <Button type="button" variant="secondary" onClick={() => void reload()}>
               Try again
@@ -311,7 +314,9 @@ export function SettingsView({
             <Button type="submit" disabled={saving === 'playback'} className="mt-4 w-fit">
               {saving === 'playback' ? 'Saving…' : 'Save'}
             </Button>
-            <p className="mt-2 text-xs text-muted-foreground">Requires Discord desktop running. MPV path needs a restart.</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Discord Rich Presence requires the Discord desktop app to be running. MPV path changes take effect after restart.
+            </p>
           </Card>
         </form>
 
@@ -339,7 +344,7 @@ export function SettingsView({
         >
           <Card>
             <h3 className="text-sm font-medium">Downloads</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Folder and speed limits for torrents.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Folder, speed limits, queue, seeding, and RSS auto-download.</p>
             <Field label="Download folder" htmlFor="downloadDir">
               <div className="flex flex-wrap gap-2">
                 <Input
@@ -452,7 +457,7 @@ export function SettingsView({
                   className="mt-1 size-4 shrink-0 accent-primary"
                 />
                 <div>
-                  <Label htmlFor="rssAutoDownloadLibraryOnly">Library matches only</Label>
+                  <Label htmlFor="rssAutoDownloadLibraryOnly">Only your library</Label>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Only auto-download when the item title matches an anime in your local library.
                   </p>

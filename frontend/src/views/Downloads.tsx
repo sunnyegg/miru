@@ -36,6 +36,34 @@ type PickerState = {
   error: string
 }
 
+function torrentStatusLabel(status: string): string {
+  switch (status) {
+    case 'DOWNLOADING':
+      return 'Downloading'
+    case 'PAUSED':
+      return 'Paused'
+    case 'SEEDING':
+      return 'Seeding'
+    case 'QUEUED':
+      return 'Queued'
+    case 'FAILED':
+      return 'Failed'
+    case 'COMPLETED':
+      return 'Completed'
+    case 'CANCELLED':
+      return 'Cancelled'
+    default:
+      return status
+  }
+}
+
+function torrentErrorLabel(error: string): string {
+  if (/no such host|connection refused|i\/o timeout|network is unreachable|proxy/i.test(error)) {
+    return `Network problem: ${error}`
+  }
+  return error
+}
+
 export function DownloadsView({notice, jobs, onJobs}: Props) {
   const [magnet, setMagnet] = useState('')
   const [busy, setBusy] = useState(false)
@@ -221,7 +249,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
       <header>
         <h2 className="text-2xl font-semibold">Downloads</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Choose which files to keep before a torrent starts. Extra torrents wait in queue. Completed files seed until 0.5x upload ratio.
+          Choose which files to keep before a torrent starts. Extra torrents wait in queue.
         </p>
       </header>
 
@@ -308,7 +336,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
                   </Button>
                   {isSeeding && (
                     <Button type="button" onClick={() => void finish(item.id)} disabled={busy}>
-                      Finish
+                      Stop seeding
                     </Button>
                   )}
                   <Button type="button" variant="destructive" onClick={() => void cancel(item.id)} disabled={busy}>
@@ -323,7 +351,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
                     Resume
                   </Button>
                   <Button type="button" variant="secondary" onClick={() => void finish(item.id)} disabled={busy}>
-                    Finish
+                    Stop seeding
                   </Button>
                 </div>
               )
@@ -331,10 +359,10 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
               actions = (
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" variant="secondary" onClick={() => void remove(item.id, false)} disabled={busy}>
-                    From list
+                    Remove from list
                   </Button>
                   <Button type="button" variant="destructive" onClick={() => void remove(item.id, true)} disabled={busy}>
-                    List + files
+                    Remove and delete files
                   </Button>
                   <Button type="button" variant="ghost" onClick={() => setPendingDeleteId(null)} disabled={busy}>
                     Back
@@ -349,7 +377,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
                   <div className="min-w-0">
                     <p className="font-medium">{item.name || 'Torrent'}</p>
                     <p className={`tabular-nums text-sm ${item.percent >= 100 ? 'text-foreground' : 'text-muted-foreground'}`}>
-                      {item.percent >= 100 ? 'Completed' : item.status} · {formatBytes(item.bytesCompleted)} / {formatBytes(item.bytesTotal)}
+                      {item.percent >= 100 ? 'Completed' : torrentStatusLabel(item.status)} · {formatBytes(item.bytesCompleted)} / {formatBytes(item.bytesTotal)}
                       {isDownloading && ` · ${formatSpeed(item.speedBytesPerSecond)}`}
                       {isSeeding && ` · ${formatSpeed(item.uploadSpeedBytesPerSecond)} upload · ${Math.round(item.uploadRatio * 100)}% uploaded`}
                     </p>
@@ -377,7 +405,7 @@ export function DownloadsView({notice, jobs, onJobs}: Props) {
                     })}
                   </ul>
                 )}
-                {item.error && <p className="mt-2 text-sm text-destructive">{item.error}</p>}
+                {item.error && <p className="mt-2 text-sm text-destructive">{torrentErrorLabel(item.error)}</p>}
               </Card>
             )
           })}

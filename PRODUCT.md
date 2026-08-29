@@ -4,7 +4,7 @@
 
 ## Platform
 
-web
+desktop (Linux, Windows, macOS)
 
 ## Users
 

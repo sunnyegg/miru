@@ -29,7 +29,7 @@ export function LibraryMatchSheet({
   onSkip,
 }: Props) {
   const englishTitle = picker.episode.animeTitle?.trim() || picker.episode.displayTitle
-  const descriptionCopy = `Bind the local file "${englishTitle}" to one AniList title. Pick the right one, or skip to leave the file unbound.`
+  const descriptionCopy = `Match the local file "${englishTitle}" to an AniList title. Pick the right one, or skip to leave the file unmatched.`
 
   return (
     <Dialog.Root

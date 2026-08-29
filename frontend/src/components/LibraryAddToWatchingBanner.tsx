@@ -40,7 +40,7 @@ export function LibraryAddToWatchingBanner({
             </p>
           ) : (
             <p className="mt-1 text-sm text-muted-foreground">
-              Link {show.title} to AniList first, then add it to your Watching list.
+              Match {show.title} to an AniList title first, then add it to your Watching list.
             </p>
           )}
         </div>
