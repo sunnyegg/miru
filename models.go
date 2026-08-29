@@ -16,7 +16,6 @@ type SettingsView struct {
 	UpdateChannel              string  `json:"updateChannel"`
 	RSSPollIntervalMinutes     int     `json:"rssPollIntervalMinutes"`
 	DiscordRpcEnabled          bool    `json:"discordRpcEnabled"`
-	DiscordAppID               string  `json:"discordAppId"`
 	DownloadNotifications      bool    `json:"downloadNotifications"`
 	RSSAutoDownload            bool    `json:"rssAutoDownload"`
 	RSSAutoDownloadLibraryOnly bool    `json:"rssAutoDownloadLibraryOnly"`

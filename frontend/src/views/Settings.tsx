@@ -49,7 +49,6 @@ const empty: SettingsForm = {
   updateChannel: 'stable',
   rssPollIntervalMinutes: 30,
   discordRpcEnabled: false,
-  discordAppId: '',
   downloadNotifications: true,
   rssAutoDownload: false,
   rssAutoDownloadLibraryOnly: true,
@@ -127,7 +126,6 @@ export function SettingsView({
         updateChannel: settings?.updateChannel ?? 'stable',
         rssPollIntervalMinutes: settings?.rssPollIntervalMinutes ?? 30,
         discordRpcEnabled: settings?.discordRpcEnabled ?? false,
-        discordAppId: settings?.discordAppId ?? '',
         downloadNotifications: settings?.downloadNotifications ?? true,
         rssAutoDownload: settings?.rssAutoDownload ?? false,
         rssAutoDownloadLibraryOnly:
@@ -330,7 +328,6 @@ export function SettingsView({
                         form.mpvPath,
                         form.anime4kEnabled,
                         form.discordRpcEnabled,
-                        form.discordAppId,
                       )
                       await reload()
                     },

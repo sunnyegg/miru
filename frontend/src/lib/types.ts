@@ -22,7 +22,6 @@ export type SettingsView = {
   updateChannel: string
   rssPollIntervalMinutes: number
   discordRpcEnabled: boolean
-  discordAppId: string
   downloadNotifications: boolean
   rssAutoDownload: boolean
   rssAutoDownloadLibraryOnly: boolean

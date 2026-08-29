@@ -186,8 +186,8 @@ export function SaveNetworkSettings(arg1, arg2, arg3) {
   return window['go']['main']['App']['SaveNetworkSettings'](arg1, arg2, arg3);
 }
 
-export function SavePlaybackSettings(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['SavePlaybackSettings'](arg1, arg2, arg3, arg4);
+export function SavePlaybackSettings(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SavePlaybackSettings'](arg1, arg2, arg3);
 }
 
 export function SaveRSSPollSettings(arg1) {

@@ -22,9 +22,6 @@ const anime4kHint =
 const discordRpcHint =
   'Show the anime you are watching on your Discord profile while MPV is playing. Discord Rich Presence requires the Discord desktop app to be running.'
 
-const discordAppIdHint =
-  'Leave empty to use DISCORD_APP_ID from the build .env file.'
-
 type Props = {
   form: SettingsView
   setForm: Dispatch<SetStateAction<SettingsView>>
@@ -107,26 +104,6 @@ export function SettingsPlaybackPanel({
               setForm((current) => ({...current, discordRpcEnabled: value}))
             }
           />
-          {form.discordRpcEnabled && (
-            <SettingsField
-              label="Discord application ID"
-              htmlFor="discordAppId"
-              hint={discordAppIdHint}
-            >
-              <Input
-                id="discordAppId"
-                value={form.discordAppId}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    discordAppId: event.target.value,
-                  }))
-                }
-                placeholder="From the Discord Developer Portal"
-                className="bg-card"
-              />
-            </SettingsField>
-          )}
         </CardContent>
         <CardFooter>
           <Button type="submit" variant="secondary" disabled={saving}>
