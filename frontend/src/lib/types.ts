@@ -26,6 +26,7 @@ export type SettingsView = {
   rssAutoDownload: boolean
   rssAutoDownloadLibraryOnly: boolean
   closeToTray: boolean
+  lastSeenVersion: string
 }
 
 export type EpisodeView = {
@@ -203,6 +204,7 @@ export type UpdateInfo = {
   current: string
   latest: string
   available: boolean
+  // Release body as GitHub-Flavored Markdown; empty when the release has no notes.
   notes: string
   releaseUrl: string
   assetName: string

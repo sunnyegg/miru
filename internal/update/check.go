@@ -2,11 +2,13 @@ package update
 
 import (
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 
 	"golang.org/x/mod/semver"
 )
@@ -15,10 +17,37 @@ const (
 	ChannelStable     = "stable"
 	ChannelPrerelease = "prerelease"
 	RepoPage          = "https://github.com/sunnyegg/miru"
+	RepoAPIBase       = "https://api.github.com/repos/sunnyegg/miru"
 	latestReleasePath = "/releases/latest"
 	releasesFeedPath  = "/releases.atom"
+	releasesAPIPath   = "/releases/tags/"
 	userAgent         = "miru"
 )
+
+// Logger is an optional sink for diagnostic messages from this package.
+// The host application can set it once during startup; nil means silent.
+type Logger func(format string, args ...any)
+
+var (
+	logMu  sync.RWMutex
+	logger Logger
+)
+
+// SetLogger installs a package-level logger. Pass nil to silence output.
+func SetLogger(l Logger) {
+	logMu.Lock()
+	defer logMu.Unlock()
+	logger = l
+}
+
+func logf(format string, args ...any) {
+	logMu.RLock()
+	l := logger
+	logMu.RUnlock()
+	if l != nil {
+		l(format, args...)
+	}
+}
 
 type Info struct {
 	Current    string
@@ -181,7 +210,8 @@ func fetchStable(ctx context.Context, client *http.Client, repoBase, goos, goarc
 	if semver.Prerelease(canonical(tag)) != "" {
 		return Info{}, fmt.Errorf("github releases: no stable release")
 	}
-	return releaseInfo(repoBase, tag, resolved.String(), goos, goarch)
+	body := fetchReleaseBody(ctx, client, releaseAPIBase(repoBase), tag)
+	return releaseInfo(repoBase, tag, resolved.String(), goos, goarch, body)
 }
 
 func fetchPrerelease(ctx context.Context, client *http.Client, repoBase, goos, goarch string) (Info, error) {
@@ -214,21 +244,86 @@ func fetchPrerelease(ctx context.Context, client *http.Client, repoBase, goos, g
 	if err != nil {
 		return Info{}, err
 	}
-	return releaseInfo(repoBase, tag, releaseURL(chosen, repoBase, tag), goos, goarch)
+	body := fetchReleaseBody(ctx, client, releaseAPIBase(repoBase), tag)
+	return releaseInfo(repoBase, tag, releaseURL(chosen, repoBase, tag), goos, goarch, body)
 }
 
-func releaseInfo(repoBase, tag, pageURL, goos, goarch string) (Info, error) {
+func releaseInfo(repoBase, tag, pageURL, goos, goarch, body string) (Info, error) {
 	wanted, err := AssetName(goos, goarch, tag)
 	if err != nil {
 		return Info{}, err
 	}
+	notes := body
+	if notes == "" {
+		notes = tag
+	}
 	return Info{
 		Latest:     tag,
-		Notes:      tag,
+		Notes:      notes,
 		ReleaseURL: pageURL,
 		AssetName:  wanted,
 		AssetURL:   repoBase + "/releases/download/" + tag + "/" + wanted,
 	}, nil
+}
+
+type releaseAPIResponse struct {
+	Body string `json:"body"`
+}
+
+func releaseAPIBase(repoBase string) string {
+	if repoBase == "" {
+		return RepoAPIBase
+	}
+	return strings.Replace(repoBase, "github.com", "api.github.com/repos", 1)
+}
+
+func fetchReleaseBody(ctx context.Context, client *http.Client, apiBase, tag string) string {
+	if apiBase == "" || tag == "" {
+		logf("update: fetchReleaseBody skipped (apiBase=%q tag=%q)", apiBase, tag)
+		return ""
+	}
+	url := apiBase + releasesAPIPath + tag
+	logf("update: GET %s", url)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		logf("update: build request: %s", err)
+		return ""
+	}
+	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	resp, err := client.Do(req)
+	if err != nil {
+		logf("update: %s request failed: %s", url, err)
+		return ""
+	}
+	defer resp.Body.Close()
+	logf("update: %s -> %s", url, resp.Status)
+	if resp.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		return ""
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		logf("update: read body: %s", err)
+		return ""
+	}
+	logf("update: %s body=%d bytes", url, len(body))
+	var payload releaseAPIResponse
+	if err := json.Unmarshal(body, &payload); err != nil {
+		logf("update: decode body: %s (first 240 bytes: %s)", err, truncateForLog(string(body)))
+		return ""
+	}
+	logf("update: release body for %s = %d chars", tag, len(payload.Body))
+	return payload.Body
+}
+
+func truncateForLog(s string) string {
+	const max = 240
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	return string(runes[:max]) + "…"
 }
 
 func pickRelease(entries []atomEntry) (atomEntry, string, error) {

@@ -20,6 +20,7 @@ type SettingsView struct {
 	RSSAutoDownload            bool    `json:"rssAutoDownload"`
 	RSSAutoDownloadLibraryOnly bool    `json:"rssAutoDownloadLibraryOnly"`
 	CloseToTray                bool    `json:"closeToTray"`
+	LastSeenVersion            string  `json:"lastSeenVersion"`
 }
 
 type EpisodeView struct {
@@ -143,9 +144,11 @@ type SyncEvent struct {
 }
 
 type UpdateInfo struct {
-	Current    string `json:"current"`
-	Latest     string `json:"latest"`
-	Available  bool   `json:"available"`
+	Current   string `json:"current"`
+	Latest    string `json:"latest"`
+	Available bool   `json:"available"`
+	// Notes is the release body as GitHub-Flavored Markdown, fetched from
+	// the GitHub Releases API. It is empty when the release has no notes.
 	Notes      string `json:"notes"`
 	ReleaseURL string `json:"releaseUrl"`
 	AssetName  string `json:"assetName"`

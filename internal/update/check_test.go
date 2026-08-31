@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -92,11 +93,18 @@ func TestCheckParsesAtomFeed(t *testing.T) {
 		if r.Header.Get("User-Agent") == "" {
 			t.Error("missing User-Agent")
 		}
-		if r.URL.Path != "/releases.atom" {
+		switch r.URL.Path {
+		case "/releases.atom":
+			w.Header().Set("Content-Type", "application/atom+xml")
+			_, _ = w.Write([]byte(atomFeedXML))
+		default:
+			if strings.HasPrefix(r.URL.Path, "/releases/tags/") {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
 			t.Errorf("path %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
 		}
-		w.Header().Set("Content-Type", "application/atom+xml")
-		_, _ = w.Write([]byte(atomFeedXML))
 	}))
 	t.Cleanup(server.Close)
 
@@ -119,10 +127,15 @@ func TestCheckStableUsesLatestRedirect(t *testing.T) {
 		if r.URL.Path == "/releases.atom" {
 			t.Error("stable channel must not fetch the atom feed")
 		}
-		if r.URL.Path != "/releases/latest" {
+		switch r.URL.Path {
+		case "/releases/latest":
+			http.Redirect(w, r, "/sunnyegg/miru/releases/tag/v0.0.9", http.StatusFound)
+		case "/releases/tags/v0.0.9":
+			w.WriteHeader(http.StatusNotFound)
+		default:
 			t.Errorf("path %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
 		}
-		http.Redirect(w, r, "/sunnyegg/miru/releases/tag/v0.0.9", http.StatusFound)
 	}))
 	t.Cleanup(server.Close)
 
@@ -162,6 +175,106 @@ func TestCheckForbiddenIsShort(t *testing.T) {
 	}
 	if err.Error() != "github releases: 403 Forbidden" {
 		t.Fatalf("got %q", err)
+	}
+}
+
+func TestCheckStableFetchesReleaseBody(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/releases/latest":
+			http.Redirect(w, r, "/sunnyegg/miru/releases/tag/v0.0.9", http.StatusFound)
+		case "/releases/tags/v0.0.9":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"body":"## What\u0027s Changed\n- foo\n- bar\n"}`))
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	info, err := Check(context.Background(), server.Client(), "v0.0.8", server.URL, ChannelStable, "linux", "amd64")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Notes != "## What's Changed\n- foo\n- bar\n" {
+		t.Fatalf("notes: got %q", info.Notes)
+	}
+}
+
+func TestCheckStableFallsBackToTagWhenBodyMissing(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/releases/latest":
+			http.Redirect(w, r, "/sunnyegg/miru/releases/tag/v0.0.9", http.StatusFound)
+		case "/releases/tags/v0.0.9":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"body":""}`))
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	info, err := Check(context.Background(), server.Client(), "v0.0.8", server.URL, ChannelStable, "linux", "amd64")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Notes != "v0.0.9" {
+		t.Fatalf("fallback notes: got %q", info.Notes)
+	}
+}
+
+func TestCheckStableFallsBackWhenBodyRequestFails(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/releases/latest":
+			http.Redirect(w, r, "/sunnyegg/miru/releases/tag/v0.0.9", http.StatusFound)
+		case "/releases/tags/v0.0.9":
+			w.WriteHeader(http.StatusInternalServerError)
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	info, err := Check(context.Background(), server.Client(), "v0.0.8", server.URL, ChannelStable, "linux", "amd64")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Notes != "v0.0.9" {
+		t.Fatalf("fallback notes: got %q", info.Notes)
+	}
+}
+
+func TestCheckPrereleaseFetchesReleaseBody(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/releases.atom":
+			w.Header().Set("Content-Type", "application/atom+xml")
+			_, _ = w.Write([]byte(atomFeedXML))
+		case "/releases/tags/v0.1.0-alpha":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"body":"## Pre-release notes\n"}`))
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	info, err := Check(context.Background(), server.Client(), "v0.0.8", server.URL, ChannelPrerelease, "linux", "amd64")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Notes != "## Pre-release notes\n" {
+		t.Fatalf("notes: got %q", info.Notes)
 	}
 }
 

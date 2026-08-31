@@ -288,6 +288,7 @@ export namespace main {
 	    rssAutoDownload: boolean;
 	    rssAutoDownloadLibraryOnly: boolean;
 	    closeToTray: boolean;
+	    lastSeenVersion: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsView(source);
@@ -314,6 +315,7 @@ export namespace main {
 	        this.rssAutoDownload = source["rssAutoDownload"];
 	        this.rssAutoDownloadLibraryOnly = source["rssAutoDownloadLibraryOnly"];
 	        this.closeToTray = source["closeToTray"];
+	        this.lastSeenVersion = source["lastSeenVersion"];
 	    }
 	}
 	export class StreamingEpisodeThumbnailView {

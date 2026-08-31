@@ -54,6 +54,7 @@ const empty: SettingsForm = {
   rssAutoDownload: false,
   rssAutoDownloadLibraryOnly: true,
   closeToTray: false,
+  lastSeenVersion: '0',
 }
 
 type Props = {
@@ -66,6 +67,7 @@ type Props = {
   onCheckUpdate: () => void
   onApplyUpdate: () => void
   onOpenRelease: () => void
+  onOpenChangelog: () => void
 }
 
 type SettingsSection =
@@ -95,6 +97,7 @@ export function SettingsView({
   onCheckUpdate,
   onApplyUpdate,
   onOpenRelease,
+  onOpenChangelog,
 }: Props) {
   const activeTab = useSettingsStore((state) => state.activeTab)
   const setActiveTab = useSettingsStore((state) => state.setActiveTab)
@@ -134,6 +137,7 @@ export function SettingsView({
         rssAutoDownloadLibraryOnly:
           settings?.rssAutoDownloadLibraryOnly ?? true,
         closeToTray: settings?.closeToTray ?? false,
+        lastSeenVersion: settings?.lastSeenVersion ?? '0',
       })
       setStatus(anilist ?? {connected: false, username: ''})
     } catch (err) {
@@ -426,6 +430,7 @@ export function SettingsView({
                 onCheckUpdate={onCheckUpdate}
                 onApplyUpdate={onApplyUpdate}
                 onOpenRelease={onOpenRelease}
+                onOpenChangelog={onOpenChangelog}
               />
             )}
           </div>
