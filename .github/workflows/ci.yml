@@ -43,6 +43,9 @@ jobs:
       - name: Test
         run: make test
 
+      - name: Cross-compile Windows
+        run: make check-windows
+
   frontend:
     name: Frontend format, lint, typecheck
     runs-on: ubuntu-24.04

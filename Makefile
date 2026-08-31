@@ -5,7 +5,7 @@ GOLANGCI_LINT_VERSION ?= v2.13.1
 VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || echo dev)
 LD_FLAGS ?= -X main.version=$(VERSION)
 
-.PHONY: help deps build dev test fmt fmt-fe lint lint-fe typecheck doctor clean bench-idle-ram
+.PHONY: help deps build dev test check-windows fmt fmt-fe lint lint-fe typecheck doctor clean bench-idle-ram
 
 help:
 	@printf '%s\n' \
@@ -13,6 +13,7 @@ help:
 		'build     Build the production binary and embed .env' \
 		'dev       Run the app in development mode' \
 		'test      Run all Go tests' \
+		'check-windows  Cross-compile and vet for Windows (GOOS=windows)' \
 		'fmt       Format Go source files' \
 		'fmt-fe    Format frontend source files' \
 		'lint      Run golangci-lint (standard + nestif)' \
@@ -35,6 +36,10 @@ dev:
 
 test:
 	$(GO) test ./...
+
+check-windows:
+	GOOS=windows GOARCH=amd64 $(GO) build ./...
+	GOOS=windows GOARCH=amd64 $(GO) vet ./...
 
 fmt:
 	$(GO) fmt ./...
