@@ -36,6 +36,13 @@ func (a *App) logDebugErr(operation string, err error) {
 	runtime.LogDebugf(a.ctx, "%s: %s", operation, redactError(err))
 }
 
+func (a *App) logDebugf(format string, args ...any) {
+	if a == nil || a.ctx == nil {
+		return
+	}
+	runtime.LogDebug(a.ctx, truncateLogText(fmt.Sprintf(format, args...)))
+}
+
 func (a *App) logErr(operation string, err error) {
 	if err == nil || a == nil || a.ctx == nil {
 		return

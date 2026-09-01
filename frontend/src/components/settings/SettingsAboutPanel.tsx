@@ -23,6 +23,7 @@ type Props = {
   onCheckUpdate: () => void
   onApplyUpdate: () => void
   onOpenRelease: () => void
+  onOpenChangelog: () => void
 }
 
 export function SettingsAboutPanel({
@@ -37,6 +38,7 @@ export function SettingsAboutPanel({
   onCheckUpdate,
   onApplyUpdate,
   onOpenRelease,
+  onOpenChangelog,
 }: Props) {
   return (
     <Card className="w-full border border-border">
@@ -69,6 +71,9 @@ export function SettingsAboutPanel({
                 onClick={onApplyUpdate}
               >
                 {applyingUpdate ? 'Updating…' : 'Update now'}
+              </Button>
+              <Button type="button" variant="muted" onClick={onOpenChangelog}>
+                View changelog
               </Button>
               <Button type="button" variant="muted" onClick={onOpenRelease}>
                 Open download page

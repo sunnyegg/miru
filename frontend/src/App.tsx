@@ -4,11 +4,14 @@ import {
   ApplyUpdate,
   AppVersion,
   CheckForUpdate,
+  GetSettings,
   InitError,
+  SaveLastSeenVersion,
 } from '../wailsjs/go/main/App'
 import {errorMessage} from './lib/format'
 import {Sidebar} from './components/Sidebar'
 import {Splash} from './components/Splash'
+import {ChangelogDialog} from './components/ChangelogDialog'
 import {CloseToTrayDialog} from './components/CloseToTrayDialog'
 import {UpdateProgressBar} from './components/UpdateProgressBar'
 import {LibraryView} from './views/Library'
@@ -53,6 +56,7 @@ export default function App() {
     null,
   )
   const [closePromptOpen, setClosePromptOpen] = useState(false)
+  const [changelogOpen, setChangelogOpen] = useState(false)
 
   function showNotice(text: string, error = false) {
     toast.add({
@@ -136,13 +140,33 @@ export default function App() {
     }
   }
 
+  async function markChangelogSeen(version: string) {
+    if (!version) {
+      return
+    }
+    try {
+      await SaveLastSeenVersion(version)
+    } catch (err) {
+      showNotice(errorMessage(err), true)
+      throw err
+    }
+  }
+
   useEffect(() => {
     void loadInitError()
     void loadVersion()
     void (async () => {
       setCheckingUpdate(true)
       try {
-        setUpdate(await CheckForUpdate())
+        const [info, settings] = await Promise.all([
+          CheckForUpdate(),
+          GetSettings().catch(() => null),
+        ])
+        setUpdate(info)
+        const seen = settings?.lastSeenVersion ?? '0'
+        if (info.available && info.latest && info.latest !== seen) {
+          setChangelogOpen(true)
+        }
       } catch {
         // startup check is silent
       } finally {
@@ -234,6 +258,13 @@ export default function App() {
                 <Button
                   type="button"
                   variant="ghost"
+                  onClick={() => setChangelogOpen(true)}
+                >
+                  {'What\u2019s new'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
                   onClick={() => setShowUpdateBanner(false)}
                 >
                   Later
@@ -277,6 +308,7 @@ export default function App() {
                 onCheckUpdate={() => void checkUpdate(true)}
                 onApplyUpdate={() => void applyUpdate()}
                 onOpenRelease={openReleasePage}
+                onOpenChangelog={() => setChangelogOpen(true)}
               />
             )}
           </main>
@@ -293,6 +325,15 @@ export default function App() {
           open={closePromptOpen}
           onOpenChange={setClosePromptOpen}
           notice={showNotice}
+        />
+        <ChangelogDialog
+          open={changelogOpen}
+          onOpenChange={setChangelogOpen}
+          version={update?.latest ?? ''}
+          notes={update?.notes ?? ''}
+          releaseUrl={update?.releaseUrl ?? ''}
+          notice={showNotice}
+          onDismiss={markChangelogSeen}
         />
       </div>
     </TooltipProvider>

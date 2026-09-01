@@ -92,6 +92,9 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	update.SetLogger(func(format string, args ...any) {
+		a.logDebugf(format, args...)
+	})
 	if dirs, err := paths.Resolve(); err == nil {
 		a.dirs = dirs
 		if rotateErr := rotateLogFile(dirs.LogFile(), maxLogFileBytes); rotateErr != nil {
@@ -209,6 +212,11 @@ func (a *App) ensureDefaults() error {
 	}
 	if a.settingMissing("rss_poll_interval_minutes") {
 		if err := a.store.SetSetting("rss_poll_interval_minutes", "30"); err != nil {
+			return err
+		}
+	}
+	if a.settingMissing("last_seen_version") {
+		if err := a.store.SetSetting("last_seen_version", "0"); err != nil {
 			return err
 		}
 	}

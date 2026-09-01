@@ -186,6 +186,10 @@ export function SaveDownloadSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, a
   return window['go']['main']['App']['SaveDownloadSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 }
 
+export function SaveLastSeenVersion(arg1) {
+  return window['go']['main']['App']['SaveLastSeenVersion'](arg1);
+}
+
 export function SaveNetworkSettings(arg1, arg2, arg3) {
   return window['go']['main']['App']['SaveNetworkSettings'](arg1, arg2, arg3);
 }

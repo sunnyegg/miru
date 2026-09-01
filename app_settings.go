@@ -164,6 +164,15 @@ func (a *App) SaveUpdateChannel(channel string) error {
 	})
 }
 
+func (a *App) SaveLastSeenVersion(version string) error {
+	if err := a.ready(); err != nil {
+		return err
+	}
+	return a.setSettings(map[string]string{
+		"last_seen_version": strings.TrimSpace(version),
+	})
+}
+
 func (a *App) SaveRSSPollSettings(intervalMinutes int) error {
 	if err := a.ready(); err != nil {
 		return err
@@ -357,6 +366,7 @@ func buildSettingsView(cache map[string]string, configDir string) SettingsView {
 	view.RSSAutoDownload = parseSettingBool(cache["rss_auto_download"], false)
 	view.RSSAutoDownloadLibraryOnly = parseSettingBool(cache["rss_auto_download_library_only"], true)
 	view.CloseToTray = parseSettingBool(cache["close_to_tray"], false)
+	view.LastSeenVersion = cache["last_seen_version"]
 	return view
 }
 
