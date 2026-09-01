@@ -3,6 +3,7 @@ module github.com/sunnyegg/miru
 go 1.25.0
 
 require (
+	github.com/Microsoft/go-winio v0.6.2
 	github.com/anacrolix/torrent v1.61.0
 	github.com/gen2brain/beeep v0.11.2
 	github.com/gogpu/systray v0.2.8
