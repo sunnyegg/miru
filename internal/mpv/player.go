@@ -8,7 +8,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sync"
 	"time"
 )
@@ -20,11 +19,11 @@ type Progress struct {
 }
 
 type Player struct {
-	mu     sync.Mutex
-	cmd    *exec.Cmd
-	conn   net.Conn
-	socket string
-	reqID  int
+	mu    sync.Mutex
+	cmd   *exec.Cmd
+	conn  net.Conn
+	ipc   string
+	reqID int
 }
 
 func Percent(position, duration float64) float64 {
@@ -69,10 +68,10 @@ func (p *Player) Stop() {
 	p.mu.Lock()
 	cmd := p.cmd
 	conn := p.conn
-	socket := p.socket
+	ipc := p.ipc
 	p.cmd = nil
 	p.conn = nil
-	p.socket = ""
+	p.ipc = ""
 	p.mu.Unlock()
 
 	if conn != nil {
@@ -82,8 +81,8 @@ func (p *Player) Stop() {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
 	}
-	if socket != "" {
-		_ = os.Remove(socket)
+	if ipc != "" {
+		removeEndpoint(ipc)
 	}
 }
 
@@ -97,11 +96,11 @@ func (p *Player) Play(mpvPath, mediaPath string, startSeconds float64, glslShade
 
 	p.Stop()
 
-	socket := filepath.Join(os.TempDir(), fmt.Sprintf("miru-mpv-%d.sock", time.Now().UnixNano()))
-	_ = os.Remove(socket)
+	ipc := ipcEndpoint()
+	removeEndpoint(ipc)
 
 	args := []string{
-		"--input-ipc-server=" + socket,
+		"--input-ipc-server=" + ipc,
 		"--force-window=yes",
 		"--no-terminal",
 		"--keep-open=yes",
@@ -122,25 +121,25 @@ func (p *Player) Play(mpvPath, mediaPath string, startSeconds float64, glslShade
 		return fmt.Errorf("start mpv: %w", err)
 	}
 
-	conn, err := waitSocket(socket, 4*time.Second)
+	conn, err := waitSocket(ipc, 4*time.Second)
 	if err != nil {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
-		_ = os.Remove(socket)
+		removeEndpoint(ipc)
 		return fmt.Errorf("mpv ipc: %w", err)
 	}
 
 	p.mu.Lock()
 	p.cmd = cmd
 	p.conn = conn
-	p.socket = socket
+	p.ipc = ipc
 	p.mu.Unlock()
 
-	go p.watch(cmd, socket, onProgress, onExit)
+	go p.watch(cmd, ipc, onProgress, onExit)
 	return nil
 }
 
-func (p *Player) watch(cmd *exec.Cmd, socket string, onProgress func(Progress), onExit func(error)) {
+func (p *Player) watch(cmd *exec.Cmd, ipc string, onProgress func(Progress), onExit func(error)) {
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 
@@ -150,7 +149,7 @@ func (p *Player) watch(cmd *exec.Cmd, socket string, onProgress func(Progress), 
 	for {
 		select {
 		case err := <-done:
-			p.cleanup(cmd, socket)
+			p.cleanup(cmd, ipc)
 			if onExit != nil {
 				onExit(err)
 			}
@@ -171,11 +170,11 @@ func (p *Player) watch(cmd *exec.Cmd, socket string, onProgress func(Progress), 
 	}
 }
 
-func (p *Player) cleanup(cmd *exec.Cmd, socket string) {
+func (p *Player) cleanup(cmd *exec.Cmd, ipc string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.cmd != cmd {
-		_ = os.Remove(socket)
+		removeEndpoint(ipc)
 		return
 	}
 	if p.conn != nil {
@@ -183,8 +182,8 @@ func (p *Player) cleanup(cmd *exec.Cmd, socket string) {
 		p.conn = nil
 	}
 	p.cmd = nil
-	p.socket = ""
-	_ = os.Remove(socket)
+	p.ipc = ""
+	removeEndpoint(ipc)
 }
 
 func (p *Player) properties() (float64, float64, error) {
@@ -246,11 +245,11 @@ func (p *Player) getNumber(name string) (float64, error) {
 	}
 }
 
-func waitSocket(path string, timeout time.Duration) (net.Conn, error) {
+func waitSocket(addr string, timeout time.Duration) (net.Conn, error) {
 	deadline := time.Now().Add(timeout)
 	var last error
 	for time.Now().Before(deadline) {
-		conn, err := net.DialTimeout("unix", path, 200*time.Millisecond)
+		conn, err := dialIPC(addr, 200*time.Millisecond)
 		if err == nil {
 			return conn, nil
 		}
