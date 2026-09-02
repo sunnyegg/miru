@@ -1,6 +1,7 @@
 package torrentx
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -160,6 +161,55 @@ func TestCancelQueuedJob(t *testing.T) {
 	}
 	if job.Status != "CANCELLED" {
 		t.Fatalf("job = %+v", job)
+	}
+}
+
+func TestPauseStopsDataDownload(t *testing.T) {
+	manager, store := openManager(t)
+	t.Cleanup(manager.Close)
+	if err := manager.Start(writeTestTorrent(t), t.TempDir(), nil, RateLimits{}, networking.Config{}); err != nil {
+		t.Fatal(err)
+	}
+
+	jobs, err := store.ListTorrentJobs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 1 {
+		t.Fatalf("jobs = %+v", jobs)
+	}
+
+	manager.mu.Lock()
+	torrentHandle := manager.sessions[jobs[0].ID].torrent
+	manager.mu.Unlock()
+	select {
+	case <-torrentHandle.GotInfo():
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for torrent metadata")
+	}
+
+	if err := manager.Pause(jobs[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	reader := torrentHandle.NewReader()
+	t.Cleanup(func() { _ = reader.Close() })
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	t.Cleanup(cancel)
+	reader.SetContext(ctx)
+	if _, err := reader.Read(make([]byte, 1)); err == nil || err.Error() != "torrent data downloading disabled" {
+		t.Fatalf("paused read error = %v", err)
+	}
+
+	if err := manager.Resume(jobs[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	resumedReader := torrentHandle.NewReader()
+	t.Cleanup(func() { _ = resumedReader.Close() })
+	ctx, cancel = context.WithTimeout(context.Background(), 50*time.Millisecond)
+	t.Cleanup(cancel)
+	resumedReader.SetContext(ctx)
+	if _, err := resumedReader.Read(make([]byte, 1)); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("resumed read error = %v", err)
 	}
 }
 
