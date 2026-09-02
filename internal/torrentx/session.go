@@ -40,6 +40,12 @@ func (m *Manager) emitProgress(view JobView) {
 	}
 }
 
+func (m *Manager) emitComplete(files []string) {
+	if m.onComplete != nil {
+		m.onComplete(files)
+	}
+}
+
 func (m *Manager) removeSessionLocked(jobID int64) *torrent.Torrent {
 	session, ok := m.sessions[jobID]
 	if !ok {

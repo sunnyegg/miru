@@ -616,13 +616,8 @@ func (m *Manager) Finish(id int64) error {
 		return err
 	}
 
-	m.mu.Lock()
-	complete := m.onComplete
-	m.mu.Unlock()
 	m.emitProgress(ToView(job))
-	if complete != nil {
-		complete(videoFilesFromDisk(job.DestDir, job.Name))
-	}
+	m.emitComplete(videoFilesFromDisk(job.DestDir, job.Name))
 	return nil
 }
 

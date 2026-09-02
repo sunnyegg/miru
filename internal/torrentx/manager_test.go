@@ -397,6 +397,45 @@ func TestCloseFailsPausedJob(t *testing.T) {
 	}
 }
 
+func TestStartSeedingIngestsFilesOnce(t *testing.T) {
+	manager, store := openManager(t)
+	id, err := store.InsertTorrentJob(storage.TorrentJob{
+		Source:  "magnet:?xt=urn:btih:abc",
+		DestDir: t.TempDir(),
+		Name:    "Show",
+		Status:  "DOWNLOADING",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err := store.TorrentJobByID(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager.mu.Lock()
+	manager.sessions[id] = &session{job: job}
+	manager.mu.Unlock()
+
+	files := []string{"Show/01.mkv"}
+	var ingested [][]string
+	manager.SetCallbacks(nil, func(files []string) {
+		ingested = append(ingested, files)
+	}, nil)
+	manager.startSeeding(id, files)
+	manager.startSeeding(id, files)
+
+	stored, err := store.TorrentJobByID(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != "SEEDING" {
+		t.Fatalf("job = %+v", stored)
+	}
+	if len(ingested) != 1 || len(ingested[0]) != 1 || ingested[0][0] != files[0] {
+		t.Fatalf("ingested = %v", ingested)
+	}
+}
+
 func TestFinishStoredSeedingJob(t *testing.T) {
 	manager, store := openManager(t)
 	destDir := t.TempDir()
