@@ -482,8 +482,8 @@ func (m *Manager) Pause(id int64) error {
 
 	if previous == "SEEDING" {
 		torrentHandle.DisallowDataUpload()
-	} else if torrentHandle.Info() != nil {
-		torrentHandle.CancelPieces(0, torrentHandle.NumPieces())
+	} else {
+		torrentHandle.DisallowDataDownload()
 	}
 	if err := m.persistAndEmit(job.ID); err != nil {
 		return err
@@ -522,6 +522,7 @@ func (m *Manager) Resume(id int64) error {
 		torrentHandle.AllowDataUpload()
 		return m.persistAndEmit(job.ID)
 	}
+	torrentHandle.AllowDataDownload()
 	if torrentHandle.Info() == nil {
 		return m.persistAndEmit(job.ID)
 	}
