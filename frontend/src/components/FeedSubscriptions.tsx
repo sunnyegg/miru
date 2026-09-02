@@ -2,7 +2,7 @@ import {useEffect, useMemo, useState} from 'react'
 import {InspectTorrent, StartTorrent} from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
 import type {TorrentContentsView, TorrentFileView} from '../lib/types'
-import {useFeedStore} from '../stores/feedStore'
+import {FEED_PAGE_SIZE, useFeedStore} from '../stores/feedStore'
 import {useNavigationStore} from '../stores/navigationStore'
 import {TorrentFileSheet} from './TorrentFileSheet'
 import {Alert, AlertDescription} from '@/components/ui/alert'
@@ -27,9 +27,14 @@ export function FeedSubscriptions({notice}: Props) {
   const feeds = useFeedStore((state) => state.feeds)
   const items = useFeedStore((state) => state.items)
   const showNewOnly = useFeedStore((state) => state.showNewOnly)
+  const query = useFeedStore((state) => state.query)
+  const page = useFeedStore((state) => state.page)
+  const total = useFeedStore((state) => state.total)
   const loading = useFeedStore((state) => state.loading)
   const error = useFeedStore((state) => state.error)
   const setShowNewOnly = useFeedStore((state) => state.setShowNewOnly)
+  const setQuery = useFeedStore((state) => state.setQuery)
+  const setPage = useFeedStore((state) => state.setPage)
   const reload = useFeedStore((state) => state.reload)
   const addFeed = useFeedStore((state) => state.addFeed)
   const removeFeed = useFeedStore((state) => state.removeFeed)
@@ -76,6 +81,10 @@ export function FeedSubscriptions({notice}: Props) {
     } finally {
       setPolling(false)
     }
+  }
+
+  function search(query: string) {
+    void setQuery(query)
   }
 
   async function download(item: (typeof items)[number], itemIndex: number) {
@@ -210,6 +219,16 @@ export function FeedSubscriptions({notice}: Props) {
         {totalNew > 0 && <Badge>{totalNew} new</Badge>}
       </div>
 
+      <div className="flex shrink-0 items-center gap-2">
+        <Input
+          value={query}
+          onChange={(event) => search(event.target.value)}
+          placeholder="Search items…"
+          className="bg-card"
+        />
+        {loading && <Badge variant="outline">Loading…</Badge>}
+      </div>
+
       <div className="min-h-0 flex-1 overflow-auto">
         {loading ? (
           <ul className="flex flex-col gap-2" aria-busy="true">
@@ -279,11 +298,13 @@ export function FeedSubscriptions({notice}: Props) {
 
             <section>
               <h3 className="text-sm font-medium">Items</h3>
-              {items.length === 0 ? (
+              {total === 0 ? (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {showNewOnly
-                    ? 'No new torrents from your feeds.'
-                    : 'No items stored yet.'}
+                  {query
+                    ? 'No items match your search.'
+                    : showNewOnly
+                      ? 'No new torrents from your feeds.'
+                      : 'No items stored yet.'}
                 </p>
               ) : (
                 <ul className="mt-3 flex flex-col gap-3">
@@ -324,6 +345,31 @@ export function FeedSubscriptions({notice}: Props) {
                     </li>
                   ))}
                 </ul>
+              )}
+
+              {total > FEED_PAGE_SIZE && (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <Button
+                    type="button"
+                    variant="muted"
+                    disabled={page <= 1}
+                    onClick={() => void setPage(page - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <p className="text-sm text-muted-foreground">
+                    {(page - 1) * FEED_PAGE_SIZE + 1}–
+                    {Math.min(page * FEED_PAGE_SIZE, total)} of {total}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="muted"
+                    disabled={page * FEED_PAGE_SIZE >= total}
+                    onClick={() => void setPage(page + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
               )}
             </section>
           </div>

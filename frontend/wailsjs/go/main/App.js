@@ -94,8 +94,8 @@ export function ListEpisodes() {
   return window['go']['main']['App']['ListEpisodes']();
 }
 
-export function ListRSSFeedItems(arg1) {
-  return window['go']['main']['App']['ListRSSFeedItems'](arg1);
+export function ListRSSFeedItems(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ListRSSFeedItems'](arg1, arg2, arg3, arg4);
 }
 
 export function ListRSSFeeds() {

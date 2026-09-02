@@ -116,7 +116,7 @@ func (a *App) ListRSSFeeds() ([]RSSFeedView, error) {
 	if err != nil {
 		return nil, err
 	}
-	items, err := a.store.ListRSSFeedItems(true)
+	items, _, err := a.store.ListRSSFeedItems(true, "", 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -191,19 +191,28 @@ func (a *App) SetRSSFeedEnabled(id int64, enabled bool) error {
 	return a.store.SetRSSFeedEnabled(id, enabled)
 }
 
-func (a *App) ListRSSFeedItems(newOnly bool) ([]RSSFeedItemView, error) {
+type RSSFeedItemsPageView struct {
+	Items []RSSFeedItemView `json:"items"`
+	Total int               `json:"total"`
+}
+
+func (a *App) ListRSSFeedItems(
+	newOnly bool,
+	query string,
+	limit, offset int,
+) (RSSFeedItemsPageView, error) {
 	if err := a.ready(); err != nil {
-		return nil, err
+		return RSSFeedItemsPageView{}, err
 	}
-	items, err := a.store.ListRSSFeedItems(newOnly)
+	items, total, err := a.store.ListRSSFeedItems(newOnly, query, limit, offset)
 	if err != nil {
-		return nil, err
+		return RSSFeedItemsPageView{}, err
 	}
 	out := make([]RSSFeedItemView, 0, len(items))
 	for _, item := range items {
 		out = append(out, feedItemView(item))
 	}
-	return out, nil
+	return RSSFeedItemsPageView{Items: out, Total: total}, nil
 }
 
 func (a *App) CountNewRSSFeedItems() (int, error) {

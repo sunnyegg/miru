@@ -3,6 +3,7 @@ package storage
 import (
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -173,20 +174,58 @@ func (s *Store) UpsertRSSFeedItem(feedID int64, item RSSFeedItem) (bool, error) 
 	return rows > 0, nil
 }
 
-func (s *Store) ListRSSFeedItems(newOnly bool) ([]RSSFeedItem, error) {
-	query := `SELECT
-		items.id, items.feed_id, feeds.title, items.item_key, items.title,
-		items.link, items.magnet, items.published, items.is_new, items.created_at
-		FROM rss_feed_items items
-		JOIN rss_feeds feeds ON feeds.id = items.feed_id`
-	if newOnly {
-		query += ` WHERE items.is_new = 1`
+func (s *Store) ListRSSFeedItems(
+	newOnly bool,
+	query string,
+	limit, offset int,
+) ([]RSSFeedItem, int, error) {
+	if limit <= 0 {
+		limit = 20
 	}
-	query += ` ORDER BY items.published DESC, items.id DESC`
+	if offset < 0 {
+		offset = 0
+	}
 
-	rows, err := s.db.Query(query)
+	where := ""
+	args := []any{}
+	conditions := []string{}
+	if newOnly {
+		conditions = append(conditions, `items.is_new = 1`)
+	}
+	if trimmed := strings.TrimSpace(query); trimmed != "" {
+		conditions = append(conditions,
+			`(items.title LIKE ? ESCAPE '\' OR items.link LIKE ? ESCAPE '\' OR feeds.title LIKE ? ESCAPE '\')`)
+		pattern := "%" + escapeLike(trimmed) + "%"
+		args = append(args, pattern, pattern, pattern)
+	}
+	if len(conditions) > 0 {
+		where = ` WHERE ` + strings.Join(conditions, ` AND `)
+	}
+
+	countArgs := append([]any{}, args...)
+	var total int
+	if err := s.db.QueryRow(
+		`SELECT COUNT(1)
+		 FROM rss_feed_items items
+		 JOIN rss_feeds feeds ON feeds.id = items.feed_id`+where,
+		countArgs...,
+	).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	pageArgs := append(append([]any{}, args...), limit, offset)
+	rows, err := s.db.Query(
+		`SELECT
+			items.id, items.feed_id, feeds.title, items.item_key, items.title,
+			items.link, items.magnet, items.published, items.is_new, items.created_at
+			FROM rss_feed_items items
+			JOIN rss_feeds feeds ON feeds.id = items.feed_id`+where+`
+		 ORDER BY items.published DESC, items.id DESC
+		 LIMIT ? OFFSET ?`,
+		pageArgs...,
+	)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -206,12 +245,18 @@ func (s *Store) ListRSSFeedItems(newOnly bool) ([]RSSFeedItem, error) {
 			&isNew,
 			&item.CreatedAt,
 		); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		item.IsNew = isNew != 0
 		items = append(items, item)
 	}
-	return items, rows.Err()
+	return items, total, rows.Err()
+}
+
+func escapeLike(value string) string {
+	escaped := strings.ReplaceAll(value, `\`, `\\`)
+	escaped = strings.ReplaceAll(escaped, `%`, `\%`)
+	return strings.ReplaceAll(escaped, `_`, `\_`)
 }
 
 func (s *Store) CountNewRSSFeedItems() (int, error) {
