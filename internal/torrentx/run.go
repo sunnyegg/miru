@@ -73,6 +73,9 @@ func (m *Manager) run(t *torrent.Torrent, jobID int64) {
 			job.FilesJSON = encodeFiles(selectedFiles)
 		}
 	})
+	if status == "SEEDING" {
+		m.emitComplete(videoFiles(t, selectedFiles))
+	}
 
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
@@ -117,8 +120,7 @@ func (m *Manager) run(t *torrent.Torrent, jobID int64) {
 		m.persistProgress(jobID, m.snapshot(jobID))
 		m.emitProgress(view)
 		if downloadDone {
-			m.startSeeding(jobID)
-			m.PumpQueue()
+			m.startSeeding(jobID, videoFiles(t, selectedFiles))
 			continue
 		}
 		if seedingDone {
@@ -139,20 +141,20 @@ func seedingComplete(uploaded, total int64, ratio float64) bool {
 	return uploaded >= required
 }
 
-func (m *Manager) startSeeding(jobID int64) {
+func (m *Manager) startSeeding(jobID int64, files []string) {
 	m.mu.Lock()
 	session, ok := m.sessionByID(jobID)
-	if !ok {
+	if !ok || session.job.Status != "DOWNLOADING" {
 		m.mu.Unlock()
 		return
 	}
-	if session.job.Status == "DOWNLOADING" {
-		session.job.Status = "SEEDING"
-	}
+	session.job.Status = "SEEDING"
 	job := session.job
 	m.mu.Unlock()
 	m.persistJob(job, "torrent persist seeding")
 	m.emitProgress(liveView(job))
+	m.PumpQueue()
+	m.emitComplete(files)
 }
 
 func bytesPerSecond(bytes int64, elapsed time.Duration) int64 {
@@ -169,8 +171,6 @@ func uploadedBytes(t *torrent.Torrent) int64 {
 
 func (m *Manager) finish(t *torrent.Torrent, jobID int64) {
 	t.DisallowDataUpload()
-	selected := decodeFiles(m.snapshot(jobID).FilesJSON)
-	files := videoFiles(t, selected)
 
 	m.mu.Lock()
 	session, ok := m.sessionByID(jobID)
@@ -185,15 +185,11 @@ func (m *Manager) finish(t *torrent.Torrent, jobID int64) {
 	if ok {
 		job = session.job
 	}
-	complete := m.onComplete
 	m.mu.Unlock()
 
 	m.persistJob(job, "torrent persist complete")
 	m.clearPersistOnce(jobID)
 	m.emitProgress(ToView(job))
-	if complete != nil {
-		complete(files)
-	}
 	m.PumpQueue()
 }
 
