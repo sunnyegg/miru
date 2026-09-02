@@ -49,7 +49,7 @@ export function ListCurrentlyWatching():Promise<Array<main.WatchingEntryView>>;
 
 export function ListEpisodes():Promise<Array<main.EpisodeView>>;
 
-export function ListRSSFeedItems(arg1:boolean):Promise<Array<main.RSSFeedItemView>>;
+export function ListRSSFeedItems(arg1:boolean,arg2:string,arg3:number,arg4:number):Promise<main.RSSFeedItemsPageView>;
 
 export function ListRSSFeeds():Promise<Array<main.RSSFeedView>>;
 

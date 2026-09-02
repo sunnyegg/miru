@@ -158,6 +158,11 @@ export type RSSFeedItemView = {
   isNew: boolean
 }
 
+export type RSSFeedItemsPageView = {
+  items: RSSFeedItemView[]
+  total: number
+}
+
 export type TorrentFileView = {
   path: string
   length: number

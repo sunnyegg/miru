@@ -14,13 +14,20 @@ import type {RSSFeedItemView, RSSFeedView} from '../lib/types'
 
 type NoticeFn = (message: string, isError?: boolean) => void
 
+export const FEED_PAGE_SIZE = 20
+
 type FeedState = {
   feeds: RSSFeedView[]
   items: RSSFeedItemView[]
   showNewOnly: boolean
+  query: string
+  page: number
+  total: number
   loading: boolean
   error: string
   setShowNewOnly: (showNewOnly: boolean) => Promise<void>
+  setQuery: (query: string) => Promise<void>
+  setPage: (page: number) => Promise<void>
   reload: () => Promise<void>
   addFeed: (
     feedURL: string,
@@ -38,27 +45,51 @@ export const useFeedStore = create<FeedState>((set, get) => ({
   feeds: [],
   items: [],
   showNewOnly: true,
+  query: '',
+  page: 1,
+  total: 0,
   loading: true,
   error: '',
 
   setShowNewOnly: async (showNewOnly) => {
-    set({showNewOnly})
+    set({showNewOnly, page: 1})
+    await get().reload()
+  },
+
+  setQuery: async (query) => {
+    set({query, page: 1})
+    await get().reload()
+  },
+
+  setPage: async (page) => {
+    set({page})
     await get().reload()
   },
 
   reload: async () => {
     set({error: ''})
+    const {showNewOnly, query, page} = get()
+    const offset = (page - 1) * FEED_PAGE_SIZE
     try {
-      const {showNewOnly} = get()
-      const [loadedFeeds, loadedItems] = await Promise.all([
+      const [loadedFeeds, pageData] = await Promise.all([
         ListRSSFeeds(),
-        ListRSSFeedItems(showNewOnly),
+        ListRSSFeedItems(showNewOnly, query, FEED_PAGE_SIZE, offset),
       ])
-      set({feeds: loadedFeeds ?? [], items: loadedItems ?? []})
+      const items = pageData?.items ?? []
+      const total = pageData?.total ?? items.length
+      if (items.length === 0 && page > 1 && total > 0) {
+        set({feeds: loadedFeeds ?? [], page: 1})
+        await get().reload()
+        return
+      }
+      set({
+        feeds: loadedFeeds ?? [],
+        items,
+        total,
+        loading: false,
+      })
     } catch (err) {
-      set({error: errorMessage(err)})
-    } finally {
-      set({loading: false})
+      set({error: errorMessage(err), loading: false})
     }
   },
 
