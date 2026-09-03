@@ -36,6 +36,7 @@ type Props = {
   dataSizeError: string
   loadingDataSize: boolean
   playbackActive: boolean
+  downloadsActive: boolean
   resettingData: boolean
   resetDataError: string
   onReloadDataSize: () => void
@@ -59,6 +60,7 @@ export function SettingsAboutPanel({
   dataSizeError,
   loadingDataSize,
   playbackActive,
+  downloadsActive,
   resettingData,
   resetDataError,
   onReloadDataSize,
@@ -167,14 +169,15 @@ export function SettingsAboutPanel({
               type="button"
               variant="destructive"
               className="mt-4"
-              disabled={playbackActive || resettingData}
+              disabled={playbackActive || downloadsActive || resettingData}
               onClick={() => setResetDialogOpen(true)}
             >
               Delete all data
             </Button>
-            {playbackActive && (
+            {(playbackActive || downloadsActive) && (
               <p className="mt-2 text-sm text-muted-foreground">
-                Stop playback before deleting all Miru data.
+                Stop playback and active downloads before deleting all Miru
+                data.
               </p>
             )}
           </section>
@@ -206,8 +209,7 @@ export function SettingsAboutPanel({
                 on disk.
               </Dialog.Description>
               <p className="mt-3 text-sm text-muted-foreground">
-                Active downloads will stop and Miru will quit. Open Miru again
-                to finish the reset.
+                Miru will quit. Open Miru again to finish the reset.
               </p>
               {resetDataError && (
                 <p className="mt-3 text-sm text-destructive" role="alert">
