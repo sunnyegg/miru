@@ -79,14 +79,6 @@ export function TorrentFileSheet({
                     : `${selectedFiles.length} of ${files.length} files · ${formatBytes(selectedBytes)} of ${formatBytes(bytesTotal)}`}
                 </p>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={onClose}
-                disabled={confirming}
-              >
-                Cancel
-              </Button>
             </div>
 
             {error ? (

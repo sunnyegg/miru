@@ -119,9 +119,6 @@ export function WatchingEditSheet({entry, saving, onClose, onSave}: Props) {
                   {title}
                 </p>
               </div>
-              <Button type="button" variant="ghost" onClick={onClose}>
-                Cancel
-              </Button>
             </div>
 
             <div className="mt-4 grid gap-4">

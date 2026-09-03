@@ -212,6 +212,7 @@ export function FeedSubscriptions({notice}: Props) {
         <Button
           type="button"
           variant={showNewOnly ? 'secondary' : 'muted'}
+          aria-pressed={showNewOnly}
           onClick={() => void setShowNewOnly(!showNewOnly)}
         >
           {showNewOnly ? 'Showing new' : 'Showing all'}
@@ -220,7 +221,11 @@ export function FeedSubscriptions({notice}: Props) {
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
+        <label htmlFor="feed-item-search" className="sr-only">
+          Search items
+        </label>
         <Input
+          id="feed-item-search"
           value={query}
           onChange={(event) => search(event.target.value)}
           placeholder="Search items…"

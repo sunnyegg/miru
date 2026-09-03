@@ -269,7 +269,7 @@ export function DownloadsView({notice}: Props) {
         {hasJobs && (
           <div
             className="flex flex-wrap gap-2"
-            role="tablist"
+            role="group"
             aria-label="Download categories"
           >
             {downloadTabs.map(({group, label}) => {
@@ -278,8 +278,7 @@ export function DownloadsView({notice}: Props) {
                 <Button
                   key={group}
                   type="button"
-                  role="tab"
-                  aria-selected={active}
+                  aria-pressed={active}
                   variant="ghost"
                   onClick={() => setActiveTab(group)}
                   className={cn(
