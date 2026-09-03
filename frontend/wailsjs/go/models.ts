@@ -100,6 +100,22 @@ export namespace main {
 	        this.listStatus = source["listStatus"];
 	    }
 	}
+	export class DataSizeView {
+	    bytes: number;
+	    cleanupPending: boolean;
+	    resetError: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DataSizeView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bytes = source["bytes"];
+	        this.cleanupPending = source["cleanupPending"];
+	        this.resetError = source["resetError"];
+	    }
+	}
 	export class EpisodeView {
 	    id: number;
 	    anilistId: number;

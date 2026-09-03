@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sunnyegg/miru/internal/anilist"
+	"github.com/sunnyegg/miru/internal/datareset"
 	"github.com/sunnyegg/miru/internal/discordrpc"
 	"github.com/sunnyegg/miru/internal/mpv"
 	"github.com/sunnyegg/miru/internal/networking"
@@ -64,6 +65,12 @@ type App struct {
 	feedPollerMu sync.Mutex
 	feedPoller   *feedPoller
 
+	dataResetMu             sync.RWMutex
+	dataResetStartup        datareset.StartupState
+	dataResetStartupErr     error
+	dataResetCleanupPending bool
+	dataResetError          string
+
 	trayMu    sync.Mutex
 	tray      *systray.SystemTray
 	trayReady atomic.Bool
@@ -95,6 +102,11 @@ func (a *App) startup(ctx context.Context) {
 	update.SetLogger(func(format string, args ...any) {
 		a.logDebugf(format, args...)
 	})
+	if a.dataResetStartup.Blocked {
+		a.initErr = fmt.Errorf("data reset could not recover safely: %s", redactError(a.dataResetStartupErr))
+		runtime.LogError(ctx, a.initErr.Error())
+		return
+	}
 	if dirs, err := paths.Resolve(); err == nil {
 		a.dirs = dirs
 		if rotateErr := rotateLogFile(dirs.LogFile(), maxLogFileBytes); rotateErr != nil {
@@ -106,6 +118,7 @@ func (a *App) startup(ctx context.Context) {
 		runtime.LogError(ctx, redactError(err))
 		return
 	}
+	a.finishDataResetStartup()
 	a.startTray()
 }
 

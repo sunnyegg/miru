@@ -4,6 +4,7 @@ import (
 	"embed"
 	"os"
 
+	"github.com/sunnyegg/miru/internal/datareset"
 	"github.com/sunnyegg/miru/internal/paths"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/logger"
@@ -27,13 +28,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	resetState, resetErr := datareset.Prepare(dirs)
 	app := NewApp()
+	app.configureDataResetStartup(dirs, resetState, resetErr)
+	appLogger := logger.NewFileLogger(dirs.LogFile())
+	if resetState.Blocked {
+		appLogger = logger.NewDefaultLogger()
+	}
 
 	err = wails.Run(&options.App{
 		Title:  "Miru",
 		Width:  1200,
 		Height: 800,
-		Logger: logger.NewFileLogger(dirs.LogFile()),
+		Logger: appLogger,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

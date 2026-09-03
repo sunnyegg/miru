@@ -1,7 +1,10 @@
 import {useEffect, useState} from 'react'
+import {Quit} from '../../wailsjs/runtime/runtime'
 import {
   AnilistStatus,
+  DeleteAllData,
   DetectMpv,
+  GetDataSize,
   GetSettings,
   LogoutAnilist,
   OpenAnilistLogin,
@@ -25,10 +28,12 @@ import {SettingsPlaybackPanel} from '../components/settings/SettingsPlaybackPane
 import {errorMessage} from '../lib/format'
 import type {
   AnilistStatus as Status,
+  DataSizeView,
   SettingsView as SettingsForm,
   UpdateInfo,
   UpdateProgress,
 } from '../lib/types'
+import {usePlaybackStore} from '../stores/playbackStore'
 import {useSettingsStore, type SettingsTab} from '../stores/settingsStore'
 import {cn} from '@/lib/utils'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
@@ -102,12 +107,18 @@ export function SettingsView({
   const activeTab = useSettingsStore((state) => state.activeTab)
   const setActiveTab = useSettingsStore((state) => state.setActiveTab)
   const reloadKey = useSettingsStore((state) => state.reloadKey)
+  const playbackActive = usePlaybackStore((state) => state.playing !== null)
 
   const [form, setForm] = useState<SettingsForm>(empty)
   const [status, setStatus] = useState<Status>({connected: false, username: ''})
   const [saving, setSaving] = useState<SettingsSection | null>(null)
   const [testingNetwork, setTestingNetwork] = useState(false)
   const [loadError, setLoadError] = useState('')
+  const [dataSize, setDataSize] = useState<DataSizeView | null>(null)
+  const [dataSizeError, setDataSizeError] = useState('')
+  const [loadingDataSize, setLoadingDataSize] = useState(false)
+  const [resettingData, setResettingData] = useState(false)
+  const [resetDataError, setResetDataError] = useState('')
 
   async function reload() {
     setLoadError('')
@@ -148,6 +159,24 @@ export function SettingsView({
   useEffect(() => {
     void reload()
   }, [reloadKey])
+
+  useEffect(() => {
+    if (activeTab === 'about') {
+      void reloadDataSize()
+    }
+  }, [activeTab, reloadKey])
+
+  async function reloadDataSize() {
+    setLoadingDataSize(true)
+    setDataSizeError('')
+    try {
+      setDataSize(await GetDataSize())
+    } catch (err) {
+      setDataSizeError(errorMessage(err))
+    } finally {
+      setLoadingDataSize(false)
+    }
+  }
 
   async function saveSection(
     section: SettingsSection,
@@ -242,6 +271,23 @@ export function SettingsView({
       await reload()
     } catch (err) {
       notice(errorMessage(err), true)
+    }
+  }
+
+  async function deleteAllData() {
+    setResettingData(true)
+    setResetDataError('')
+    try {
+      await DeleteAllData()
+      try {
+        localStorage.removeItem('miru.playback')
+        localStorage.removeItem('miru.search')
+      } finally {
+        Quit()
+      }
+    } catch (err) {
+      setResetDataError(errorMessage(err))
+      setResettingData(false)
     }
   }
 
@@ -431,6 +477,14 @@ export function SettingsView({
                 onApplyUpdate={onApplyUpdate}
                 onOpenRelease={onOpenRelease}
                 onOpenChangelog={onOpenChangelog}
+                dataSize={dataSize}
+                dataSizeError={dataSizeError}
+                loadingDataSize={loadingDataSize}
+                playbackActive={playbackActive}
+                resettingData={resettingData}
+                resetDataError={resetDataError}
+                onReloadDataSize={() => void reloadDataSize()}
+                onDeleteAllData={() => void deleteAllData()}
               />
             )}
           </div>
