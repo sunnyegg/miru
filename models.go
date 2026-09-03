@@ -23,6 +23,12 @@ type SettingsView struct {
 	LastSeenVersion            string  `json:"lastSeenVersion"`
 }
 
+type DataSizeView struct {
+	Bytes          int64  `json:"bytes"`
+	CleanupPending bool   `json:"cleanupPending"`
+	ResetError     string `json:"resetError"`
+}
+
 type EpisodeView struct {
 	ID                int64   `json:"id"`
 	AnilistID         int     `json:"anilistId"`

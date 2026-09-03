@@ -38,6 +38,10 @@ export function CountNewRSSFeedItems() {
   return window['go']['main']['App']['CountNewRSSFeedItems']();
 }
 
+export function DeleteAllData() {
+  return window['go']['main']['App']['DeleteAllData']();
+}
+
 export function DetectMpv() {
   return window['go']['main']['App']['DetectMpv']();
 }
@@ -56,6 +60,10 @@ export function FinishDownload(arg1) {
 
 export function GetAnime(arg1) {
   return window['go']['main']['App']['GetAnime'](arg1);
+}
+
+export function GetDataSize() {
+  return window['go']['main']['App']['GetDataSize']();
 }
 
 export function GetSettings() {

@@ -44,8 +44,12 @@ There is no separate config file. Settings live in the SQLite `settings` table.
 - Cache: `$XDG_CACHE_HOME/miru` (usually `~/.cache/miru`)
 - Log: `$XDG_DATA_HOME/miru/Miru.log` (rotates to `Miru.log.1` at 5MB on startup; usually `~/.local/share/miru/Miru.log`)
 - Default downloads: `~/Downloads/miru`
+- Pending full reset marker: a `.miru-reset.json` sibling of the config `miru` directory (usually `~/.config/.miru-reset.json`)
+- Staged reset backups: temporary `<miru-root>.reset-<id>` siblings of the config, cache, and data roots; config/data are deduplicated when they resolve to the same path
 
 `.env` in the repo root is build/dev only (AniList client ID/secret). It is not copied into `~/.config/miru/`.
+
+The Settings data reset quits Miru and processes the marker before the next startup opens the Wails logger or SQLite. It removes config, cache, logs, shaders, and known persisted frontend state, but never removes the configured download directory.
 
 ## After editing
 

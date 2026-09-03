@@ -21,6 +21,8 @@ export function ConfirmWindowClose(arg1:string,arg2:boolean):Promise<void>;
 
 export function CountNewRSSFeedItems():Promise<number>;
 
+export function DeleteAllData():Promise<void>;
+
 export function DetectMpv():Promise<string>;
 
 export function DownloadHistory():Promise<Array<torrentx.JobView>>;
@@ -30,6 +32,8 @@ export function DownloadStatus():Promise<torrentx.JobView>;
 export function FinishDownload(arg1:number):Promise<void>;
 
 export function GetAnime(arg1:number):Promise<main.AnimeView>;
+
+export function GetDataSize():Promise<main.DataSizeView>;
 
 export function GetSettings():Promise<main.SettingsView>;
 

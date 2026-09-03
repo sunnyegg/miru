@@ -14,7 +14,7 @@ the [issue tracker](https://github.com/sunnyegg/miru/issues).
 - **Search** — Nyaa and Tokyo Toshokan RSS with pagination
 - **Downloads** — built-in BitTorrent for magnet and `.torrent` links, with file selection, a concurrent limit, queue, bandwidth caps, and seeding across restarts
 - **Airing** — weekly AniList schedule with controls for adding titles to Watching, Planning, or Completed
-- **Settings** — MPV path, Anime4K upscaling, Discord Rich Presence, close to system tray, download folder, speed limits, max concurrent downloads, seed ratio, RSS poll interval, auto-download from RSS, desktop notifications, network mode (system / direct / SOCKS5 / HTTP proxy), AniList, and About
+- **Settings** — MPV path, Anime4K upscaling, Discord Rich Presence, close to system tray, download folder, speed limits, max concurrent downloads, seed ratio, RSS poll interval, auto-download from RSS, desktop notifications, network mode (system / direct / SOCKS5 / HTTP proxy), AniList, updates, and a full data reset
 - **Updates** — Miru checks GitHub Releases and can update and restart from **Settings → About**
 
 ## Download
@@ -65,4 +65,10 @@ Package names differ by distro.
 
 - Config/DB: `$XDG_CONFIG_HOME/miru/app_data.db` (usually `~/.config/miru/`)
 - Cache: `$XDG_CACHE_HOME/miru`
+- Logs: `$XDG_DATA_HOME/miru` (usually `~/.local/share/miru/`)
 - Default downloads: `~/Downloads/miru`
+
+**Settings → About → Delete all data** removes Miru settings, library and
+playback history, torrent history, RSS feeds, AniList login, cache, Anime4K
+shaders, logs, and saved search state. Miru quits after confirmation and
+finishes the reset the next time it opens. Downloaded media is not removed.

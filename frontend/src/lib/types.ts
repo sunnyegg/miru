@@ -29,6 +29,12 @@ export type SettingsView = {
   lastSeenVersion: string
 }
 
+export type DataSizeView = {
+  bytes: number
+  cleanupPending: boolean
+  resetError: string
+}
+
 export type EpisodeView = {
   id: number
   anilistId: number
