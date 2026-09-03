@@ -65,6 +65,9 @@ func (a *App) DeleteAllData() error {
 	if a.player != nil && a.player.Playing() {
 		return errors.New("stop playback before deleting all Miru data")
 	}
+	if a.torrents != nil && a.torrents.Busy() {
+		return errors.New("stop active downloads before deleting all Miru data")
+	}
 	if err := datareset.Schedule(a.dirs); err != nil {
 		return err
 	}

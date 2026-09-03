@@ -33,6 +33,7 @@ import type {
   UpdateInfo,
   UpdateProgress,
 } from '../lib/types'
+import {useDownloadStore} from '../stores/downloadStore'
 import {usePlaybackStore} from '../stores/playbackStore'
 import {useSettingsStore, type SettingsTab} from '../stores/settingsStore'
 import {cn} from '@/lib/utils'
@@ -108,6 +109,11 @@ export function SettingsView({
   const setActiveTab = useSettingsStore((state) => state.setActiveTab)
   const reloadKey = useSettingsStore((state) => state.reloadKey)
   const playbackActive = usePlaybackStore((state) => state.playing !== null)
+  const downloadsActive = useDownloadStore((state) =>
+    state.jobs.some((job) => job.live),
+  )
+
+  const loadDownloadHistory = useDownloadStore((state) => state.loadHistory)
 
   const [form, setForm] = useState<SettingsForm>(empty)
   const [status, setStatus] = useState<Status>({connected: false, username: ''})
@@ -159,6 +165,14 @@ export function SettingsView({
   useEffect(() => {
     void reload()
   }, [reloadKey])
+
+  useEffect(() => {
+    // Mount-only load so the About tab can detect active torrent sessions even
+    // if the Downloads tab was never opened. A failure just means the delete
+    // button stays enabled and the backend guard still rejects the reset.
+    loadDownloadHistory().catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (activeTab === 'about') {
@@ -481,6 +495,7 @@ export function SettingsView({
                 dataSizeError={dataSizeError}
                 loadingDataSize={loadingDataSize}
                 playbackActive={playbackActive}
+                downloadsActive={downloadsActive}
                 resettingData={resettingData}
                 resetDataError={resetDataError}
                 onReloadDataSize={() => void reloadDataSize()}
