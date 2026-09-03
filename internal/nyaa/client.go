@@ -14,9 +14,15 @@ import (
 
 const (
 	DefaultEndpoint = "https://nyaa.si/"
+	MirrorEndpoint  = "https://nyaa.net/"
 	CategoryEnglish = "1_2"
 	maxFeedSize     = 4 << 20
 )
+
+// errEndpointUnreachable marks failures that mean the endpoint itself could not
+// serve the search (network error, timeout, HTTP 5xx). Other failures — HTTP
+// 4xx or an unparseable feed — are returned as-is and never trigger a mirror.
+var errEndpointUnreachable = errors.New("nyaa endpoint unreachable")
 
 type Result struct {
 	Title     string
@@ -34,12 +40,14 @@ type Result struct {
 type Client struct {
 	HTTP     *http.Client
 	Endpoint string
+	Mirror   string
 }
 
 func New() *Client {
 	return &Client{
 		HTTP:     &http.Client{Timeout: 15 * time.Second},
 		Endpoint: DefaultEndpoint,
+		Mirror:   MirrorEndpoint,
 	}
 }
 
@@ -61,6 +69,21 @@ func (c *Client) Search(query string) ([]Result, error) {
 	if base == "" {
 		base = DefaultEndpoint
 	}
+	results, err := c.searchAt(query, base)
+	if err == nil || !errors.Is(err, errEndpointUnreachable) {
+		return results, err
+	}
+	mirror := c.Mirror
+	if mirror == "" {
+		mirror = MirrorEndpoint
+	}
+	if base == mirror {
+		return results, err
+	}
+	return c.searchAt(query, mirror)
+}
+
+func (c *Client) searchAt(query, base string) ([]Result, error) {
 	endpoint, err := url.Parse(base)
 	if err != nil {
 		return nil, fmt.Errorf("parse Nyaa endpoint: %w", err)
@@ -86,10 +109,13 @@ func (c *Client) Search(query string) ([]Result, error) {
 	req.Header.Set("User-Agent", "Miru/1.0")
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request Nyaa RSS: %w", err)
+		return nil, fmt.Errorf("request Nyaa RSS: %w: %w", err, errEndpointUnreachable)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if resp.StatusCode >= 500 {
+			return nil, fmt.Errorf("nyaa RSS http %d: %w", resp.StatusCode, errEndpointUnreachable)
+		}
 		return nil, fmt.Errorf("nyaa RSS http %d", resp.StatusCode)
 	}
 
