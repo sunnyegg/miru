@@ -65,7 +65,7 @@ export function LibraryPosterCard({
             {caption}
           </span>
           {subcaption && (
-            <span className="mt-0.5 block truncate text-xs text-foreground/70 opacity-0 transition-opacity duration-200 [text-shadow:0_1px_2px_rgba(0,0,0,0.8)] group-hover:opacity-100 motion-reduce:opacity-100 motion-reduce:transition-none">
+            <span className="mt-0.5 block truncate text-xs text-foreground/70 opacity-0 transition-opacity duration-200 [text-shadow:0_1px_2px_rgba(0,0,0,0.8)] group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:opacity-100 motion-reduce:transition-none">
               {subcaption}
             </span>
           )}

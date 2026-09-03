@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {BrowserOpenURL, EventsOff, EventsOn} from '../wailsjs/runtime/runtime'
 import {
   ApplyUpdate,
@@ -57,6 +57,11 @@ export default function App() {
   )
   const [closePromptOpen, setClosePromptOpen] = useState(false)
   const [changelogOpen, setChangelogOpen] = useState(false)
+  const mainRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    mainRef.current?.focus()
+  }, [tab])
 
   function showNotice(text: string, error = false) {
     toast.add({
@@ -284,7 +289,9 @@ export default function App() {
             </div>
           )}
           <main
-            className={`min-h-0 flex-1 ${tab === 'library' ? 'overflow-hidden' : 'overflow-auto p-6'}`}
+            ref={mainRef}
+            tabIndex={-1}
+            className={`min-h-0 flex-1 outline-none ${tab === 'library' ? 'overflow-hidden' : 'overflow-auto p-6'}`}
           >
             {tab === 'library' && (
               <LibraryView
