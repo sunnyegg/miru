@@ -1,7 +1,5 @@
 import {useEffect, useState} from 'react'
-import {IconSearch} from '../components/Icons'
 import {WatchingEditSheet} from '../components/WatchingEditSheet'
-import {WatchingSearchDialog} from '../components/WatchingSearchDialog'
 import type {AnimeListEntryInput} from '../lib/types'
 import {useNavigationStore} from '../stores/navigationStore'
 import {useWatchingStore, type ListFilter} from '../stores/watchingStore'
@@ -62,7 +60,6 @@ export function WatchingView({notice}: Props) {
   const loadCounts = useWatchingStore((state) => state.loadCounts)
   const saveEntry = useWatchingStore((state) => state.saveEntry)
 
-  const [searchOpen, setSearchOpen] = useState(false)
   const [editingEntry, setEditingEntry] = useState<
     (typeof entries)[number] | null
   >(null)
@@ -104,16 +101,6 @@ export function WatchingView({notice}: Props) {
               Track what you are watching and where you left off.
             </p>
           </div>
-          {!notConnected && (
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setSearchOpen(true)}
-            >
-              <IconSearch className="size-4" />
-              Find a title
-            </Button>
-          )}
         </div>
 
         <div
@@ -302,13 +289,6 @@ export function WatchingView({notice}: Props) {
           saving={savingEntry}
           onClose={() => setEditingEntry(null)}
           onSave={(input) => void saveEntryWithState(input)}
-        />
-      )}
-
-      {searchOpen && (
-        <WatchingSearchDialog
-          notice={notice}
-          onClose={() => setSearchOpen(false)}
         />
       )}
     </section>

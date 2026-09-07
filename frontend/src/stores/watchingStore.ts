@@ -3,15 +3,10 @@ import {
   ListAnimeList,
   ListAnimeListCounts,
   SaveAnimeListEntry,
-  SearchAnime,
   SetAnimeListStatus,
 } from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
-import type {
-  AnimeListEntryInput,
-  AnimeView,
-  WatchingEntryView,
-} from '../lib/types'
+import type {AnimeListEntryInput, WatchingEntryView} from '../lib/types'
 
 export type ListFilter =
   | 'CURRENT'
@@ -40,16 +35,9 @@ type WatchingState = {
   loading: boolean
   notConnected: boolean
   error: string
-  searchQuery: string
-  searchResults: AnimeView[]
-  searching: boolean
-  searchError: string
-  setSearchQuery: (query: string) => void
-  clearSearch: () => void
   selectFilter: (filter: ListFilter) => Promise<void>
   loadList: (filter?: ListFilter) => Promise<void>
   loadCounts: () => Promise<void>
-  searchAnime: () => Promise<void>
   setListStatus: (
     mediaId: number,
     status: QuickAddStatus,
@@ -68,14 +56,6 @@ export const useWatchingStore = create<WatchingState>((set, get) => ({
   loading: true,
   notConnected: false,
   error: '',
-  searchQuery: '',
-  searchResults: [],
-  searching: false,
-  searchError: '',
-
-  setSearchQuery: (query) => set({searchQuery: query}),
-
-  clearSearch: () => set({searchQuery: '', searchResults: [], searchError: ''}),
 
   loadList: async (filter) => {
     const listFilter = filter ?? get().listFilter
@@ -112,32 +92,10 @@ export const useWatchingStore = create<WatchingState>((set, get) => ({
     await get().loadList(filter)
   },
 
-  searchAnime: async () => {
-    const trimmed = get().searchQuery.trim()
-    if (!trimmed) {
-      set({searchError: 'Enter an anime title to search.'})
-      return
-    }
-    set({searching: true, searchError: ''})
-    try {
-      const found = await SearchAnime(trimmed)
-      set({searchResults: found ?? []})
-    } catch (err) {
-      set({searchError: errorMessage(err), searchResults: []})
-    } finally {
-      set({searching: false})
-    }
-  },
-
   setListStatus: async (mediaId, status, totalEpisodes, notice) => {
     try {
       await SetAnimeListStatus(mediaId, status, totalEpisodes)
       notice(quickAddNotices[status])
-      set((state) => ({
-        searchResults: state.searchResults.map((anime) =>
-          anime.id === mediaId ? {...anime, listStatus: status} : anime,
-        ),
-      }))
       await get().loadList()
       await get().loadCounts()
       return true
