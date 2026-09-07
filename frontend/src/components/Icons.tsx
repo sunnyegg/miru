@@ -12,6 +12,7 @@ import {
   Play,
   Search,
   Settings,
+  X,
   type LucideProps,
 } from 'lucide-react'
 
@@ -32,6 +33,10 @@ export function IconWatching({className}: IconProps) {
 
 export function IconSearch({className}: IconProps) {
   return <Search className={className} {...stroke} />
+}
+
+export function IconClose({className}: IconProps) {
+  return <X className={className} {...stroke} />
 }
 
 export function IconDownload({className}: IconProps) {

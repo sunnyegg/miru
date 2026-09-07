@@ -61,7 +61,7 @@ export function CloseToTrayDialog({open, onOpenChange, notice}: Props) {
               />
               <Label htmlFor="rememberCloseChoice">Remember this choice</Label>
             </label>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
               <Button
                 type="button"
                 disabled={busyAction !== null}
