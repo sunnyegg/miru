@@ -1,4 +1,5 @@
 import {libraryHeroBackgroundImage} from '../lib/anilistImage'
+import {nextAiringLabel} from '../lib/calendar'
 import type {ShowGroup} from '../lib/groupEpisodes'
 import {LibraryAddToWatchingBanner} from './LibraryAddToWatchingBanner'
 import {Button} from '@/components/ui/button'
@@ -19,14 +20,16 @@ function progressSummary(show: ShowGroup): string {
     const count = show.episodes.length
     return `${count} local episode${count === 1 ? '' : 's'} · not linked to AniList`
   }
+  const airing = nextAiringLabel(show.nextAiringEpisode, show.nextAiringAt)
+  const suffix = airing ? ` · ${airing}` : ''
   if (show.totalEpisodes > 0) {
     const remaining = show.totalEpisodes - show.progress
     if (remaining > 0) {
-      return `Episode ${show.progress} / ${show.totalEpisodes} · ${remaining} left`
+      return `Episode ${show.progress} / ${show.totalEpisodes} · ${remaining} left${suffix}`
     }
-    return `Episode ${show.progress} / ${show.totalEpisodes}`
+    return `Episode ${show.progress} / ${show.totalEpisodes}${suffix}`
   }
-  return `${show.progress} watched`
+  return `${show.progress} watched${suffix}`
 }
 
 export function LibraryShowDetailHero({
@@ -75,7 +78,7 @@ export function LibraryShowDetailHero({
               />
             </div>
           )}
-          {show.bound && (
+          {show.bound && show.episodes.length > 0 && (
             <div className="mt-4">
               <Button
                 type="button"

@@ -1,9 +1,9 @@
 import {
   buildWatchingShowItems,
-  torrentSearchQuery,
   watchingPosterCaption,
   watchingPosterSubcaption,
 } from '../lib/libraryWatching'
+import {compareByNextAiring} from '../lib/groupEpisodes'
 import type {ShowGroup} from '../lib/groupEpisodes'
 import type {WatchingEntryView} from '../lib/types'
 import {LibraryPosterCard} from './LibraryPosterCard'
@@ -16,8 +16,7 @@ type Props = {
   loading: boolean
   highlightedKey: string | null
   excludeHeroKey?: string | null
-  onOpenShow: (localShowKey: string) => void
-  onFindTorrent: (query: string) => void
+  onOpenShow: (showKey: string) => void
 }
 
 export function LibraryWatchingSection({
@@ -27,7 +26,6 @@ export function LibraryWatchingSection({
   highlightedKey,
   excludeHeroKey = null,
   onOpenShow,
-  onFindTorrent,
 }: Props) {
   if (!loading && entries.length === 0) {
     return (
@@ -47,6 +45,7 @@ export function LibraryWatchingSection({
   const items = excludeHeroKey
     ? allItems.filter((item) => item.key !== excludeHeroKey)
     : allItems
+  items.sort((left, right) => compareByNextAiring(left, right, Date.now()))
 
   return (
     <section className="mb-8 shrink-0">
@@ -72,15 +71,6 @@ export function LibraryWatchingSection({
             const caption = watchingPosterCaption(item)
             const subcaption = watchingPosterSubcaption(item)
 
-            function handleClick() {
-              if (item.hasLocalFiles && item.localShowKey) {
-                onOpenShow(item.localShowKey)
-                return
-              }
-              const episodeNumber = item.newEpisodeNumber ?? item.progress + 1
-              onFindTorrent(torrentSearchQuery(item.title, episodeNumber))
-            }
-
             return (
               <li key={item.key}>
                 <LibraryPosterCard
@@ -91,7 +81,7 @@ export function LibraryWatchingSection({
                   accentCaption={caption.accent}
                   active={item.key === highlightedKey}
                   size="shelf"
-                  onClick={handleClick}
+                  onClick={() => onOpenShow(item.key)}
                 />
               </li>
             )

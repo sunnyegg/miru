@@ -43,19 +43,34 @@ type EpisodeView struct {
 	TotalEpisodes     int     `json:"totalEpisodes"`
 	MediaStatus       string  `json:"mediaStatus"`
 	NextAiringEpisode int     `json:"nextAiringEpisode"`
+	NextAiringAt      int64   `json:"nextAiringAt"`
 	ResumePosition    float64 `json:"resumePosition"`
 	LastPlayedAt      string  `json:"lastPlayedAt"`
 }
 
 type AnimeView struct {
-	ID            int    `json:"id"`
-	TitleRomaji   string `json:"titleRomaji"`
-	TitleEnglish  string `json:"titleEnglish"`
-	CoverImage    string `json:"coverImage"`
-	TotalEpisodes int    `json:"totalEpisodes"`
-	Status        string `json:"status"`
-	Synopsis      string `json:"synopsis"`
-	ListStatus    string `json:"listStatus"`
+	ID                int      `json:"id"`
+	TitleRomaji       string   `json:"titleRomaji"`
+	TitleEnglish      string   `json:"titleEnglish"`
+	TitleNative       string   `json:"titleNative"`
+	CoverImage        string   `json:"coverImage"`
+	BannerImage       string   `json:"bannerImage"`
+	Format            string   `json:"format"`
+	TotalEpisodes     int      `json:"totalEpisodes"`
+	Duration          int      `json:"duration"`
+	Status            string   `json:"status"`
+	NextAiringEpisode int      `json:"nextAiringEpisode"`
+	NextAiringAt      int64    `json:"nextAiringAt"`
+	Season            string   `json:"season"`
+	SeasonYear        int      `json:"seasonYear"`
+	Source            string   `json:"source"`
+	Genres            []string `json:"genres"`
+	Studios           []string `json:"studios"`
+	AverageScore      int      `json:"averageScore"`
+	Popularity        int      `json:"popularity"`
+	Favourites        int      `json:"favourites"`
+	Synopsis          string   `json:"synopsis"`
+	ListStatus        string   `json:"listStatus"`
 }
 
 type ImportResult struct {
@@ -118,6 +133,7 @@ type WatchingEntryView struct {
 	TotalEpisodes     int           `json:"totalEpisodes"`
 	MediaStatus       string        `json:"mediaStatus"`
 	NextAiringEpisode int           `json:"nextAiringEpisode"`
+	NextAiringAt      int64         `json:"nextAiringAt"`
 }
 
 type StreamingEpisodeThumbnailView struct {

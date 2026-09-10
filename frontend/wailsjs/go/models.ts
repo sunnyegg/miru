@@ -78,9 +78,23 @@ export namespace main {
 	    id: number;
 	    titleRomaji: string;
 	    titleEnglish: string;
+	    titleNative: string;
 	    coverImage: string;
+	    bannerImage: string;
+	    format: string;
 	    totalEpisodes: number;
+	    duration: number;
 	    status: string;
+	    nextAiringEpisode: number;
+	    nextAiringAt: number;
+	    season: string;
+	    seasonYear: number;
+	    source: string;
+	    genres: string[];
+	    studios: string[];
+	    averageScore: number;
+	    popularity: number;
+	    favourites: number;
 	    synopsis: string;
 	    listStatus: string;
 	
@@ -93,9 +107,23 @@ export namespace main {
 	        this.id = source["id"];
 	        this.titleRomaji = source["titleRomaji"];
 	        this.titleEnglish = source["titleEnglish"];
+	        this.titleNative = source["titleNative"];
 	        this.coverImage = source["coverImage"];
+	        this.bannerImage = source["bannerImage"];
+	        this.format = source["format"];
 	        this.totalEpisodes = source["totalEpisodes"];
+	        this.duration = source["duration"];
 	        this.status = source["status"];
+	        this.nextAiringEpisode = source["nextAiringEpisode"];
+	        this.nextAiringAt = source["nextAiringAt"];
+	        this.season = source["season"];
+	        this.seasonYear = source["seasonYear"];
+	        this.source = source["source"];
+	        this.genres = source["genres"];
+	        this.studios = source["studios"];
+	        this.averageScore = source["averageScore"];
+	        this.popularity = source["popularity"];
+	        this.favourites = source["favourites"];
 	        this.synopsis = source["synopsis"];
 	        this.listStatus = source["listStatus"];
 	    }
@@ -130,6 +158,7 @@ export namespace main {
 	    totalEpisodes: number;
 	    mediaStatus: string;
 	    nextAiringEpisode: number;
+	    nextAiringAt: number;
 	    resumePosition: number;
 	    lastPlayedAt: string;
 	
@@ -152,6 +181,7 @@ export namespace main {
 	        this.totalEpisodes = source["totalEpisodes"];
 	        this.mediaStatus = source["mediaStatus"];
 	        this.nextAiringEpisode = source["nextAiringEpisode"];
+	        this.nextAiringAt = source["nextAiringAt"];
 	        this.resumePosition = source["resumePosition"];
 	        this.lastPlayedAt = source["lastPlayedAt"];
 	    }
@@ -419,6 +449,7 @@ export namespace main {
 	    totalEpisodes: number;
 	    mediaStatus: string;
 	    nextAiringEpisode: number;
+	    nextAiringAt: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new WatchingEntryView(source);
@@ -442,6 +473,7 @@ export namespace main {
 	        this.totalEpisodes = source["totalEpisodes"];
 	        this.mediaStatus = source["mediaStatus"];
 	        this.nextAiringEpisode = source["nextAiringEpisode"];
+	        this.nextAiringAt = source["nextAiringAt"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

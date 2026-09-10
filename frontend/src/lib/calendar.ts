@@ -58,3 +58,36 @@ export function groupSchedulesByDay(
   }
   return grouped
 }
+
+export function formatAiringCountdown(
+  airingAt: number,
+  now: number = Date.now(),
+): string {
+  const remainingSeconds = Math.round(airingAt - now / 1000)
+  if (remainingSeconds <= 0) {
+    return ''
+  }
+  const days = Math.floor(remainingSeconds / 86400)
+  const hours = Math.floor((remainingSeconds % 86400) / 3600)
+  const minutes = Math.floor((remainingSeconds % 3600) / 60)
+  const parts = [
+    days > 0 ? `${days}d` : '',
+    hours > 0 ? `${hours}h` : '',
+    days === 0 && minutes > 0 ? `${minutes}m` : '',
+  ].filter(Boolean)
+  return parts.join(' ') || '<1m'
+}
+
+export function nextAiringLabel(
+  nextAiringEpisode: number,
+  nextAiringAt: number,
+): string {
+  if (nextAiringEpisode <= 0) {
+    return ''
+  }
+  const countdown = formatAiringCountdown(nextAiringAt)
+  if (!countdown) {
+    return ''
+  }
+  return `Ep ${nextAiringEpisode} in ${countdown}`
+}

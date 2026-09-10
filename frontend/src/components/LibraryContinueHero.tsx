@@ -18,7 +18,7 @@ type Props = {
   playing: PlaybackEvent | null
   lastPlayback: PlaybackEvent | null
   playingShowKey: string | null
-  onOpenShow: (localShowKey: string) => void
+  onOpenShow: (showKey: string) => void
   onFindTorrent: (query: string) => void
 }
 
@@ -110,10 +110,6 @@ export function LibraryContinueHero({
       : ''
 
   function handleContinue() {
-    if (watchingItem?.hasLocalFiles && watchingItem.localShowKey) {
-      onOpenShow(watchingItem.localShowKey)
-      return
-    }
     if (show) {
       onOpenShow(show.key)
     }

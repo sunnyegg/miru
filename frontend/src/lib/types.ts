@@ -49,6 +49,7 @@ export type EpisodeView = {
   totalEpisodes: number
   mediaStatus: string
   nextAiringEpisode: number
+  nextAiringAt: number
   resumePosition: number
   lastPlayedAt: string
 }
@@ -57,9 +58,23 @@ export type AnimeView = {
   id: number
   titleRomaji: string
   titleEnglish: string
+  titleNative: string
   coverImage: string
+  bannerImage: string
+  format: string
   totalEpisodes: number
+  duration: number
   status: string
+  nextAiringEpisode: number
+  nextAiringAt: number
+  season: string
+  seasonYear: number
+  source: string
+  genres: string[]
+  studios: string[]
+  averageScore: number
+  popularity: number
+  favourites: number
   synopsis: string
   listStatus: string
 }
@@ -124,6 +139,7 @@ export type WatchingEntryView = {
   totalEpisodes: number
   mediaStatus: string
   nextAiringEpisode: number
+  nextAiringAt: number
 }
 
 export type StreamingEpisodeThumbnailView = {

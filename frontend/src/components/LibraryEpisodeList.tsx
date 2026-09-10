@@ -1,3 +1,4 @@
+import {useRef} from 'react'
 import {episodeSlots, type ShowGroup} from '../lib/groupEpisodes'
 import {torrentSearchQuery} from '../lib/libraryWatching'
 import type {PlaybackEvent} from '../lib/types'
@@ -110,6 +111,19 @@ export function LibraryEpisodeList({
   onFindTorrent,
 }: Props) {
   const slots = episodeSlots(show)
+  const nextUnwatchedSlot = show.bound
+    ? (slots.find((slot) => slot.number === show.progress + 1) ?? null)
+    : null
+  const nextUnwatchedRef = useRef<HTMLLIElement | null>(null)
+
+  function scrollToNextUnwatched() {
+    nextUnwatchedRef.current?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 'auto'
+        : 'smooth',
+      block: 'start',
+    })
+  }
 
   function findTorrentForEpisode(episodeNumber: number) {
     if (!onFindTorrent || episodeNumber <= 0) {
@@ -119,58 +133,173 @@ export function LibraryEpisodeList({
   }
 
   return (
-    <ul
-      className="flex flex-col gap-2.5"
-      aria-label={`Episodes for ${show.title}`}
-    >
-      {slots.map((slot) => {
-        const label = episodeLabel(slot.number, slot.file?.displayTitle)
-        const subtitle =
-          slot.kind === 'upcoming'
-            ? 'Not yet aired'
-            : slot.kind === 'missing'
-              ? 'No file'
-              : slot.file?.filePath.split(/[\\/]/).pop() ||
-                slot.file?.displayTitle ||
-                ''
-        const thumbnailUrl = episodeThumbnailUrl(
-          slot.number,
-          episodeThumbnails,
-          show.coverImage,
-        )
-
-        if (slot.kind === 'upcoming') {
-          return (
-            <li key={slotKey(slot)}>
-              <div
-                aria-label={`${label}, ${subtitle}`}
-                className={cn(rowClassName, 'text-muted-foreground')}
-              >
-                <EpisodeThumbnail imageUrl={thumbnailUrl} dimmed />
-                <span className={episodeNumberClassName}>
-                  {slot.number > 0 ? slot.number : '—'}
-                </span>
-                <span className="min-w-0 flex-1 py-2.5">
-                  <span className={titleClassName}>{label}</span>
-                  <span className={subtitleClassName}>{subtitle}</span>
-                </span>
-              </div>
-            </li>
+    <>
+      {nextUnwatchedSlot && (
+        <div className="mb-2.5 flex justify-end">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={scrollToNextUnwatched}
+          >
+            Next unwatched
+          </Button>
+        </div>
+      )}
+      <ul
+        className="flex flex-col gap-2.5"
+        aria-label={`Episodes for ${show.title}`}
+      >
+        {slots.map((slot) => {
+          const label = episodeLabel(slot.number, slot.file?.displayTitle)
+          const subtitle =
+            slot.kind === 'upcoming'
+              ? 'Not yet aired'
+              : slot.kind === 'missing'
+                ? 'No file'
+                : slot.file?.filePath.split(/[\\/]/).pop() ||
+                  slot.file?.displayTitle ||
+                  ''
+          const thumbnailUrl = episodeThumbnailUrl(
+            slot.number,
+            episodeThumbnails,
+            show.coverImage,
           )
-        }
 
-        if (slot.kind === 'missing' && onFindTorrent && slot.number > 0) {
+          if (slot.kind === 'upcoming') {
+            return (
+              <li
+                key={slotKey(slot)}
+                ref={slot === nextUnwatchedSlot ? nextUnwatchedRef : undefined}
+              >
+                <div
+                  aria-label={`${label}, ${subtitle}`}
+                  className={cn(rowClassName, 'text-muted-foreground')}
+                >
+                  <EpisodeThumbnail imageUrl={thumbnailUrl} dimmed />
+                  <span className={episodeNumberClassName}>
+                    {slot.number > 0 ? slot.number : '—'}
+                  </span>
+                  <span className="min-w-0 flex-1 py-2.5">
+                    <span className={titleClassName}>{label}</span>
+                    <span className={subtitleClassName}>{subtitle}</span>
+                  </span>
+                </div>
+              </li>
+            )
+          }
+
+          if (slot.kind === 'missing' && onFindTorrent && slot.number > 0) {
+            return (
+              <li
+                key={slotKey(slot)}
+                ref={slot === nextUnwatchedSlot ? nextUnwatchedRef : undefined}
+              >
+                <div className={rowClassName}>
+                  <EpisodeThumbnail imageUrl={thumbnailUrl} dimmed />
+                  <span
+                    className={cn(
+                      episodeNumberClassName,
+                      'text-muted-foreground',
+                    )}
+                  >
+                    {slot.number}
+                  </span>
+                  <span className="min-w-0 flex-1 py-2.5">
+                    <span className={titleClassName}>{label}</span>
+                    <span
+                      className={cn(subtitleClassName, 'text-muted-foreground')}
+                    >
+                      {subtitle}
+                    </span>
+                  </span>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className={episodeActionButtonClassName}
+                    onClick={() => findTorrentForEpisode(slot.number)}
+                  >
+                    Find torrent
+                  </Button>
+                </div>
+              </li>
+            )
+          }
+
+          if (slot.kind !== 'available' || !slot.file) {
+            return (
+              <li
+                key={slotKey(slot)}
+                ref={slot === nextUnwatchedSlot ? nextUnwatchedRef : undefined}
+              >
+                <div
+                  aria-label={`${label}, ${subtitle}`}
+                  className={cn(rowClassName, 'text-muted-foreground')}
+                >
+                  <EpisodeThumbnail imageUrl={thumbnailUrl} dimmed />
+                  <span className={episodeNumberClassName}>
+                    {slot.number > 0 ? slot.number : '—'}
+                  </span>
+                  <span className="min-w-0 flex-1 py-2.5">
+                    <span className={titleClassName}>{label}</span>
+                    <span className={subtitleClassName}>{subtitle}</span>
+                  </span>
+                </div>
+              </li>
+            )
+          }
+
+          const episode = slot.file
+          const isBusy = busyId === episode.id
+          const isUnmatching = unmatchingEpisodeId === episode.id
+          const playback = episodePlaybackState(
+            episode.id,
+            playing,
+            lastPlayback,
+          )
+
           return (
-            <li key={slotKey(slot)}>
-              <div className={rowClassName}>
-                <EpisodeThumbnail imageUrl={thumbnailUrl} dimmed />
+            <li
+              key={slotKey(slot)}
+              ref={slot === nextUnwatchedSlot ? nextUnwatchedRef : undefined}
+            >
+              <div
+                className={cn(
+                  'relative overflow-hidden border-l-2',
+                  rowClassName,
+                  playback.highlighted
+                    ? 'border-l-accent'
+                    : 'border-l-transparent',
+                  (isBusy || isUnmatching) && 'opacity-50',
+                )}
+              >
+                {playback.highlighted && playback.percent > 0 && (
+                  <div
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-2 bg-muted"
+                    role="progressbar"
+                    aria-label={`Playback progress for ${label}`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Math.round(playback.percent)}
+                    aria-valuetext={`${Math.round(playback.percent)}% played`}
+                  >
+                    <div
+                      className={cn(
+                        'h-full bg-accent',
+                        playback.isPlaying &&
+                          'transition-[width] duration-200 motion-reduce:transition-none',
+                      )}
+                      style={{width: `${playback.percent}%`}}
+                    />
+                  </div>
+                )}
+                <EpisodeThumbnail imageUrl={thumbnailUrl} />
                 <span
                   className={cn(
                     episodeNumberClassName,
                     'text-muted-foreground',
                   )}
                 >
-                  {slot.number}
+                  {slot.number > 0 ? slot.number : '—'}
                 </span>
                 <span className="min-w-0 flex-1 py-2.5">
                   <span className={titleClassName}>{label}</span>
@@ -180,118 +309,35 @@ export function LibraryEpisodeList({
                     {subtitle}
                   </span>
                 </span>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className={episodeActionButtonClassName}
-                  onClick={() => findTorrentForEpisode(slot.number)}
-                >
-                  Find torrent
-                </Button>
-              </div>
-            </li>
-          )
-        }
-
-        if (slot.kind !== 'available' || !slot.file) {
-          return (
-            <li key={slotKey(slot)}>
-              <div
-                aria-label={`${label}, ${subtitle}`}
-                className={cn(rowClassName, 'text-muted-foreground')}
-              >
-                <EpisodeThumbnail imageUrl={thumbnailUrl} dimmed />
-                <span className={episodeNumberClassName}>
-                  {slot.number > 0 ? slot.number : '—'}
-                </span>
-                <span className="min-w-0 flex-1 py-2.5">
-                  <span className={titleClassName}>{label}</span>
-                  <span className={subtitleClassName}>{subtitle}</span>
-                </span>
-              </div>
-            </li>
-          )
-        }
-
-        const episode = slot.file
-        const isBusy = busyId === episode.id
-        const isUnmatching = unmatchingEpisodeId === episode.id
-        const playback = episodePlaybackState(episode.id, playing, lastPlayback)
-
-        return (
-          <li key={slotKey(slot)}>
-            <div
-              className={cn(
-                'relative overflow-hidden border-l-2',
-                rowClassName,
-                playback.highlighted
-                  ? 'border-l-accent'
-                  : 'border-l-transparent',
-                (isBusy || isUnmatching) && 'opacity-50',
-              )}
-            >
-              {playback.highlighted && playback.percent > 0 && (
-                <div
-                  className="pointer-events-none absolute inset-x-0 bottom-0 h-2 bg-muted"
-                  role="progressbar"
-                  aria-label={`Playback progress for ${label}`}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={Math.round(playback.percent)}
-                  aria-valuetext={`${Math.round(playback.percent)}% played`}
-                >
-                  <div
-                    className={cn(
-                      'h-full bg-accent',
-                      playback.isPlaying &&
-                        'transition-[width] duration-200 motion-reduce:transition-none',
-                    )}
-                    style={{width: `${playback.percent}%`}}
-                  />
-                </div>
-              )}
-              <EpisodeThumbnail imageUrl={thumbnailUrl} />
-              <span
-                className={cn(episodeNumberClassName, 'text-muted-foreground')}
-              >
-                {slot.number > 0 ? slot.number : '—'}
-              </span>
-              <span className="min-w-0 flex-1 py-2.5">
-                <span className={titleClassName}>{label}</span>
-                <span
-                  className={cn(subtitleClassName, 'text-muted-foreground')}
-                >
-                  {subtitle}
-                </span>
-              </span>
-              <div className="flex shrink-0 gap-2">
-                {episode.bound && onUnmatch && (
+                <div className="flex shrink-0 gap-2">
+                  {episode.bound && onUnmatch && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className={episodeActionButtonClassName}
+                      disabled={
+                        isBusy || isUnmatching || unmatchingEpisodeId !== null
+                      }
+                      onClick={() => onUnmatch(episode.id)}
+                    >
+                      {isUnmatching ? 'Removing…' : 'Unmatch'}
+                    </Button>
+                  )}
                   <Button
                     type="button"
-                    variant="secondary"
+                    variant="default"
                     className={episodeActionButtonClassName}
-                    disabled={
-                      isBusy || isUnmatching || unmatchingEpisodeId !== null
-                    }
-                    onClick={() => onUnmatch(episode.id)}
+                    disabled={isBusy || isUnmatching}
+                    onClick={() => onPlay(episode.id)}
                   >
-                    {isUnmatching ? 'Removing…' : 'Unmatch'}
+                    {isBusy ? 'Starting…' : 'Play'}
                   </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="default"
-                  className={episodeActionButtonClassName}
-                  disabled={isBusy || isUnmatching}
-                  onClick={() => onPlay(episode.id)}
-                >
-                  {isBusy ? 'Starting…' : 'Play'}
-                </Button>
+                </div>
               </div>
-            </div>
-          </li>
-        )
-      })}
-    </ul>
+            </li>
+          )
+        })}
+      </ul>
+    </>
   )
 }

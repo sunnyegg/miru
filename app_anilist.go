@@ -200,7 +200,7 @@ func (a *App) GetAnime(mediaID int) (AnimeView, error) {
 	if mediaID <= 0 {
 		return AnimeView{}, errors.New("invalid anime id")
 	}
-	return loadCachedJSON(a, animeCacheKey(mediaID), apiCacheTTL, func() (AnimeView, error) {
+	return loadCachedJSON(a, animeCacheKey(mediaID), animeDetailCacheTTL, func() (AnimeView, error) {
 		token, _ := a.tokens.Get()
 		client, err := a.newAnilist(token)
 		if err != nil {
@@ -374,6 +374,7 @@ func toWatchingEntryViews(entries []anilist.CurrentEntry) []WatchingEntryView {
 			TotalEpisodes:     entry.TotalEpisodes,
 			MediaStatus:       entry.MediaStatus,
 			NextAiringEpisode: entry.NextAiringEpisode,
+			NextAiringAt:      entry.NextAiringAt,
 		})
 	}
 	return out

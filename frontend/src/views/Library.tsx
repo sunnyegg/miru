@@ -9,7 +9,12 @@ import {
   UnbindEpisode,
 } from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
-import {groupEpisodes, visibleLibraryEpisodes} from '../lib/groupEpisodes'
+import {
+  compareByNextAiring,
+  groupEpisodes,
+  visibleLibraryEpisodes,
+  type ShowGroup,
+} from '../lib/groupEpisodes'
 import type {AnimeView, EpisodeView} from '../lib/types'
 import {useLibraryStore} from '../stores/libraryStore'
 import {usePlaybackStore} from '../stores/playbackStore'
@@ -21,6 +26,7 @@ import {
 } from '../components/LibraryMatchSheet'
 import {LibraryEpisodeList} from '../components/LibraryEpisodeList'
 import {LibraryShowDetailHero} from '../components/LibraryShowDetailHero'
+import {LibraryAnimeDetail} from '../components/LibraryAnimeDetail'
 import {LibraryUnlistedSection} from '../components/LibraryUnlistedSection'
 import {LibraryWatchingSection} from '../components/LibraryWatchingSection'
 import {IconBack} from '../components/Icons'
@@ -71,11 +77,37 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
     () => new Set(watchingEntries.map((entry) => `anilist:${entry.mediaId}`)),
     [watchingEntries],
   )
-  const gridShows = useMemo(
-    () => shows.filter((show) => !watchingKeys.has(show.key)),
-    [shows, watchingKeys],
-  )
-  const selectedShow = shows.find((show) => show.key === selectedKey) ?? null
+  const gridShows = useMemo(() => {
+    const now = Date.now()
+    return shows
+      .filter((show) => !watchingKeys.has(show.key))
+      .sort((left, right) => compareByNextAiring(left, right, now))
+  }, [shows, watchingKeys])
+  const selectedShow = useMemo(() => {
+    const localShow = shows.find((show) => show.key === selectedKey)
+    if (localShow) {
+      return localShow
+    }
+    const entry = watchingEntries.find(
+      (item) => `anilist:${item.mediaId}` === selectedKey,
+    )
+    if (!selectedKey || !entry) {
+      return null
+    }
+    return {
+      key: selectedKey,
+      title: entry.titleEnglish || entry.titleRomaji,
+      coverImage: entry.coverImage,
+      bound: true,
+      unlinkedCount: 0,
+      progress: entry.progress,
+      totalEpisodes: entry.totalEpisodes,
+      mediaStatus: entry.mediaStatus,
+      nextAiringEpisode: entry.nextAiringEpisode,
+      nextAiringAt: entry.nextAiringAt,
+      episodes: [],
+    } satisfies ShowGroup
+  }, [shows, selectedKey, watchingEntries])
   const selectedShowIsUnlisted = Boolean(
     selectedShow && !watchingKeys.has(selectedShow.key),
   )
@@ -136,14 +168,22 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
   }, [loading, onReady])
 
   useEffect(() => {
-    if (shows.length === 0) {
+    if (shows.length === 0 && watchingEntries.length === 0) {
       setSelectedKey(null)
       return
     }
-    if (selectedKey && !shows.some((show) => show.key === selectedKey)) {
+    if (!selectedKey) {
+      return
+    }
+    const known =
+      shows.some((show) => show.key === selectedKey) ||
+      watchingEntries.some(
+        (entry) => `anilist:${entry.mediaId}` === selectedKey,
+      )
+    if (!known) {
       setSelectedKey(null)
     }
-  }, [shows, selectedKey, setSelectedKey])
+  }, [shows, watchingEntries, selectedKey, setSelectedKey])
 
   useEffect(() => {
     if (selectedAnilistId <= 0) {
@@ -302,6 +342,9 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
   function selectShow(key: string) {
     const show = shows.find((item) => item.key === key)
     if (!show) {
+      if (key.startsWith('anilist:')) {
+        setSelectedKey(key)
+      }
       return
     }
     setSelectedKey(key)
@@ -314,8 +357,8 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
     }
   }
 
-  function openWatchingShow(localShowKey: string) {
-    selectShow(localShowKey)
+  function openWatchingShow(showKey: string) {
+    selectShow(showKey)
   }
 
   async function addSelectedToWatching() {
@@ -504,6 +547,9 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
               onMatchAnilist={openMatcherForSelectedShow}
               onUnmatchAnilist={() => void unmatchSelectedShow()}
             />
+            {selectedAnilistId > 0 && (
+              <LibraryAnimeDetail anilistId={selectedAnilistId} />
+            )}
             <LibraryEpisodeList
               show={selectedShow}
               playing={playing}
@@ -539,7 +585,6 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
               highlightedKey={playingShowKey}
               excludeHeroKey={continueHeroKey}
               onOpenShow={openWatchingShow}
-              onFindTorrent={onFindTorrent}
             />
             <LibraryUnlistedSection
               loading={loading}

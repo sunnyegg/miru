@@ -74,6 +74,53 @@ func TestSearchAndSave(t *testing.T) {
 	}
 }
 
+func TestGetAnime(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Query string `json:"query"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(body.Query, "studios") || !strings.Contains(body.Query, "bannerImage") || !strings.Contains(body.Query, "nextAiringEpisode") {
+			t.Fatalf("query missing detail fields: %s", body.Query)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"Media":{"id":21,"title":{"romaji":"Sousou no Frieren","english":"Frieren: Beyond Journey's End","native":"葬送のフリーレン"},"coverImage":{"extraLarge":"xl","large":"l"},"bannerImage":"banner","format":"TV","episodes":28,"duration":24,"status":"RELEASING","nextAiringEpisode":{"episode":5,"airingAt":1730000000},"season":"FALL","seasonYear":2023,"source":"MANGA","genres":["Adventure","Drama"],"averageScore":90,"popularity":500000,"favourites":40000,"studios":{"nodes":[{"name":"Madhouse"},{"name":"Toho"}]},"description":"<p>syn</p>"}}}`))
+	}))
+	defer server.Close()
+
+	client := New("tok")
+	client.Endpoint = server.URL
+	client.HTTP = server.Client()
+
+	anime, err := client.GetAnime(21)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if anime.TitleNative != "葬送のフリーレン" || anime.BannerImage != "banner" {
+		t.Fatalf("title/banner = %+v", anime)
+	}
+	if anime.Format != "TV" || anime.Duration != 24 || anime.Season != "FALL" || anime.SeasonYear != 2023 || anime.Source != "MANGA" {
+		t.Fatalf("format/season/source = %+v", anime)
+	}
+	if anime.NextAiringEpisode != 5 || anime.NextAiringAt != 1730000000 {
+		t.Fatalf("next airing = %+v", anime)
+	}
+	if anime.AverageScore != 90 || anime.Popularity != 500000 || anime.Favourites != 40000 {
+		t.Fatalf("stats = %+v", anime)
+	}
+	if strings.Join(anime.Genres, ",") != "Adventure,Drama" {
+		t.Fatalf("genres = %+v", anime.Genres)
+	}
+	if strings.Join(anime.Studios, ",") != "Madhouse,Toho" {
+		t.Fatalf("studios = %+v", anime.Studios)
+	}
+	if anime.CoverImage != "xl" || anime.TotalEpisodes != 28 || anime.Status != "RELEASING" {
+		t.Fatalf("core fields = %+v", anime)
+	}
+}
+
 func TestAiringSchedules(t *testing.T) {
 	var requests int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -145,7 +192,7 @@ func TestListProgressForMedia(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"data":{"Page":{"media":[
-			{"id":21,"episodes":12,"status":"RELEASING","nextAiringEpisode":{"episode":8},"mediaListEntry":{"progress":5}},
+			{"id":21,"episodes":12,"status":"RELEASING","nextAiringEpisode":{"episode":8,"airingAt":1730000000},"mediaListEntry":{"progress":5}},
 			{"id":22,"episodes":24,"status":"FINISHED","nextAiringEpisode":null,"mediaListEntry":null}
 		]}}}`))
 	}))
@@ -165,7 +212,7 @@ func TestListProgressForMedia(t *testing.T) {
 	if progressByMedia[21].Progress != 5 || progressByMedia[21].TotalEpisodes != 12 {
 		t.Fatalf("media 21 = %+v", progressByMedia[21])
 	}
-	if progressByMedia[21].MediaStatus != "RELEASING" || progressByMedia[21].NextAiringEpisode != 8 {
+	if progressByMedia[21].MediaStatus != "RELEASING" || progressByMedia[21].NextAiringEpisode != 8 || progressByMedia[21].NextAiringAt != 1730000000 {
 		t.Fatalf("media 21 airing = %+v", progressByMedia[21])
 	}
 	if progressByMedia[22].Progress != 0 || progressByMedia[22].TotalEpisodes != 24 {
