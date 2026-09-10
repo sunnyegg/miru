@@ -6,6 +6,8 @@ Miru is a Wails v2 desktop app (Go + React). The UI is a WebKitGTK webview, not 
 
 After `make dev`, inspect the running app at **http://127.0.0.1:34115**.
 
+`make dev-fresh` clears the cache first: it removes `$XDG_CACHE_HOME/miru` and the SQLite `api_cache` table (AniList/detail/airing responses) via `scripts/clear-cache.sh`, without touching settings, the AniList token, shaders, logs, or downloads. Use `make clear-cache` for the standalone step.
+
 That port is the Wails dev server with Go bindings. Do not use Vite `5173` or preview `4173` — those pages have no `window.go` / `window.runtime`, so React will not mount.
 
 ## Backend

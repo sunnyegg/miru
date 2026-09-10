@@ -10,6 +10,7 @@ export type ShowGroup = {
   totalEpisodes: number
   mediaStatus: string
   nextAiringEpisode: number
+  nextAiringAt: number
   episodes: EpisodeView[]
 }
 
@@ -63,6 +64,7 @@ export function groupEpisodes(episodes: EpisodeView[]): ShowGroup[] {
         totalEpisodes: episode.totalEpisodes,
         mediaStatus: episode.mediaStatus,
         nextAiringEpisode: episode.nextAiringEpisode,
+        nextAiringAt: episode.nextAiringAt,
         episodes: [episode],
       })
       continue
@@ -86,6 +88,9 @@ export function groupEpisodes(episodes: EpisodeView[]): ShowGroup[] {
     }
     if (episode.nextAiringEpisode > 0) {
       existing.nextAiringEpisode = episode.nextAiringEpisode
+    }
+    if (episode.nextAiringAt > 0) {
+      existing.nextAiringAt = episode.nextAiringAt
     }
     if (episode.totalEpisodes > 0) {
       existing.totalEpisodes = episode.totalEpisodes
@@ -166,4 +171,24 @@ export function episodeSlots(show: ShowGroup): EpisodeSlot[] {
   })
 
   return slots
+}
+
+export function compareByNextAiring(
+  left: {nextAiringAt: number},
+  right: {nextAiringAt: number},
+  now: number,
+): number {
+  const nowSec = Math.floor(now / 1000)
+  const leftAt = left.nextAiringAt > nowSec ? left.nextAiringAt : 0
+  const rightAt = right.nextAiringAt > nowSec ? right.nextAiringAt : 0
+  if (leftAt > 0 && rightAt > 0) {
+    return leftAt - rightAt
+  }
+  if (leftAt > 0) {
+    return -1
+  }
+  if (rightAt > 0) {
+    return 1
+  }
+  return 0
 }

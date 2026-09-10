@@ -1,22 +1,30 @@
 import type {ShowGroup} from '../lib/groupEpisodes'
+import {nextAiringLabel} from '../lib/calendar'
 import {LibraryPosterCard} from './LibraryPosterCard'
 import {Alert} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 import {Skeleton} from '@/components/ui/skeleton'
 
 function posterCaption(show: ShowGroup): string {
+  const airing = nextAiringLabel(show.nextAiringEpisode, show.nextAiringAt)
   if (!show.bound) {
     const count = show.episodes.length
-    return `${count} episode${count === 1 ? '' : 's'} · not linked to AniList`
+    const base = `${count} episode${count === 1 ? '' : 's'} · not linked to AniList`
+    return airing ? `${base} · ${airing}` : base
   }
   if (show.totalEpisodes > 0) {
+    const base = `${show.progress} / ${show.totalEpisodes}`
+    if (airing) {
+      return `${base} · ${airing}`
+    }
     const remaining = show.totalEpisodes - show.progress
     if (remaining > 0) {
-      return `${show.progress} / ${show.totalEpisodes} · ${remaining} left`
+      return `${base} · ${remaining} left`
     }
-    return `${show.progress} / ${show.totalEpisodes}`
+    return base
   }
-  return `${show.progress} watched`
+  const base = `${show.progress} watched`
+  return airing ? `${base} · ${airing}` : base
 }
 
 function posterSubcaption(show: ShowGroup): string | null {

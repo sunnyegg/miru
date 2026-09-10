@@ -5,13 +5,15 @@ GOLANGCI_LINT_VERSION ?= v2.13.1
 VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || echo dev)
 LD_FLAGS ?= -X main.version=$(VERSION)
 
-.PHONY: help deps build dev test check-windows fmt fmt-fe lint lint-fe typecheck doctor clean bench-idle-ram
+.PHONY: help deps build dev dev-fresh clear-cache test check-windows fmt fmt-fe lint lint-fe typecheck doctor clean bench-idle-ram
 
 help:
 	@printf '%s\n' \
 		'deps      Install Go modules and frontend npm packages' \
 		'build     Build the production binary and embed .env' \
 		'dev       Run the app in development mode' \
+		'dev-fresh Clear the cache, then run the app in development mode' \
+		'clear-cache  Clear the cache dir and the SQLite api_cache table' \
 		'test      Run all Go tests' \
 		'check-windows  Cross-compile and vet for Windows (GOOS=windows)' \
 		'fmt       Format Go source files' \
@@ -33,6 +35,12 @@ build:
 
 dev:
 	$(WAILS) dev -tags "$(WEBKIT_TAG)" -ldflags "$(LD_FLAGS)"
+
+dev-fresh: clear-cache
+	$(WAILS) dev -tags "$(WEBKIT_TAG)" -ldflags "$(LD_FLAGS)"
+
+clear-cache:
+	@bash scripts/clear-cache.sh
 
 test:
 	$(GO) test ./...

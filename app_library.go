@@ -98,6 +98,7 @@ func (a *App) applyAnilistProgress(episodes []EpisodeView) {
 			episodes[index].MediaStatus = mediaProgress.MediaStatus
 		}
 		episodes[index].NextAiringEpisode = mediaProgress.NextAiringEpisode
+		episodes[index].NextAiringAt = mediaProgress.NextAiringAt
 	}
 }
 
@@ -318,14 +319,28 @@ func toAnimeViews(in []anilist.Anime) []AnimeView {
 	out := make([]AnimeView, 0, len(in))
 	for _, a := range in {
 		out = append(out, AnimeView{
-			ID:            a.ID,
-			TitleRomaji:   a.TitleRomaji,
-			TitleEnglish:  a.TitleEnglish,
-			CoverImage:    a.CoverImage,
-			TotalEpisodes: a.TotalEpisodes,
-			Status:        a.Status,
-			Synopsis:      a.Synopsis,
-			ListStatus:    a.ListStatus,
+			ID:                a.ID,
+			TitleRomaji:       a.TitleRomaji,
+			TitleEnglish:      a.TitleEnglish,
+			TitleNative:       a.TitleNative,
+			CoverImage:        a.CoverImage,
+			BannerImage:       a.BannerImage,
+			Format:            a.Format,
+			TotalEpisodes:     a.TotalEpisodes,
+			Duration:          a.Duration,
+			Status:            a.Status,
+			NextAiringEpisode: a.NextAiringEpisode,
+			NextAiringAt:      a.NextAiringAt,
+			Season:            a.Season,
+			SeasonYear:        a.SeasonYear,
+			Source:            a.Source,
+			Genres:            a.Genres,
+			Studios:           a.Studios,
+			AverageScore:      a.AverageScore,
+			Popularity:        a.Popularity,
+			Favourites:        a.Favourites,
+			Synopsis:          a.Synopsis,
+			ListStatus:        a.ListStatus,
 		})
 	}
 	return out

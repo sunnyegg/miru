@@ -70,7 +70,7 @@ func (c *Client) ListMediaList(status string) ([]CurrentEntry, error) {
 	        bannerImage
 	        episodes
 	        status
-	        nextAiringEpisode { episode }
+	        nextAiringEpisode { episode airingAt }
 	      }
 	    }
 	  }
@@ -182,10 +182,22 @@ func (c *Client) GetAnime(id int) (Anime, error) {
 	query ($id: Int) {
 	  Media(id: $id, type: ANIME) {
 	    id
-	    title { romaji english }
+	    title { romaji english native }
 	    coverImage { extraLarge large }
+	    bannerImage
+	    format
 	    episodes
+	    duration
 	    status
+	    nextAiringEpisode { episode airingAt }
+	    season
+	    seasonYear
+	    source
+	    genres
+	    averageScore
+	    popularity
+	    favourites
+	    studios(isMain: true) { nodes { name } }
 	    description(asHtml: true)
 	  }
 	}`
@@ -214,7 +226,7 @@ func (c *Client) ListProgressForMedia(ids []int) (map[int]MediaProgress, error) 
 	      id
 	      episodes
 	      status
-	      nextAiringEpisode { episode }
+	      nextAiringEpisode { episode airingAt }
 	      mediaListEntry {
 	        progress
 	      }
@@ -452,13 +464,33 @@ type gqlMedia struct {
 	Title struct {
 		Romaji  string `json:"romaji"`
 		English string `json:"english"`
+		Native  string `json:"native"`
 	} `json:"title"`
 	CoverImage struct {
 		ExtraLarge string `json:"extraLarge"`
 		Large      string `json:"large"`
 	} `json:"coverImage"`
-	Episodes       int    `json:"episodes"`
-	Status         string `json:"status"`
+	BannerImage       string `json:"bannerImage"`
+	Format            string `json:"format"`
+	Episodes          int    `json:"episodes"`
+	Duration          int    `json:"duration"`
+	Status            string `json:"status"`
+	NextAiringEpisode *struct {
+		Episode  int   `json:"episode"`
+		AiringAt int64 `json:"airingAt"`
+	} `json:"nextAiringEpisode"`
+	Season       string   `json:"season"`
+	SeasonYear   int      `json:"seasonYear"`
+	Source       string   `json:"source"`
+	Genres       []string `json:"genres"`
+	AverageScore int      `json:"averageScore"`
+	Popularity   int      `json:"popularity"`
+	Favourites   int      `json:"favourites"`
+	Studios      struct {
+		Nodes []struct {
+			Name string `json:"name"`
+		} `json:"nodes"`
+	} `json:"studios"`
 	Description    string `json:"description"`
 	MediaListEntry *struct {
 		Status string `json:"status"`
@@ -486,7 +518,8 @@ type gqlMediaProgress struct {
 	Episodes          int    `json:"episodes"`
 	Status            string `json:"status"`
 	NextAiringEpisode *struct {
-		Episode int `json:"episode"`
+		Episode  int   `json:"episode"`
+		AiringAt int64 `json:"airingAt"`
 	} `json:"nextAiringEpisode"`
 	MediaListEntry *struct {
 		Progress int `json:"progress"`
@@ -499,8 +532,10 @@ func (m gqlMediaProgress) toMediaProgress() MediaProgress {
 		progress = m.MediaListEntry.Progress
 	}
 	nextAiringEpisode := 0
+	var nextAiringAt int64
 	if m.NextAiringEpisode != nil {
 		nextAiringEpisode = m.NextAiringEpisode.Episode
+		nextAiringAt = m.NextAiringEpisode.AiringAt
 	}
 	return MediaProgress{
 		MediaID:           m.ID,
@@ -508,6 +543,7 @@ func (m gqlMediaProgress) toMediaProgress() MediaProgress {
 		TotalEpisodes:     m.Episodes,
 		MediaStatus:       m.Status,
 		NextAiringEpisode: nextAiringEpisode,
+		NextAiringAt:      nextAiringAt,
 	}
 }
 
@@ -542,15 +578,18 @@ type gqlCurrentEntry struct {
 		Episodes          int    `json:"episodes"`
 		Status            string `json:"status"`
 		NextAiringEpisode *struct {
-			Episode int `json:"episode"`
+			Episode  int   `json:"episode"`
+			AiringAt int64 `json:"airingAt"`
 		} `json:"nextAiringEpisode"`
 	} `json:"media"`
 }
 
 func (e gqlCurrentEntry) toCurrentEntry() CurrentEntry {
 	nextAiringEpisode := 0
+	var nextAiringAt int64
 	if e.Media.NextAiringEpisode != nil {
 		nextAiringEpisode = e.Media.NextAiringEpisode.Episode
+		nextAiringAt = e.Media.NextAiringEpisode.AiringAt
 	}
 	return CurrentEntry{
 		MediaID:           e.Media.ID,
@@ -569,6 +608,7 @@ func (e gqlCurrentEntry) toCurrentEntry() CurrentEntry {
 		TotalEpisodes:     e.Media.Episodes,
 		MediaStatus:       e.Media.Status,
 		NextAiringEpisode: nextAiringEpisode,
+		NextAiringAt:      nextAiringAt,
 	}
 }
 
@@ -589,14 +629,44 @@ func (m gqlMedia) toAnime() Anime {
 	if m.MediaListEntry != nil {
 		listStatus = m.MediaListEntry.Status
 	}
+	studios := make([]string, 0, len(m.Studios.Nodes))
+	for _, node := range m.Studios.Nodes {
+		if node.Name != "" {
+			studios = append(studios, node.Name)
+		}
+	}
+	genres := m.Genres
+	if genres == nil {
+		genres = []string{}
+	}
+	nextAiringEpisode := 0
+	var nextAiringAt int64
+	if m.NextAiringEpisode != nil {
+		nextAiringEpisode = m.NextAiringEpisode.Episode
+		nextAiringAt = m.NextAiringEpisode.AiringAt
+	}
 	return Anime{
-		ID:            m.ID,
-		TitleRomaji:   m.Title.Romaji,
-		TitleEnglish:  m.Title.English,
-		CoverImage:    bestCoverImage(m.CoverImage.ExtraLarge, m.CoverImage.Large),
-		TotalEpisodes: m.Episodes,
-		Status:        m.Status,
-		Synopsis:      m.Description,
-		ListStatus:    listStatus,
+		ID:                m.ID,
+		TitleRomaji:       m.Title.Romaji,
+		TitleEnglish:      m.Title.English,
+		TitleNative:       m.Title.Native,
+		CoverImage:        bestCoverImage(m.CoverImage.ExtraLarge, m.CoverImage.Large),
+		BannerImage:       m.BannerImage,
+		Format:            m.Format,
+		TotalEpisodes:     m.Episodes,
+		Duration:          m.Duration,
+		Status:            m.Status,
+		NextAiringEpisode: nextAiringEpisode,
+		NextAiringAt:      nextAiringAt,
+		Season:            m.Season,
+		SeasonYear:        m.SeasonYear,
+		Source:            m.Source,
+		Genres:            genres,
+		Studios:           studios,
+		AverageScore:      m.AverageScore,
+		Popularity:        m.Popularity,
+		Favourites:        m.Favourites,
+		Synopsis:          m.Description,
+		ListStatus:        listStatus,
 	}
 }

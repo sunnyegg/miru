@@ -1,4 +1,5 @@
 import type {ShowGroup} from './groupEpisodes'
+import {nextAiringLabel} from './calendar'
 import type {EpisodeView, WatchingEntryView} from './types'
 
 export type WatchingShowItem = {
@@ -11,8 +12,8 @@ export type WatchingShowItem = {
   totalEpisodes: number
   mediaStatus: string
   nextAiringEpisode: number
+  nextAiringAt: number
   hasLocalFiles: boolean
-  localShowKey: string | null
   maxLocalEpisode: number
   newEpisodeNumber: number | null
 }
@@ -94,8 +95,8 @@ export function buildWatchingShowItems(
       totalEpisodes: entry.totalEpisodes,
       mediaStatus: entry.mediaStatus,
       nextAiringEpisode: entry.nextAiringEpisode,
+      nextAiringAt: entry.nextAiringAt,
       hasLocalFiles: Boolean(localShow && localShow.episodes.length > 0),
-      localShowKey: localShow?.key ?? null,
       maxLocalEpisode,
       newEpisodeNumber,
     }
@@ -112,21 +113,30 @@ export function watchingPosterCaption(item: WatchingShowItem): {
       accent: true,
     }
   }
+  const airing = nextAiringLabel(item.nextAiringEpisode, item.nextAiringAt)
   if (item.totalEpisodes > 0) {
+    const base = `${item.progress} / ${item.totalEpisodes}`
+    if (airing) {
+      return {
+        text: `${base} · ${airing}`,
+        accent: false,
+      }
+    }
     const remaining = item.totalEpisodes - item.progress
     if (remaining > 0) {
       return {
-        text: `${item.progress} / ${item.totalEpisodes} · ${remaining} left`,
+        text: `${base} · ${remaining} left`,
         accent: false,
       }
     }
     return {
-      text: `${item.progress} / ${item.totalEpisodes}`,
+      text: base,
       accent: false,
     }
   }
+  const base = `${item.progress} watched`
   return {
-    text: `${item.progress} watched`,
+    text: airing ? `${base} · ${airing}` : base,
     accent: false,
   }
 }

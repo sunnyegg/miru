@@ -7,16 +7,29 @@ import {
   IconWatching,
 } from './Icons'
 import {Button} from '@/components/ui/button'
+import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'
 import {cn} from '@/lib/utils'
 import type {TabId} from '../lib/types'
 import {useNavigationStore} from '../stores/navigationStore'
 
-const destinations: {id: TabId; label: string; icon: typeof IconLibrary}[] = [
+const destinations: {
+  id: TabId
+  label: string
+  icon: typeof IconLibrary
+  disabled?: boolean
+  hint?: string
+}[] = [
   {id: 'library', label: 'Library', icon: IconLibrary},
   {id: 'watching', label: 'Watching', icon: IconWatching},
   {id: 'search', label: 'Search', icon: IconSearch},
   {id: 'downloads', label: 'Downloads', icon: IconDownload},
-  {id: 'calendar', label: 'Airing', icon: IconCalendar},
+  {
+    id: 'calendar',
+    label: 'Airing',
+    icon: IconCalendar,
+    disabled: true,
+    hint: 'Temporarily unavailable. AniList is returning 403 for its API.',
+  },
 ]
 
 function NavButton({
@@ -25,30 +38,52 @@ function NavButton({
   icon: Icon,
   current,
   onChange,
+  disabled = false,
+  hint,
 }: {
   id: TabId
   label: string
   icon: typeof IconLibrary
   current: TabId
   onChange: (id: TabId) => void
+  disabled?: boolean
+  hint?: string
 }) {
   const active = current === id
-  return (
+  const button = (
     <Button
       type="button"
       variant="ghost"
-      onClick={() => onChange(id)}
+      onClick={() => {
+        if (!disabled) {
+          onChange(id)
+        }
+      }}
       aria-current={active ? 'page' : undefined}
+      aria-disabled={disabled || undefined}
       className={cn(
         'w-full justify-center gap-3 border-l px-0 motion-reduce:transition-none sm:justify-start sm:px-3',
-        active
-          ? 'border-accent bg-muted text-foreground hover:text-foreground'
-          : 'border-transparent hover:bg-muted hover:text-foreground',
+        disabled
+          ? 'cursor-not-allowed border-transparent text-muted-foreground opacity-50 hover:bg-transparent hover:text-muted-foreground'
+          : active
+            ? 'border-accent bg-muted text-foreground hover:text-foreground'
+            : 'border-transparent hover:bg-muted hover:text-foreground',
       )}
     >
       <Icon className="h-4 w-4 shrink-0" />
       <span className="sr-only sm:not-sr-only">{label}</span>
     </Button>
+  )
+
+  if (!hint) {
+    return button
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={button} />
+      <TooltipContent side="right">{hint}</TooltipContent>
+    </Tooltip>
   )
 }
 
