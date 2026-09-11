@@ -1,3 +1,4 @@
+import {memo} from 'react'
 import {formatBytes, formatSpeed} from '../lib/format'
 import type {DownloadGroup} from '../lib/downloadGroups'
 import type {DownloadView} from '../lib/types'
@@ -6,11 +7,7 @@ import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
 
-type Props = {
-  item: DownloadView
-  group: DownloadGroup
-  busy: boolean
-  confirmingDelete: boolean
+export type DownloadJobActions = {
   onPendingDelete: (id: number) => void
   onClearPendingDelete: () => void
   onCancel: (id: number) => void
@@ -20,6 +17,14 @@ type Props = {
   onConfirmDeleteFiles: (id: number) => void
   onResumeSeeding: (id: number) => void
   onFinish: (id: number) => void
+}
+
+type Props = {
+  item: DownloadView
+  group: DownloadGroup
+  busy: boolean
+  confirmingDelete: boolean
+  actions: {current: DownloadJobActions}
 }
 
 function torrentStatusLabel(status: string): string {
@@ -67,20 +72,12 @@ function completedStatusBadge(status: string) {
   return null
 }
 
-export function DownloadJobCard({
+export const DownloadJobCard = memo(function DownloadJobCard({
   item,
   group,
   busy,
   confirmingDelete,
-  onPendingDelete,
-  onClearPendingDelete,
-  onCancel,
-  onPause,
-  onResume,
-  onRemove,
-  onConfirmDeleteFiles,
-  onResumeSeeding,
-  onFinish,
+  actions,
 }: Props) {
   const isDownloading = item.status === 'DOWNLOADING'
   const isPaused = item.status === 'PAUSED'
@@ -89,12 +86,12 @@ export function DownloadJobCard({
   const isLive = Boolean(item.live)
   const files = item.files ?? []
 
-  let actions = (
+  let actionButtons = (
     <div className="flex flex-wrap gap-2">
       <Button
         type="button"
         variant="destructive"
-        onClick={() => onPendingDelete(item.id)}
+        onClick={() => actions.current.onPendingDelete(item.id)}
         disabled={busy}
       >
         Delete
@@ -103,12 +100,12 @@ export function DownloadJobCard({
   )
 
   if (isQueued) {
-    actions = (
+    actionButtons = (
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"
           variant="destructive"
-          onClick={() => onCancel(item.id)}
+          onClick={() => actions.current.onCancel(item.id)}
           disabled={busy}
         >
           Cancel
@@ -116,15 +113,19 @@ export function DownloadJobCard({
       </div>
     )
   } else if (isLive && isPaused) {
-    actions = (
+    actionButtons = (
       <div className="flex flex-wrap gap-2">
-        <Button type="button" onClick={() => onResume(item.id)} disabled={busy}>
+        <Button
+          type="button"
+          onClick={() => actions.current.onResume(item.id)}
+          disabled={busy}
+        >
           Resume
         </Button>
         <Button
           type="button"
           variant="destructive"
-          onClick={() => onCancel(item.id)}
+          onClick={() => actions.current.onCancel(item.id)}
           disabled={busy}
         >
           Cancel
@@ -132,12 +133,12 @@ export function DownloadJobCard({
       </div>
     )
   } else if (isLive) {
-    actions = (
+    actionButtons = (
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"
           variant="secondary"
-          onClick={() => onPause(item.id)}
+          onClick={() => actions.current.onPause(item.id)}
           disabled={busy}
         >
           Pause
@@ -145,7 +146,7 @@ export function DownloadJobCard({
         {isSeeding && (
           <Button
             type="button"
-            onClick={() => onFinish(item.id)}
+            onClick={() => actions.current.onFinish(item.id)}
             disabled={busy}
           >
             Stop seeding
@@ -154,7 +155,7 @@ export function DownloadJobCard({
         <Button
           type="button"
           variant="destructive"
-          onClick={() => onCancel(item.id)}
+          onClick={() => actions.current.onCancel(item.id)}
           disabled={busy}
         >
           Cancel
@@ -162,11 +163,11 @@ export function DownloadJobCard({
       </div>
     )
   } else if (isSeeding) {
-    actions = (
+    actionButtons = (
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"
-          onClick={() => onResumeSeeding(item.id)}
+          onClick={() => actions.current.onResumeSeeding(item.id)}
           disabled={busy}
         >
           Resume
@@ -174,7 +175,7 @@ export function DownloadJobCard({
         <Button
           type="button"
           variant="secondary"
-          onClick={() => onFinish(item.id)}
+          onClick={() => actions.current.onFinish(item.id)}
           disabled={busy}
         >
           Stop seeding
@@ -182,12 +183,12 @@ export function DownloadJobCard({
       </div>
     )
   } else if (confirmingDelete) {
-    actions = (
+    actionButtons = (
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"
           variant="secondary"
-          onClick={() => onRemove(item.id, false)}
+          onClick={() => actions.current.onRemove(item.id, false)}
           disabled={busy}
         >
           Remove from list
@@ -195,7 +196,7 @@ export function DownloadJobCard({
         <Button
           type="button"
           variant="destructive"
-          onClick={() => onConfirmDeleteFiles(item.id)}
+          onClick={() => actions.current.onConfirmDeleteFiles(item.id)}
           disabled={busy}
         >
           Remove and delete files
@@ -203,7 +204,7 @@ export function DownloadJobCard({
         <Button
           type="button"
           variant="ghost"
-          onClick={onClearPendingDelete}
+          onClick={() => actions.current.onClearPendingDelete()}
           disabled={busy}
         >
           Back
@@ -240,7 +241,7 @@ export function DownloadJobCard({
             {statusLine}
           </p>
         </div>
-        {actions}
+        {actionButtons}
       </div>
       {!isQueued && (
         <Progress
@@ -281,4 +282,4 @@ export function DownloadJobCard({
       )}
     </Card>
   )
-}
+})

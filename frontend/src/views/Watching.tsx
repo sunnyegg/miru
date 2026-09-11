@@ -1,6 +1,6 @@
-import {useEffect, useState} from 'react'
+import {memo, useEffect, useState} from 'react'
 import {WatchingEditSheet} from '../components/WatchingEditSheet'
-import type {AnimeListEntryInput} from '../lib/types'
+import type {AnimeListEntryInput, WatchingEntryView} from '../lib/types'
 import {useNavigationStore} from '../stores/navigationStore'
 import {useWatchingStore, type ListFilter} from '../stores/watchingStore'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
@@ -44,6 +44,76 @@ function mediaStatusLabel(status: string): string {
   }
   return mediaStatusLabels[status] ?? status
 }
+
+type WatchingRowProps = {
+  entry: WatchingEntryView
+  onEdit: (entry: WatchingEntryView) => void
+}
+
+const WatchingRow = memo(function WatchingRow({
+  entry,
+  onEdit,
+}: WatchingRowProps) {
+  const title = entry.titleEnglish || entry.titleRomaji
+  const hasTotal = entry.totalEpisodes > 0
+  const total = hasTotal ? entry.totalEpisodes : '?'
+  const progressValue = hasTotal
+    ? Math.min(100, Math.max(0, (entry.progress / entry.totalEpisodes) * 100))
+    : 0
+
+  return (
+    <li className="flex items-center gap-4 border-b border-border py-4">
+      {entry.coverImage ? (
+        <img
+          src={entry.coverImage}
+          alt=""
+          width={64}
+          height={88}
+          className="h-22 w-16 shrink-0 object-cover"
+        />
+      ) : (
+        <span className="h-22 w-16 shrink-0 bg-muted" aria-hidden="true" />
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <p className="min-w-0 truncate font-medium">{title}</p>
+          {entry.mediaStatus && (
+            <p className="text-xs text-muted-foreground">
+              {mediaStatusLabel(entry.mediaStatus)}
+            </p>
+          )}
+        </div>
+        <div className="mt-3 flex items-baseline justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            Episode{' '}
+            <span className="tabular-nums text-foreground">
+              {entry.progress}
+            </span>{' '}
+            <span className="tabular-nums">/ {total}</span>
+          </p>
+          {hasTotal && (
+            <p className="text-xs tabular-nums text-muted-foreground">
+              {Math.round(progressValue)}%
+            </p>
+          )}
+        </div>
+        <Progress
+          value={progressValue}
+          aria-label={`${title}: episode ${entry.progress} of ${total}`}
+          className="mt-2"
+        />
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        className="self-stretch"
+        onClick={() => onEdit(entry)}
+      >
+        Edit
+      </Button>
+    </li>
+  )
+})
 
 export function WatchingView({notice}: Props) {
   const goToSettings = useNavigationStore((state) => state.setTab)
@@ -210,75 +280,13 @@ export function WatchingView({notice}: Props) {
       ) : (
         <section aria-label="Anime list entries">
           <ul className="border-t border-border">
-            {entries.map((entry) => {
-              const title = entry.titleEnglish || entry.titleRomaji
-              const hasTotal = entry.totalEpisodes > 0
-              const total = hasTotal ? entry.totalEpisodes : '?'
-              const progressValue = hasTotal
-                ? Math.min(
-                    100,
-                    Math.max(0, (entry.progress / entry.totalEpisodes) * 100),
-                  )
-                : 0
-              return (
-                <li
-                  key={entry.mediaId}
-                  className="flex items-center gap-4 border-b border-border py-4"
-                >
-                  {entry.coverImage ? (
-                    <img
-                      src={entry.coverImage}
-                      alt=""
-                      width={64}
-                      height={88}
-                      className="h-22 w-16 shrink-0 object-cover"
-                    />
-                  ) : (
-                    <span
-                      className="h-22 w-16 shrink-0 bg-muted"
-                      aria-hidden="true"
-                    />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                      <p className="min-w-0 truncate font-medium">{title}</p>
-                      {entry.mediaStatus && (
-                        <p className="text-xs text-muted-foreground">
-                          {mediaStatusLabel(entry.mediaStatus)}
-                        </p>
-                      )}
-                    </div>
-                    <div className="mt-3 flex items-baseline justify-between gap-3">
-                      <p className="text-sm text-muted-foreground">
-                        Episode{' '}
-                        <span className="tabular-nums text-foreground">
-                          {entry.progress}
-                        </span>{' '}
-                        <span className="tabular-nums">/ {total}</span>
-                      </p>
-                      {hasTotal && (
-                        <p className="text-xs tabular-nums text-muted-foreground">
-                          {Math.round(progressValue)}%
-                        </p>
-                      )}
-                    </div>
-                    <Progress
-                      value={progressValue}
-                      aria-label={`${title}: episode ${entry.progress} of ${total}`}
-                      className="mt-2"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="self-stretch"
-                    onClick={() => setEditingEntry(entry)}
-                  >
-                    Edit
-                  </Button>
-                </li>
-              )
-            })}
+            {entries.map((entry) => (
+              <WatchingRow
+                key={entry.mediaId}
+                entry={entry}
+                onEdit={setEditingEntry}
+              />
+            ))}
           </ul>
         </section>
       )}

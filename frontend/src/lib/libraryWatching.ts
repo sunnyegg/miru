@@ -167,19 +167,16 @@ export function torrentSearchQuery(
   return `${title} ${paddedEpisode}`
 }
 
-export function showKeyForEpisodeId(
+export function buildEpisodeShowKeyMap(
   localShows: ShowGroup[],
-  episodeId: number,
-): string | null {
-  if (episodeId <= 0) {
-    return null
-  }
+): Map<number, string> {
+  const showKeyByEpisodeId = new Map<number, string>()
   for (const show of localShows) {
-    if (show.episodes.some((episode) => episode.id === episodeId)) {
-      return show.key
+    for (const episode of show.episodes) {
+      showKeyByEpisodeId.set(episode.id, show.key)
     }
   }
-  return null
+  return showKeyByEpisodeId
 }
 
 export function lastWatchedEpisodeIdFromLibrary(
@@ -223,16 +220,15 @@ export function pickContinueHeroKey(
   playingShowKey: string | null,
   lastPlaybackEpisodeId: number | null = null,
   libraryEpisodes: EpisodeView[] = [],
+  episodeShowKeys: ReadonlyMap<number, string> = new Map(),
 ): string | null {
   if (playingShowKey) {
     return playingShowKey
   }
   const rememberedEpisodeId =
     lastPlaybackEpisodeId ?? lastWatchedEpisodeIdFromLibrary(libraryEpisodes)
-  const lastWatchedShowKey = showKeyForEpisodeId(
-    localShows,
-    rememberedEpisodeId ?? 0,
-  )
+  const lastWatchedShowKey =
+    episodeShowKeys.get(rememberedEpisodeId ?? 0) ?? null
   if (lastWatchedShowKey) {
     return lastWatchedShowKey
   }
