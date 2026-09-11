@@ -116,13 +116,9 @@ func (a *App) ListRSSFeeds() ([]RSSFeedView, error) {
 	if err != nil {
 		return nil, err
 	}
-	items, _, err := a.store.ListRSSFeedItems(true, "", 0, 0)
+	newByFeed, err := a.store.CountNewRSSFeedItemsByFeed()
 	if err != nil {
 		return nil, err
-	}
-	newByFeed := map[int64]int{}
-	for _, item := range items {
-		newByFeed[item.FeedID]++
 	}
 	out := make([]RSSFeedView, 0, len(feeds))
 	for _, feed := range feeds {

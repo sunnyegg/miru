@@ -2,6 +2,8 @@ import {useEffect, useMemo} from 'react'
 import {AiringAgendaLayout} from '../components/AiringAgendaLayout'
 import {
   buildWeekDays,
+  dateRangeEndFormatter,
+  dateRangeStartFormatter,
   groupSchedulesByDay,
   startOfMonday,
 } from '../lib/calendar'
@@ -37,11 +39,18 @@ export function CalendarView({notice}: Props) {
     () => groupSchedulesByDay(schedules),
     [schedules],
   )
+  const dateRangeLabel = useMemo(
+    () =>
+      `${dateRangeStartFormatter.format(days[0])} – ${dateRangeEndFormatter.format(days[6])}`,
+    [days],
+  )
 
   useEffect(() => {
-    void loadSchedules()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weekOffset])
+    const timeoutId = window.setTimeout(() => {
+      void loadSchedules()
+    }, 200)
+    return () => window.clearTimeout(timeoutId)
+  }, [loadSchedules, weekOffset])
 
   return (
     <section className="flex h-full flex-col gap-6">
@@ -74,16 +83,7 @@ export function CalendarView({notice}: Props) {
       </header>
 
       <p className="text-sm font-medium text-muted-foreground">
-        {days[0].toLocaleDateString(undefined, {
-          month: 'short',
-          day: 'numeric',
-        })}
-        {' – '}
-        {days[6].toLocaleDateString(undefined, {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        })}
+        {dateRangeLabel}
       </p>
 
       {error ? (
