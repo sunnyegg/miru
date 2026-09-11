@@ -2,7 +2,6 @@ import {useEffect, useMemo, useRef, useState} from 'react'
 import {
   BindEpisode,
   ImportLocalFile,
-  ListStreamingEpisodeThumbnails,
   PlayEpisode,
   SearchAnime,
   SetAnimeListStatus,
@@ -30,7 +29,10 @@ import {LibraryAnimeDetail} from '../components/LibraryAnimeDetail'
 import {LibraryUnlistedSection} from '../components/LibraryUnlistedSection'
 import {LibraryWatchingSection} from '../components/LibraryWatchingSection'
 import {IconBack} from '../components/Icons'
+import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
+
+const EMPTY_EPISODE_THUMBNAILS: Record<number, string> = {}
 
 type Props = {
   notice: (msg: string, isError?: boolean) => void
@@ -44,10 +46,19 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
   const loading = useLibraryStore((state) => state.loading)
   const watchingLoading = useLibraryStore((state) => state.watchingLoading)
   const loadError = useLibraryStore((state) => state.loadError)
+  const episodeThumbnailsByMediaId = useLibraryStore(
+    (state) => state.episodeThumbnailsByMediaId,
+  )
+  const episodeThumbnailsError = useLibraryStore(
+    (state) => state.episodeThumbnailsError,
+  )
   const selectedKey = useLibraryStore((state) => state.selectedKey)
   const setSelectedKey = useLibraryStore((state) => state.setSelectedKey)
   const reload = useLibraryStore((state) => state.reload)
   const reloadWatching = useLibraryStore((state) => state.reloadWatching)
+  const loadEpisodeThumbnails = useLibraryStore(
+    (state) => state.loadEpisodeThumbnails,
+  )
   const playing = usePlaybackStore((state) => state.playing)
   const lastPlayback = usePlaybackStore((state) => state.lastPlayback)
 
@@ -61,9 +72,6 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
     null,
   )
   const [picker, setPicker] = useState<LibraryMatchPicker | null>(null)
-  const [episodeThumbnails, setEpisodeThumbnails] = useState<
-    Record<number, string>
-  >({})
   const skippedMatchIds = useRef(new Set<number>())
   const bindingEpisodeId = useRef<number | null>(null)
   const readySignaled = useRef(false)
@@ -153,6 +161,8 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
       null
     )
   }, [watchingEntries, selectedAnilistId])
+  const episodeThumbnails =
+    episodeThumbnailsByMediaId[selectedAnilistId] ?? EMPTY_EPISODE_THUMBNAILS
 
   useEffect(() => {
     void reload(notice)
@@ -187,35 +197,10 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
 
   useEffect(() => {
     if (selectedAnilistId <= 0) {
-      setEpisodeThumbnails({})
       return
     }
-
-    let cancelled = false
-    void (async () => {
-      try {
-        const rows = await ListStreamingEpisodeThumbnails(selectedAnilistId)
-        if (cancelled) {
-          return
-        }
-        const mapped: Record<number, string> = {}
-        for (const row of rows ?? []) {
-          if (row.thumbnail) {
-            mapped[row.episodeNumber] = row.thumbnail
-          }
-        }
-        setEpisodeThumbnails(mapped)
-      } catch {
-        if (!cancelled) {
-          setEpisodeThumbnails({})
-        }
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [selectedAnilistId])
+    void loadEpisodeThumbnails(selectedAnilistId)
+  }, [loadEpisodeThumbnails, selectedAnilistId])
 
   async function openMatcher(
     episode: EpisodeView,
@@ -547,6 +532,24 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
               onMatchAnilist={openMatcherForSelectedShow}
               onUnmatchAnilist={() => void unmatchSelectedShow()}
             />
+            {selectedAnilistId > 0 && episodeThumbnailsError && (
+              <Alert className="mt-4" variant="destructive">
+                <AlertDescription>
+                  Could not load episode thumbnails. {episodeThumbnailsError}
+                </AlertDescription>
+                <AlertAction>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() =>
+                      void loadEpisodeThumbnails(selectedAnilistId)
+                    }
+                  >
+                    Try again
+                  </Button>
+                </AlertAction>
+              </Alert>
+            )}
             {selectedAnilistId > 0 && (
               <LibraryAnimeDetail anilistId={selectedAnilistId} />
             )}

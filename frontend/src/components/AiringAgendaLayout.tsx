@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from 'react'
+import {useEffect, useMemo, useRef, useState} from 'react'
 import {
   dateKey,
   dayFormatter,
@@ -117,12 +117,21 @@ export function AiringAgendaLayout({
   const todaySectionRef = useRef<HTMLElement>(null)
   const [selectedSchedule, setSelectedSchedule] =
     useState<AiringScheduleView | null>(null)
+  const formattedDays = useMemo(
+    () =>
+      days.map((day) => ({
+        key: dateKey(day),
+        label: dayFormatter.format(day),
+        today: isToday(day),
+      })),
+    [days],
+  )
 
   useEffect(() => {
     if (loading) {
       return
     }
-    const todayVisible = days.some((day) => isToday(day))
+    const todayVisible = formattedDays.some((day) => day.today)
     if (!todayVisible || !todaySectionRef.current) {
       return
     }
@@ -147,7 +156,7 @@ export function AiringAgendaLayout({
       }
       cancelScrollAnimation()
     }
-  }, [loading, days, scrollToTodayRequest])
+  }, [loading, formattedDays, scrollToTodayRequest])
 
   if (loading) {
     return <AgendaSkeleton />
@@ -156,13 +165,12 @@ export function AiringAgendaLayout({
   return (
     <>
       <div className="flex flex-col gap-8">
-        {days.map((day) => {
-          const entries = schedulesByDay.get(dateKey(day)) ?? []
-          const today = isToday(day)
+        {formattedDays.map(({key, label, today}) => {
+          const entries = schedulesByDay.get(key) ?? []
 
           return (
             <section
-              key={dateKey(day)}
+              key={key}
               ref={today ? todaySectionRef : undefined}
               className={cn(
                 'scroll-mt-6',
@@ -178,7 +186,7 @@ export function AiringAgendaLayout({
                 <h3
                   className={cn('text-sm font-medium', today && 'text-accent')}
                 >
-                  {dayFormatter.format(day)}
+                  {label}
                 </h3>
                 {today && <AiringTodayBadge />}
               </div>

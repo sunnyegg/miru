@@ -2,6 +2,7 @@ package storage
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -83,6 +84,42 @@ func TestRSSFeedLifecycle(t *testing.T) {
 	feeds, err = store.ListRSSFeeds()
 	if err != nil || len(feeds) != 0 {
 		t.Fatalf("feeds after delete = %+v, err = %v", feeds, err)
+	}
+}
+
+func TestCountNewRSSFeedItemsByFeed(t *testing.T) {
+	store := openTestStore(t)
+
+	firstFeedID, err := store.InsertRSSFeed("https://example.com/first.rss", "First")
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondFeedID, err := store.InsertRSSFeed("https://example.com/second.rss", "Second")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for index := 0; index < 25; index++ {
+		inserted, err := store.UpsertRSSFeedItem(firstFeedID, RSSFeedItem{
+			ItemKey:   fmt.Sprintf("item-%d", index),
+			Title:     fmt.Sprintf("Episode %02d", index),
+			Link:      fmt.Sprintf("https://example.com/%d.torrent", index),
+			Published: time.Date(2026, 1, 2, 15, index, 0, 0, time.UTC),
+		})
+		if err != nil || !inserted {
+			t.Fatalf("insert %d = %v, %v", index, inserted, err)
+		}
+	}
+
+	counts, err := store.CountNewRSSFeedItemsByFeed()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if counts[firstFeedID] != 25 {
+		t.Fatalf("first feed count = %d, want 25", counts[firstFeedID])
+	}
+	if counts[secondFeedID] != 0 {
+		t.Fatalf("second feed count = %d, want no count", counts[secondFeedID])
 	}
 }
 

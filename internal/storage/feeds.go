@@ -267,6 +267,30 @@ func (s *Store) CountNewRSSFeedItems() (int, error) {
 	return count, err
 }
 
+func (s *Store) CountNewRSSFeedItemsByFeed() (map[int64]int, error) {
+	rows, err := s.db.Query(
+		`SELECT feed_id, COUNT(1)
+		 FROM rss_feed_items
+		 WHERE is_new = 1
+		 GROUP BY feed_id`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := map[int64]int{}
+	for rows.Next() {
+		var feedID int64
+		var count int
+		if err := rows.Scan(&feedID, &count); err != nil {
+			return nil, err
+		}
+		counts[feedID] = count
+	}
+	return counts, rows.Err()
+}
+
 func (s *Store) MarkRSSFeedItemsSeen(ids []int64) error {
 	if len(ids) == 0 {
 		return nil

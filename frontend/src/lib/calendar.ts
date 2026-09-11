@@ -6,6 +6,17 @@ export const dayFormatter = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
 })
 
+export const dateRangeStartFormatter = new Intl.DateTimeFormat(undefined, {
+  month: 'short',
+  day: 'numeric',
+})
+
+export const dateRangeEndFormatter = new Intl.DateTimeFormat(undefined, {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+})
+
 export const timeFormatter = new Intl.DateTimeFormat(undefined, {
   hour: 'numeric',
   minute: '2-digit',
