@@ -17,7 +17,10 @@ import {
 import type {AnimeView, EpisodeView} from '../lib/types'
 import {useLibraryStore} from '../stores/libraryStore'
 import {usePlaybackStore} from '../stores/playbackStore'
-import {pickContinueHeroKey} from '../lib/libraryWatching'
+import {
+  buildEpisodeShowKeyMap,
+  pickContinueHeroKey,
+} from '../lib/libraryWatching'
 import {LibraryContinueHero} from '../components/LibraryContinueHero'
 import {
   LibraryMatchSheet,
@@ -119,15 +122,15 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
   const selectedShowIsUnlisted = Boolean(
     selectedShow && !watchingKeys.has(selectedShow.key),
   )
-  const playingShowKey = useMemo(() => {
-    if (!playing) {
-      return null
-    }
-    const owner = shows.find((show) =>
-      show.episodes.some((episode) => episode.id === playing.episodeId),
-    )
-    return owner?.key ?? null
-  }, [shows, playing])
+  const episodeShowKeys = useMemo(() => buildEpisodeShowKeyMap(shows), [shows])
+  const playingEpisodeId = playing?.episodeId ?? null
+  const playingShowKey = useMemo(
+    () =>
+      playingEpisodeId === null
+        ? null
+        : (episodeShowKeys.get(playingEpisodeId) ?? null),
+    [episodeShowKeys, playingEpisodeId],
+  )
 
   const continueHeroKey = useMemo(
     () =>
@@ -137,8 +140,16 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
         playingShowKey,
         lastPlayback?.episodeId ?? null,
         episodes,
+        episodeShowKeys,
       ),
-    [watchingEntries, shows, playingShowKey, lastPlayback?.episodeId, episodes],
+    [
+      watchingEntries,
+      shows,
+      playingShowKey,
+      lastPlayback?.episodeId,
+      episodes,
+      episodeShowKeys,
+    ],
   )
 
   const selectedAnilistId = useMemo(() => {
@@ -578,6 +589,7 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
               playing={playing}
               lastPlayback={lastPlayback}
               playingShowKey={playingShowKey}
+              episodeShowKeys={episodeShowKeys}
               onOpenShow={openWatchingShow}
               onFindTorrent={onFindTorrent}
             />

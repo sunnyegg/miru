@@ -1,7 +1,8 @@
-import {useState} from 'react'
+import {memo, useState} from 'react'
 import {AiringEpisodePoster} from './AiringEpisodePoster'
 import {AnimeDetailDialog} from './AnimeDetailDialog'
 import {IconClose} from './Icons'
+import type {AnimeView} from '../lib/types'
 import {useSearchStore} from '../stores/searchStore'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
@@ -18,6 +19,42 @@ const listStatusLabels: Record<string, string> = {
   DROPPED: 'Dropped',
   REPEATING: 'Repeating',
 }
+
+type AnimeSearchResultProps = {
+  anime: AnimeView
+  onSelect: (anime: AnimeView) => void
+}
+
+const AnimeSearchResult = memo(function AnimeSearchResult({
+  anime,
+  onSelect,
+}: AnimeSearchResultProps) {
+  const title = anime.titleEnglish || anime.titleRomaji
+  const listCaption = anime.listStatus
+    ? (listStatusLabels[anime.listStatus] ?? anime.listStatus)
+    : 'Not on your list'
+
+  return (
+    <li>
+      <button
+        type="button"
+        className="flex w-full items-start gap-3 text-left transition-opacity hover:opacity-80 motion-reduce:transition-none"
+        onClick={() => onSelect(anime)}
+      >
+        <AiringEpisodePoster coverImage={anime.coverImage} size="xxlarge" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{title}</p>
+          <p className="text-xs text-muted-foreground">{listCaption}</p>
+          {anime.totalEpisodes > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {anime.totalEpisodes} episodes
+            </p>
+          )}
+        </div>
+      </button>
+    </li>
+  )
+})
 
 export function AnimeSearch({notice}: Props) {
   const searchQuery = useSearchStore((state) => state.animeQuery)
@@ -100,37 +137,13 @@ export function AnimeSearch({notice}: Props) {
               {searchResults.length} results
             </p>
             <ul className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {searchResults.map((anime) => {
-                const title = anime.titleEnglish || anime.titleRomaji
-                const listCaption = anime.listStatus
-                  ? (listStatusLabels[anime.listStatus] ?? anime.listStatus)
-                  : 'Not on your list'
-                return (
-                  <li key={anime.id}>
-                    <button
-                      type="button"
-                      className="flex w-full items-start gap-3 text-left transition-opacity hover:opacity-80 motion-reduce:transition-none"
-                      onClick={() => setSelectedAnime(anime)}
-                    >
-                      <AiringEpisodePoster
-                        coverImage={anime.coverImage}
-                        size="xxlarge"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {listCaption}
-                        </p>
-                        {anime.totalEpisodes > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            {anime.totalEpisodes} episodes
-                          </p>
-                        )}
-                      </div>
-                    </button>
-                  </li>
-                )
-              })}
+              {searchResults.map((anime) => (
+                <AnimeSearchResult
+                  key={anime.id}
+                  anime={anime}
+                  onSelect={setSelectedAnime}
+                />
+              ))}
             </ul>
           </section>
         )}

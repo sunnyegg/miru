@@ -7,14 +7,16 @@ import type {
   TorrentFileView,
 } from '../lib/types'
 import {AnimeSearch} from '../components/AnimeSearch'
+import {
+  TorrentResultCard,
+  type TorrentDownloadHandlerRef,
+} from '../components/TorrentResultCard'
 import {TorrentFileSheet} from '../components/TorrentFileSheet'
 import {useNavigationStore} from '../stores/navigationStore'
 import {useSearchStore, type SearchSource} from '../stores/searchStore'
 import {FeedSubscriptions} from '../components/FeedSubscriptions'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
-import {Badge} from '@/components/ui/badge'
 import {Button} from '@/components/ui/button'
-import {Card} from '@/components/ui/card'
 import {Input} from '@/components/ui/input'
 import {NativeSelect, NativeSelectOption} from '@/components/ui/native-select'
 import {Skeleton} from '@/components/ui/skeleton'
@@ -25,11 +27,6 @@ type Props = {
 }
 
 const PAGE_SIZE = 10
-
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
 
 export function SearchView({notice}: Props) {
   const goToDownloads = useNavigationStore((state) => state.setTab)
@@ -58,6 +55,9 @@ export function SearchView({notice}: Props) {
   } | null>(null)
   const [confirming, setConfirming] = useState(false)
   const resultsScrollRef = useRef<HTMLDivElement>(null)
+  const downloadHandlerRef = useRef<TorrentDownloadHandlerRef>({
+    current: () => {},
+  })
 
   const sourceLabel = source === 'tokyotosho' ? 'Tokyo Toshokan' : 'Nyaa'
   const pageStart = (page - 1) * PAGE_SIZE
@@ -112,6 +112,8 @@ export function SearchView({notice}: Props) {
       setStarting(null)
     }
   }
+
+  downloadHandlerRef.current.current = download
 
   async function confirmPicker(files: TorrentFileView[]) {
     if (!picker) {
@@ -318,59 +320,17 @@ export function SearchView({notice}: Props) {
                   <ul className="flex flex-col gap-3">
                     {pageResults.map((result, indexOnPage) => {
                       const resultIndex = pageStart + indexOnPage
-                      const publishedDate = new Date(result.published)
-                      const publishedLabel = Number.isNaN(
-                        publishedDate.getTime(),
-                      )
-                        ? 'Unknown date'
-                        : dateFormatter.format(publishedDate)
-                      const hasPeerCounts =
-                        result.seeders > 0 ||
-                        result.leechers > 0 ||
-                        result.downloads > 0
                       return (
                         <li
                           key={`${result.magnet || result.link}-${resultIndex}`}
                         >
-                          <Card>
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                              <div className="min-w-0">
-                                <p className="wrap-break-word font-medium">
-                                  {result.title}
-                                </p>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  {publishedLabel} ·{' '}
-                                  {result.size || 'Unknown size'}
-                                </p>
-                                {hasPeerCounts && (
-                                  <p className="mt-1 text-xs text-muted-foreground">
-                                    {result.seeders} seeders · {result.leechers}{' '}
-                                    leechers · {result.downloads} downloads
-                                  </p>
-                                )}
-                                {(result.trusted || result.remake) && (
-                                  <p className="mt-2">
-                                    {result.trusted && (
-                                      <Badge className="mr-2">Trusted</Badge>
-                                    )}
-                                    {result.remake && <Badge>Remake</Badge>}
-                                  </p>
-                                )}
-                              </div>
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() =>
-                                  void download(result, resultIndex)
-                                }
-                                disabled={starting !== null}
-                              >
-                                {starting === resultIndex
-                                  ? 'Adding…'
-                                  : 'Download'}
-                              </Button>
-                            </div>
-                          </Card>
+                          <TorrentResultCard
+                            result={result}
+                            resultIndex={resultIndex}
+                            starting={starting === resultIndex}
+                            busy={starting !== null}
+                            onDownload={downloadHandlerRef.current}
+                          />
                         </li>
                       )
                     })}

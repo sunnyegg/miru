@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react'
+import {useEffect, useMemo, useRef, useState} from 'react'
 import {
   CancelDownload,
   FinishDownload,
@@ -17,7 +17,10 @@ import type {TorrentContentsView, TorrentFileView} from '../lib/types'
 import {useDownloadStore} from '../stores/downloadStore'
 import {AddTorrentDialog} from '../components/AddTorrentDialog'
 import {DeleteDownloadDialog} from '../components/DeleteDownloadDialog'
-import {DownloadJobCard} from '../components/DownloadJobCard'
+import {
+  DownloadJobCard,
+  type DownloadJobActions,
+} from '../components/DownloadJobCard'
 import {TorrentFileSheet} from '../components/TorrentFileSheet'
 import {IconFolder} from '../components/Icons'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
@@ -56,8 +59,19 @@ export function DownloadsView({notice}: Props) {
   const [loadError, setLoadError] = useState('')
   const [picker, setPicker] = useState<PickerState | null>(null)
   const [confirming, setConfirming] = useState(false)
+  const actionsRef = useRef<DownloadJobActions>({
+    onPendingDelete: () => {},
+    onClearPendingDelete: () => {},
+    onCancel: () => {},
+    onPause: () => {},
+    onResume: () => {},
+    onRemove: () => {},
+    onConfirmDeleteFiles: () => {},
+    onResumeSeeding: () => {},
+    onFinish: () => {},
+  })
 
-  const grouped = groupDownloads(jobs)
+  const grouped = useMemo(() => groupDownloads(jobs), [jobs])
   const hasJobs = jobs.length > 0
   const tabJobs = grouped[activeTab]
   const deleteFilesConfirmJob =
@@ -243,6 +257,18 @@ export function DownloadsView({notice}: Props) {
     }
   }
 
+  actionsRef.current = {
+    onPendingDelete: setPendingDeleteId,
+    onClearPendingDelete: () => setPendingDeleteId(null),
+    onCancel: (id) => void cancel(id),
+    onPause: (id) => void pause(id),
+    onResume: (id) => void resume(id),
+    onRemove: (id, deleteFiles) => void remove(id, deleteFiles),
+    onConfirmDeleteFiles: confirmDeleteFiles,
+    onResumeSeeding: (id) => void resumeSeeding(id),
+    onFinish: (id) => void finish(id),
+  }
+
   return (
     <section className="flex h-full flex-col gap-6">
       <header className="flex flex-col gap-4">
@@ -319,15 +345,7 @@ export function DownloadsView({notice}: Props) {
                 group={activeTab}
                 busy={busy}
                 confirmingDelete={pendingDeleteId === item.id}
-                onPendingDelete={setPendingDeleteId}
-                onClearPendingDelete={() => setPendingDeleteId(null)}
-                onCancel={(id) => void cancel(id)}
-                onPause={(id) => void pause(id)}
-                onResume={(id) => void resume(id)}
-                onRemove={(id, deleteFiles) => void remove(id, deleteFiles)}
-                onConfirmDeleteFiles={confirmDeleteFiles}
-                onResumeSeeding={(id) => void resumeSeeding(id)}
-                onFinish={(id) => void finish(id)}
+                actions={actionsRef}
               />
             ))}
           </div>
