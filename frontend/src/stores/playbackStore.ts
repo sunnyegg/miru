@@ -5,6 +5,7 @@ import type {PlaybackEvent} from '../lib/types'
 type PlaybackState = {
   playing: PlaybackEvent | null
   lastPlayback: PlaybackEvent | null
+  progressByEpisodeId: Record<number, number>
   trackProgress: (event: PlaybackEvent) => void
   clearPlaying: () => void
 }
@@ -14,8 +15,17 @@ export const usePlaybackStore = create<PlaybackState>()(
     (set) => ({
       playing: null,
       lastPlayback: null,
+      progressByEpisodeId: {},
 
-      trackProgress: (event) => set({playing: event, lastPlayback: event}),
+      trackProgress: (event) =>
+        set((state) => ({
+          playing: event,
+          lastPlayback: event,
+          progressByEpisodeId: {
+            ...state.progressByEpisodeId,
+            [event.episodeId]: event.percent,
+          },
+        })),
 
       clearPlaying: () => set({playing: null}),
     }),

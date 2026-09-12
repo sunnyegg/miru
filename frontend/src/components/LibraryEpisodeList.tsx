@@ -1,7 +1,7 @@
 import {useRef} from 'react'
 import {episodeSlots, type ShowGroup} from '../lib/groupEpisodes'
 import {torrentSearchQuery} from '../lib/libraryWatching'
-import type {PlaybackEvent} from '../lib/types'
+import type {EpisodeView, PlaybackEvent} from '../lib/types'
 import {Button} from '@/components/ui/button'
 import {cn} from '@/lib/utils'
 
@@ -9,6 +9,7 @@ type Props = {
   show: ShowGroup
   playing: PlaybackEvent | null
   lastPlayback: PlaybackEvent | null
+  progressByEpisodeId: Record<number, number>
   busyId: number | null
   unmatchingEpisodeId: number | null
   episodeThumbnails: Record<number, string>
@@ -21,7 +22,7 @@ const rowClassName =
   'flex min-h-[4.5rem] items-center gap-3 bg-card/60 px-4 py-1'
 const episodeActionButtonClassName = 'w-32 shrink-0 justify-center'
 const episodeNumberClassName = 'w-10 shrink-0 tabular-nums text-sm'
-const titleClassName = 'block truncate text-base font-medium'
+const titleClassName = 'block min-w-0 truncate text-base font-medium'
 const subtitleClassName = 'block truncate text-sm'
 
 function slotKey(slot: ReturnType<typeof episodeSlots>[number]): string {
@@ -79,30 +80,85 @@ function EpisodeThumbnail({
   )
 }
 
-function episodePlaybackState(
-  episodeId: number,
+function latestPlayedEpisodeId(
+  episodes: EpisodeView[],
   playing: PlaybackEvent | null,
   lastPlayback: PlaybackEvent | null,
-): {highlighted: boolean; isPlaying: boolean; percent: number} {
-  if (playing?.episodeId === episodeId) {
-    const percent = Number.isFinite(playing.percent)
-      ? Math.min(100, Math.max(0, playing.percent))
-      : 0
-    return {highlighted: true, isPlaying: true, percent}
+): number | null {
+  const sessionEpisodeId = playing?.episodeId ?? lastPlayback?.episodeId
+  if (
+    sessionEpisodeId !== undefined &&
+    episodes.some((episode) => episode.id === sessionEpisodeId)
+  ) {
+    return sessionEpisodeId
   }
-  if (lastPlayback?.episodeId === episodeId) {
-    const percent = Number.isFinite(lastPlayback.percent)
-      ? Math.min(100, Math.max(0, lastPlayback.percent))
-      : 0
-    return {highlighted: true, isPlaying: false, percent}
+
+  let latestId: number | null = null
+  let latestPlayedAt = 0
+  for (const episode of episodes) {
+    if (!episode.lastPlayedAt) {
+      continue
+    }
+    const playedAt = Date.parse(episode.lastPlayedAt)
+    if (Number.isNaN(playedAt) || playedAt <= latestPlayedAt) {
+      continue
+    }
+    latestPlayedAt = playedAt
+    latestId = episode.id
   }
-  return {highlighted: false, isPlaying: false, percent: 0}
+  return latestId
+}
+
+function clampPercent(percent: number): number {
+  if (!Number.isFinite(percent)) {
+    return 0
+  }
+  return Math.min(100, Math.max(0, percent))
+}
+
+function episodePlaybackState(
+  episode: EpisodeView,
+  playing: PlaybackEvent | null,
+  lastPlayback: PlaybackEvent | null,
+  progressByEpisodeId: Record<number, number>,
+  latestEpisodeId: number | null,
+): {
+  highlighted: boolean
+  isLatest: boolean
+  isPlaying: boolean
+  percent: number
+} {
+  const isPlaying = playing?.episodeId === episode.id
+  let percent = clampPercent(episode.playbackPercent)
+  if (lastPlayback?.episodeId === episode.id && percent === 0) {
+    percent = clampPercent(lastPlayback.percent)
+  }
+  const sessionPercent = progressByEpisodeId[episode.id]
+  if (sessionPercent !== undefined) {
+    percent = clampPercent(sessionPercent)
+  }
+  if (isPlaying && playing) {
+    percent = clampPercent(playing.percent)
+  }
+  const hasBeenPlayed =
+    percent > 0 ||
+    Boolean(episode.lastPlayedAt) ||
+    episode.id === playing?.episodeId ||
+    episode.id === lastPlayback?.episodeId
+
+  return {
+    highlighted: hasBeenPlayed,
+    isLatest: latestEpisodeId === episode.id,
+    isPlaying,
+    percent,
+  }
 }
 
 export function LibraryEpisodeList({
   show,
   playing,
   lastPlayback,
+  progressByEpisodeId,
   busyId,
   unmatchingEpisodeId,
   episodeThumbnails,
@@ -111,6 +167,11 @@ export function LibraryEpisodeList({
   onFindTorrent,
 }: Props) {
   const slots = episodeSlots(show)
+  const latestEpisodeId = latestPlayedEpisodeId(
+    show.episodes,
+    playing,
+    lastPlayback,
+  )
   const nextUnwatchedSlot = show.bound
     ? (slots.find((slot) => slot.number === show.progress + 1) ?? null)
     : null
@@ -252,9 +313,11 @@ export function LibraryEpisodeList({
           const isBusy = busyId === episode.id
           const isUnmatching = unmatchingEpisodeId === episode.id
           const playback = episodePlaybackState(
-            episode.id,
+            episode,
             playing,
             lastPlayback,
+            progressByEpisodeId,
+            latestEpisodeId,
           )
 
           return (
@@ -272,7 +335,7 @@ export function LibraryEpisodeList({
                   (isBusy || isUnmatching) && 'opacity-50',
                 )}
               >
-                {playback.highlighted && playback.percent > 0 && (
+                {playback.percent > 0 && (
                   <div
                     className="pointer-events-none absolute inset-x-0 bottom-0 h-2 bg-muted"
                     role="progressbar"
@@ -302,7 +365,14 @@ export function LibraryEpisodeList({
                   {slot.number > 0 ? slot.number : '—'}
                 </span>
                 <span className="min-w-0 flex-1 py-2.5">
-                  <span className={titleClassName}>{label}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className={titleClassName}>{label}</span>
+                    {playback.isLatest && (
+                      <span className="shrink-0 text-xs font-medium text-accent">
+                        Latest watched
+                      </span>
+                    )}
+                  </span>
                   <span
                     className={cn(subtitleClassName, 'text-muted-foreground')}
                   >

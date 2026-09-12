@@ -170,6 +170,11 @@ figcaption {
   outline-offset: 2px;
 }
 
+main:focus-visible,
+.layout-scroll:focus-visible {
+  outline: none;
+}
+
 * {
   scrollbar-color: var(--accent) var(--bezel);
   scrollbar-width: thin;

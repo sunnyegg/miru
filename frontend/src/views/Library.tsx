@@ -19,6 +19,8 @@ import {useLibraryStore} from '../stores/libraryStore'
 import {usePlaybackStore} from '../stores/playbackStore'
 import {
   buildEpisodeShowKeyMap,
+  buildWatchingShowItems,
+  isWatchingItemAvailable,
   pickContinueHeroKey,
 } from '../lib/libraryWatching'
 import {LibraryContinueHero} from '../components/LibraryContinueHero'
@@ -64,6 +66,9 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
   )
   const playing = usePlaybackStore((state) => state.playing)
   const lastPlayback = usePlaybackStore((state) => state.lastPlayback)
+  const progressByEpisodeId = usePlaybackStore(
+    (state) => state.progressByEpisodeId,
+  )
 
   const [busyId, setBusyId] = useState<number | null>(null)
   const [importing, setImporting] = useState(false)
@@ -94,6 +99,19 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
       .filter((show) => !watchingKeys.has(show.key))
       .sort((left, right) => compareByNextAiring(left, right, now))
   }, [shows, watchingKeys])
+  const watchingItems = useMemo(
+    () => buildWatchingShowItems(watchingEntries, shows),
+    [watchingEntries, shows],
+  )
+  const availableItems = useMemo(
+    () => watchingItems.filter(isWatchingItemAvailable),
+    [watchingItems],
+  )
+  const upcomingItems = useMemo(
+    () => watchingItems.filter((item) => !isWatchingItemAvailable(item)),
+    [watchingItems],
+  )
+  const sectionsLoading = loading || watchingLoading
   const selectedShow = useMemo(() => {
     const localShow = shows.find((show) => show.key === selectedKey)
     if (localShow) {
@@ -502,9 +520,9 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
           <div className="min-w-0">
             <h2 className="text-2xl font-semibold tracking-tight">Library</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {watchingLoading && loading
+              {sectionsLoading
                 ? 'Loading…'
-                : `${watchingEntries.length} watching · ${gridShows.length} local`}
+                : `${upcomingItems.length} upcoming · ${availableItems.length} available · ${gridShows.length} unlisted`}
             </p>
           </div>
         )}
@@ -530,7 +548,7 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
         />
       )}
 
-      <div className="min-h-0 flex-1 overflow-auto px-5 pt-2 pb-4">
+      <div className="layout-scroll min-h-0 flex-1 overflow-auto px-5 pt-2 pb-4">
         {selectedShow ? (
           <>
             <LibraryShowDetailHero
@@ -568,6 +586,7 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
               show={selectedShow}
               playing={playing}
               lastPlayback={lastPlayback}
+              progressByEpisodeId={progressByEpisodeId}
               busyId={busyId}
               unmatchingEpisodeId={unmatchingEpisodeId}
               episodeThumbnails={episodeThumbnails}
@@ -594,9 +613,19 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
               onFindTorrent={onFindTorrent}
             />
             <LibraryWatchingSection
-              entries={watchingEntries}
-              localShows={shows}
-              loading={watchingLoading}
+              title="Upcoming"
+              emptyMessage="No upcoming episodes on your AniList Watching list."
+              items={upcomingItems}
+              loading={sectionsLoading}
+              highlightedKey={playingShowKey}
+              excludeHeroKey={continueHeroKey}
+              onOpenShow={openWatchingShow}
+            />
+            <LibraryWatchingSection
+              title="Available"
+              emptyMessage="No episodes are available in your library yet."
+              items={availableItems}
+              loading={sectionsLoading}
               highlightedKey={playingShowKey}
               excludeHeroKey={continueHeroKey}
               onOpenShow={openWatchingShow}

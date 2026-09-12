@@ -52,6 +52,7 @@ type Episode struct {
 	MediaStatus     string
 	ResumePosition  float64
 	LastPlayedAt    sql.NullString
+	PlaybackPercent float64
 }
 
 func (s *Store) InsertEpisode(e Episode) (int64, error) {
@@ -72,9 +73,13 @@ func (s *Store) GetEpisode(id int64) (Episode, error) {
 		`SELECT e.id, e.anilist_id, e.episode_number, e.file_path, e.display_title,
 		        e.downloaded_bytes, e.status,
 		        COALESCE(a.title_romaji, ''), COALESCE(a.title_english, ''), COALESCE(a.cover_image, ''),
-		        e.resume_position, e.last_played_at
+		        COALESCE(p.position_seconds, e.resume_position),
+		        COALESCE(p.updated_at, e.last_played_at),
+		        COALESCE(p.percent, 0)
 		 FROM episode_downloads e
 		 LEFT JOIN anime_cache a ON a.anilist_id = e.anilist_id
+		 LEFT JOIN episode_playback p
+		        ON p.anilist_id = e.anilist_id AND p.episode_number = e.episode_number
 		 WHERE e.id = ?`,
 		id,
 	)
@@ -82,7 +87,7 @@ func (s *Store) GetEpisode(id int64) (Episode, error) {
 	err := row.Scan(
 		&e.ID, &e.AnilistID, &e.EpisodeNumber, &e.FilePath, &e.DisplayTitle,
 		&e.DownloadedBytes, &e.Status, &e.TitleRomaji, &e.TitleEnglish, &e.CoverImage,
-		&e.ResumePosition, &e.LastPlayedAt,
+		&e.ResumePosition, &e.LastPlayedAt, &e.PlaybackPercent,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Episode{}, ErrNotFound
@@ -173,9 +178,13 @@ func (s *Store) ListEpisodes() ([]Episode, error) {
 		        e.downloaded_bytes, e.status,
 		        COALESCE(a.title_romaji, ''), COALESCE(a.title_english, ''), COALESCE(a.cover_image, ''),
 		        COALESCE(a.total_episodes, 0), COALESCE(a.status, ''),
-		        e.resume_position, e.last_played_at
+		        COALESCE(p.position_seconds, e.resume_position),
+		        COALESCE(p.updated_at, e.last_played_at),
+		        COALESCE(p.percent, 0)
 		 FROM episode_downloads e
 		 LEFT JOIN anime_cache a ON a.anilist_id = e.anilist_id
+		 LEFT JOIN episode_playback p
+		        ON p.anilist_id = e.anilist_id AND p.episode_number = e.episode_number
 		 ORDER BY e.created_at DESC`,
 	)
 	if err != nil {
@@ -189,7 +198,7 @@ func (s *Store) ListEpisodes() ([]Episode, error) {
 		if err := rows.Scan(
 			&e.ID, &e.AnilistID, &e.EpisodeNumber, &e.FilePath, &e.DisplayTitle,
 			&e.DownloadedBytes, &e.Status, &e.TitleRomaji, &e.TitleEnglish, &e.CoverImage,
-			&e.TotalEpisodes, &e.MediaStatus, &e.ResumePosition, &e.LastPlayedAt,
+			&e.TotalEpisodes, &e.MediaStatus, &e.ResumePosition, &e.LastPlayedAt, &e.PlaybackPercent,
 		); err != nil {
 			return nil, err
 		}

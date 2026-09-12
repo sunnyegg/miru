@@ -52,6 +52,7 @@ export type EpisodeView = {
   nextAiringAt: number
   resumePosition: number
   lastPlayedAt: string
+  playbackPercent: number
 }
 
 export type AnimeView = {

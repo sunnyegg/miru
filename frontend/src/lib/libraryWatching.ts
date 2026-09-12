@@ -103,6 +103,10 @@ export function buildWatchingShowItems(
   })
 }
 
+export function isWatchingItemAvailable(item: WatchingShowItem): boolean {
+  return item.hasLocalFiles || item.newEpisodeNumber !== null
+}
+
 export function watchingPosterCaption(item: WatchingShowItem): {
   text: string
   accent: boolean

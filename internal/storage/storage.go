@@ -11,7 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const currentVersion = 8
+const currentVersion = 10
 
 var ErrNotFound = errors.New("not found")
 
@@ -94,6 +94,16 @@ func (s *Store) migrate() error {
 	}
 	if version < 8 {
 		if _, err := tx.Exec(schemaV8); err != nil {
+			return err
+		}
+	}
+	if version < 9 {
+		if _, err := tx.Exec(schemaV9); err != nil {
+			return err
+		}
+	}
+	if version < 10 {
+		if _, err := tx.Exec(schemaV10); err != nil {
 			return err
 		}
 	}
@@ -263,6 +273,33 @@ CREATE INDEX IF NOT EXISTS rss_feed_items_new_idx
 
 const schemaV8 = `
 ALTER TABLE episode_downloads ADD COLUMN last_played_at DATETIME;
+`
+
+const schemaV9 = `
+CREATE TABLE IF NOT EXISTS episode_playback (
+    anilist_id INTEGER NOT NULL,
+    episode_number INTEGER NOT NULL,
+    position_seconds REAL NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (anilist_id, episode_number)
+);
+
+INSERT INTO episode_playback(
+    anilist_id, episode_number, position_seconds, updated_at
+)
+SELECT
+    anilist_id, episode_number, resume_position, COALESCE(last_played_at, CURRENT_TIMESTAMP)
+FROM episode_downloads
+WHERE anilist_id IS NOT NULL
+  AND episode_number IS NOT NULL
+  AND last_played_at IS NOT NULL
+ON CONFLICT(anilist_id, episode_number) DO UPDATE SET
+    position_seconds = excluded.position_seconds,
+    updated_at = excluded.updated_at;
+`
+
+const schemaV10 = `
+ALTER TABLE episode_playback ADD COLUMN percent REAL NOT NULL DEFAULT 0;
 `
 
 func (s *Store) GetSetting(key string) (string, error) {

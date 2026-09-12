@@ -518,6 +518,157 @@ func TestEpisodeBind(t *testing.T) {
 	_ = sql.NullInt64{}
 }
 
+func TestPlaybackStateUpsertAndEpisodeJoin(t *testing.T) {
+	store := openTestStore(t)
+	if err := store.UpsertAnime(Anime{AnilistID: 7, TitleRomaji: "Test"}); err != nil {
+		t.Fatal(err)
+	}
+	id, err := store.InsertEpisode(Episode{
+		AnilistID:     sql.NullInt64{Int64: 7, Valid: true},
+		EpisodeNumber: sql.NullInt64{Int64: 2, Valid: true},
+		FilePath:      "/tmp/test-02.mkv",
+		DisplayTitle:  "Test 02",
+		Status:        "COMPLETED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := store.GetPlaybackState(7, 2); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("initial state error = %v", err)
+	}
+	if err := store.UpsertPlaybackState(7, 2, 123.5, 20); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpsertPlaybackState(7, 2, 456.25, 41.5); err != nil {
+		t.Fatal(err)
+	}
+
+	state, err := store.GetPlaybackState(7, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.PositionSeconds != 456.25 || state.Percent != 41.5 || state.UpdatedAt == "" {
+		t.Fatalf("state = %+v", state)
+	}
+
+	ep, err := store.GetEpisode(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ep.ResumePosition != 456.25 || ep.PlaybackPercent != 41.5 || !ep.LastPlayedAt.Valid {
+		t.Fatalf("episode playback = %+v", ep)
+	}
+
+	var count int
+	if err := store.db.QueryRow(
+		`SELECT COUNT(1) FROM episode_playback WHERE anilist_id = 7 AND episode_number = 2`,
+	).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("playback row count = %d", count)
+	}
+
+	if err := store.UpsertPlaybackState(7, 2, 0, 91.2); err != nil {
+		t.Fatal(err)
+	}
+	finished, err := store.GetPlaybackState(7, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finished.PositionSeconds != 0 || finished.Percent != 91.2 {
+		t.Fatalf("finished state = %+v", finished)
+	}
+	listed, err := store.ListEpisodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(listed) != 1 || listed[0].PlaybackPercent != 91.2 || listed[0].ResumePosition != 0 {
+		t.Fatalf("listed playback = %+v", listed)
+	}
+}
+
+func TestPlaybackStateSurvivesEpisodeDelete(t *testing.T) {
+	store := openTestStore(t)
+	if err := store.UpsertAnime(Anime{AnilistID: 8, TitleRomaji: "Removed"}); err != nil {
+		t.Fatal(err)
+	}
+	id, err := store.InsertEpisode(Episode{
+		AnilistID:     sql.NullInt64{Int64: 8, Valid: true},
+		EpisodeNumber: sql.NullInt64{Int64: 3, Valid: true},
+		FilePath:      "/tmp/removed.mkv",
+		DisplayTitle:  "Removed 03",
+		Status:        "COMPLETED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpsertPlaybackState(8, 3, 300, 25); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.DeleteEpisodesByFilePrefix("/tmp/removed.mkv"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.GetEpisode(id); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("episode = %v", err)
+	}
+	state, err := store.GetPlaybackState(8, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.PositionSeconds != 300 || state.Percent != 25 {
+		t.Fatalf("state = %+v", state)
+	}
+}
+
+func TestPlaybackStateMigrationBackfillsLegacyPosition(t *testing.T) {
+	store := openTestStore(t)
+	if err := store.UpsertAnime(Anime{AnilistID: 9, TitleRomaji: "Legacy"}); err != nil {
+		t.Fatal(err)
+	}
+	id, err := store.InsertEpisode(Episode{
+		AnilistID:     sql.NullInt64{Int64: 9, Valid: true},
+		EpisodeNumber: sql.NullInt64{Int64: 4, Valid: true},
+		FilePath:      "/tmp/legacy-04.mkv",
+		DisplayTitle:  "Legacy 04",
+		Status:        "COMPLETED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	updatedAt := "2026-09-12T01:02:03Z"
+	if _, err := store.db.Exec(
+		`UPDATE episode_downloads
+		 SET resume_position = 42.5, last_played_at = ?
+		 WHERE id = ?`,
+		updatedAt,
+		id,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.db.Exec(`DROP TABLE episode_playback`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.db.Exec(`PRAGMA user_version = 8`); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.migrate(); err != nil {
+		t.Fatal(err)
+	}
+
+	state, err := store.GetPlaybackState(9, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.PositionSeconds != 42.5 || state.UpdatedAt != updatedAt {
+		t.Fatalf("state = %+v", state)
+	}
+	if state.Percent != 0 {
+		t.Fatalf("migrated percent = %v", state.Percent)
+	}
+}
+
 func TestEpisodeByDisplayTitlePrefersBound(t *testing.T) {
 	store := openTestStore(t)
 	title := "Re Zero kara Hajimeru Isekai Seikatsu — Episode 80"
