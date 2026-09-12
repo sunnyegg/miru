@@ -66,7 +66,7 @@ function NavButton({
         disabled
           ? 'cursor-not-allowed border-transparent text-muted-foreground opacity-50 hover:bg-transparent hover:text-muted-foreground'
           : active
-            ? 'border-accent bg-muted text-foreground hover:text-foreground'
+            ? 'border-l-accent bg-muted text-foreground hover:text-foreground'
             : 'border-transparent hover:bg-muted hover:text-foreground',
       )}
     >

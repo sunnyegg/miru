@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/sunnyegg/miru/internal/anilist"
 	"github.com/sunnyegg/miru/internal/mpv"
+	"github.com/sunnyegg/miru/internal/storage"
 	syncprogress "github.com/sunnyegg/miru/internal/syncprogress"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -33,15 +35,53 @@ func (a *App) PlayEpisode(episodeID int64) error {
 		return err
 	}
 
+	startPosition := ep.ResumePosition
+	if ep.AnilistID.Valid && ep.EpisodeNumber.Valid {
+		state, stateErr := a.store.GetPlaybackState(
+			int(ep.AnilistID.Int64),
+			int(ep.EpisodeNumber.Int64),
+		)
+		switch {
+		case stateErr == nil:
+			startPosition = state.PositionSeconds
+		case !errors.Is(stateErr, storage.ErrNotFound):
+			return fmt.Errorf("load playback state: %w", stateErr)
+		}
+	}
+
 	session := &playSession{
-		episodeID:  episodeID,
-		animeTitle: episodeAnimeTitle(ep),
+		episodeID:      episodeID,
+		animeTitle:     episodeAnimeTitle(ep),
+		playbackWriter: newPlaybackStateWriter(a.store),
+		done:           make(chan struct{}),
 	}
 	if ep.AnilistID.Valid {
 		session.anilistID = int(ep.AnilistID.Int64)
 	}
 	if ep.EpisodeNumber.Valid {
 		session.episodeNum = int(ep.EpisodeNumber.Int64)
+	}
+	if session.anilistID > 0 && session.episodeNum > 0 {
+		if err := a.store.UpsertPlaybackState(
+			session.anilistID,
+			session.episodeNum,
+			startPosition,
+			ep.PlaybackPercent,
+		); err != nil {
+			a.closePlaybackWriter(session, "close playback state")
+			return fmt.Errorf("start playback state: %w", err)
+		}
+	}
+	var glslShaders []string
+	if settings.Anime4KEnabled {
+		glslShaders, err = mpv.Anime4KShaderPaths(a.dirs.Config)
+		if err != nil {
+			a.closePlaybackWriter(session, "close playback state")
+			return err
+		}
+		runtime.LogWarning(a.ctx, fmt.Sprintf("Anime4K enabled: attaching %d shader(s) to mpv", len(glslShaders)))
+	} else {
+		runtime.LogDebugf(a.ctx, "Anime4K disabled: no shaders attached")
 	}
 
 	a.playMu.Lock()
@@ -50,18 +90,7 @@ func (a *App) PlayEpisode(episodeID int64) error {
 
 	a.syncDiscordPresence(settings, session.animeTitle, session.episodeNum, 0)
 
-	var glslShaders []string
-	if settings.Anime4KEnabled {
-		glslShaders, err = mpv.Anime4KShaderPaths(a.dirs.Config)
-		if err != nil {
-			return err
-		}
-		runtime.LogWarning(a.ctx, fmt.Sprintf("Anime4K enabled: attaching %d shader(s) to mpv", len(glslShaders)))
-	} else {
-		runtime.LogDebugf(a.ctx, "Anime4K disabled: no shaders attached")
-	}
-
-	return a.player.Play(mpvPath, ep.FilePath, ep.ResumePosition, glslShaders, func(p mpv.Progress) {
+	err = a.player.Play(mpvPath, ep.FilePath, startPosition, glslShaders, func(p mpv.Progress) {
 		a.playMu.Lock()
 		session.lastProgress = p
 		needsMap := !session.episodeMapped && !session.mapFailed
@@ -90,6 +119,7 @@ func (a *App) PlayEpisode(episodeID int64) error {
 			}
 			_ = a.ensureSeasonEpisode(session, client)
 		}
+		a.queuePlaybackPosition(session, p.Position, p.Percent)
 		if shouldSync {
 			a.maybeSync(session, p.Percent, settings.SyncThreshold)
 		}
@@ -97,6 +127,16 @@ func (a *App) PlayEpisode(episodeID int64) error {
 		a.clearDiscordPresence()
 		a.onMpvClosed(session, settings.SyncThreshold, exitErr)
 	})
+	if err != nil {
+		a.closePlaybackWriter(session, "close playback state")
+		a.playMu.Lock()
+		if a.play == session {
+			a.play = nil
+		}
+		a.playMu.Unlock()
+		return err
+	}
+	return nil
 }
 
 func (a *App) onMpvClosed(session *playSession, threshold float64, exitErr error) {
@@ -106,10 +146,10 @@ func (a *App) onMpvClosed(session *playSession, threshold float64, exitErr error
 
 	if progress.Duration > 0 || progress.Position > 0 {
 		resume := mpv.ResumePosition(progress.Position, progress.Duration, progress.Percent, threshold)
-		if err := a.store.SetResumePosition(session.episodeID, resume); err != nil {
-			a.logDebugErr("save resume position", err)
-		}
+		a.saveFinalPlaybackPosition(session, resume, progress.Percent)
 	}
+	a.closePlaybackWriter(session, "save playback state")
+	runtime.EventsEmit(a.ctx, "library:changed", true)
 	a.maybeSync(session, progress.Percent, threshold)
 
 	msg := ""
@@ -117,6 +157,56 @@ func (a *App) onMpvClosed(session *playSession, threshold float64, exitErr error
 		msg = exitErr.Error()
 	}
 	runtime.EventsEmit(a.ctx, "mpv:ended", SyncEvent{EpisodeID: session.episodeID, OK: true, Message: msg})
+	if session.done != nil {
+		session.doneOnce.Do(func() { close(session.done) })
+	}
+}
+
+func (a *App) queuePlaybackPosition(session *playSession, position, percent float64) {
+	a.playMu.Lock()
+	anilistID := session.anilistID
+	episodeNumber := session.episodeNum
+	writer := session.playbackWriter
+	a.playMu.Unlock()
+	if writer == nil {
+		return
+	}
+	writer.Submit(playbackStateUpdate{
+		anilistID:     anilistID,
+		episodeNumber: episodeNumber,
+		position:      position,
+		percent:       percent,
+	})
+}
+
+func (a *App) closePlaybackWriter(session *playSession, operation string) {
+	if session == nil || session.playbackWriter == nil {
+		return
+	}
+	if err := session.playbackWriter.Close(); err != nil {
+		a.logDebugErr(operation, err)
+	}
+}
+
+func (a *App) saveFinalPlaybackPosition(session *playSession, position, percent float64) {
+	a.playMu.Lock()
+	anilistID := session.anilistID
+	episodeNumber := session.episodeNum
+	episodeID := session.episodeID
+	writer := session.playbackWriter
+	a.playMu.Unlock()
+	if anilistID > 0 && episodeNumber > 0 && writer != nil {
+		writer.Submit(playbackStateUpdate{
+			anilistID:     anilistID,
+			episodeNumber: episodeNumber,
+			position:      position,
+			percent:       percent,
+		})
+		return
+	}
+	if err := a.store.SetResumePosition(episodeID, position); err != nil {
+		a.logDebugErr("save legacy resume position", err)
+	}
 }
 
 func (a *App) maybeSync(session *playSession, percent, threshold float64) {

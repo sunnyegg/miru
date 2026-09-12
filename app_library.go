@@ -309,6 +309,7 @@ func toEpisodeView(e storage.Episode) EpisodeView {
 		view.DisplayTitle = filepath.Base(e.FilePath)
 	}
 	view.ResumePosition = e.ResumePosition
+	view.PlaybackPercent = e.PlaybackPercent
 	if e.LastPlayedAt.Valid {
 		view.LastPlayedAt = e.LastPlayedAt.String
 	}

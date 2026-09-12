@@ -50,7 +50,8 @@ non-interactive element color.
 ## Focus & Accessibility
 
 - **Focus ring:** `outline: 2px solid var(--ring)` (`#a78bfa`) with
-  `outline-offset: 2px`. Visible on all focusable elements via `:focus-visible`.
+  `outline-offset: 2px` on interactive `:focus-visible` targets. Layout
+  shells (`main`, `.layout-scroll`) do not show a ring.
 - **Scrollbar:** thin, accent-colored thumb on bezel track.
 - **Live regions:** dynamic content updates (toasts, loading states) must use
   `aria-live` or equivalent so screen readers announce changes.

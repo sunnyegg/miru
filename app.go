@@ -89,6 +89,9 @@ type playSession struct {
 	mapFailed             bool
 	loggedAnilist         bool
 	lastProgress          mpv.Progress
+	playbackWriter        *playbackStateWriter
+	done                  chan struct{}
+	doneOnce              sync.Once
 }
 
 func NewApp() *App {
@@ -137,6 +140,12 @@ func (a *App) shutdown(_ context.Context) {
 	}
 	if a.player != nil {
 		a.player.Stop()
+	}
+	a.playMu.Lock()
+	session := a.play
+	a.playMu.Unlock()
+	if session != nil && session.done != nil {
+		<-session.done
 	}
 	if a.torrents != nil {
 		a.torrents.Close()

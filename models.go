@@ -46,6 +46,7 @@ type EpisodeView struct {
 	NextAiringAt      int64   `json:"nextAiringAt"`
 	ResumePosition    float64 `json:"resumePosition"`
 	LastPlayedAt      string  `json:"lastPlayedAt"`
+	PlaybackPercent   float64 `json:"playbackPercent"`
 }
 
 type AnimeView struct {

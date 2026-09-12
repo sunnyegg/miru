@@ -1,18 +1,17 @@
 import {
-  buildWatchingShowItems,
   watchingPosterCaption,
   watchingPosterSubcaption,
+  type WatchingShowItem,
 } from '../lib/libraryWatching'
 import {compareByNextAiring} from '../lib/groupEpisodes'
-import type {ShowGroup} from '../lib/groupEpisodes'
-import type {WatchingEntryView} from '../lib/types'
 import {LibraryPosterCard} from './LibraryPosterCard'
 import {LibraryPosterCarousel} from './LibraryPosterCarousel'
 import {Skeleton} from '@/components/ui/skeleton'
 
 type Props = {
-  entries: WatchingEntryView[]
-  localShows: ShowGroup[]
+  title: string
+  emptyMessage: string
+  items: WatchingShowItem[]
   loading: boolean
   highlightedKey: string | null
   excludeHeroKey?: string | null
@@ -20,45 +19,43 @@ type Props = {
 }
 
 export function LibraryWatchingSection({
-  entries,
-  localShows,
+  title,
+  emptyMessage,
+  items: sourceItems,
   loading,
   highlightedKey,
   excludeHeroKey = null,
   onOpenShow,
 }: Props) {
-  if (!loading && entries.length === 0) {
+  if (!loading && sourceItems.length === 0) {
     return (
       <section className="mb-8 shrink-0">
         <div className="mb-3 flex items-baseline gap-2">
-          <h3 className="text-sm font-medium text-foreground">Watching</h3>
+          <h3 className="text-sm font-medium text-foreground">{title}</h3>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Nothing on your AniList Watching list yet. Add titles from the
-          Watching tab to track them here.
-        </p>
+        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
       </section>
     )
   }
 
-  const allItems = buildWatchingShowItems(entries, localShows)
-  const items = excludeHeroKey
-    ? allItems.filter((item) => item.key !== excludeHeroKey)
-    : allItems
-  items.sort((left, right) => compareByNextAiring(left, right, Date.now()))
+  const items = (
+    excludeHeroKey
+      ? sourceItems.filter((item) => item.key !== excludeHeroKey)
+      : [...sourceItems]
+  ).sort((left, right) => compareByNextAiring(left, right, Date.now()))
 
   return (
     <section className="mb-8 shrink-0">
       <div className="mb-3 flex items-baseline gap-2">
-        <h3 className="text-sm font-medium text-foreground">Watching</h3>
-        {!loading && allItems.length > 0 && (
+        <h3 className="text-sm font-medium text-foreground">{title}</h3>
+        {!loading && sourceItems.length > 0 && (
           <span className="text-xs text-muted-foreground">
-            {allItems.length}
+            {sourceItems.length}
           </span>
         )}
       </div>
       {loading ? (
-        <LibraryPosterCarousel ariaLabel="Loading Watching list" ariaBusy>
+        <LibraryPosterCarousel ariaLabel={`Loading ${title} list`} ariaBusy>
           {Array.from({length: 4}, (_, index) => (
             <li key={index} className="w-44 shrink-0 sm:w-48">
               <Skeleton className="aspect-[2/3] w-full animate-pulse" />
@@ -66,7 +63,7 @@ export function LibraryWatchingSection({
           ))}
         </LibraryPosterCarousel>
       ) : items.length === 0 ? null : (
-        <LibraryPosterCarousel ariaLabel="Watching shelf">
+        <LibraryPosterCarousel ariaLabel={`${title} shelf`}>
           {items.map((item) => {
             const caption = watchingPosterCaption(item)
             const subcaption = watchingPosterSubcaption(item)

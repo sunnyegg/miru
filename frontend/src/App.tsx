@@ -58,8 +58,13 @@ export default function App() {
   const [closePromptOpen, setClosePromptOpen] = useState(false)
   const [changelogOpen, setChangelogOpen] = useState(false)
   const mainRef = useRef<HTMLElement>(null)
+  const hasFocusedTab = useRef(false)
 
   useEffect(() => {
+    if (!hasFocusedTab.current) {
+      hasFocusedTab.current = true
+      return
+    }
     mainRef.current?.focus()
   }, [tab])
 

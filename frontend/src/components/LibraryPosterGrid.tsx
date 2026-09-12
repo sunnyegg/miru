@@ -104,8 +104,8 @@ export function LibraryPosterGrid({
     return (
       <div className="flex min-h-32 items-end">
         <p className="max-w-md text-sm text-muted-foreground">
-          No local shows yet. Import a file, or finish a torrent download and it
-          will land here.
+          No unlisted shows yet. Import a file, or finish a torrent download and
+          it will land here.
         </p>
       </div>
     )
