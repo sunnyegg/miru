@@ -19,11 +19,12 @@ type Progress struct {
 }
 
 type Player struct {
-	mu    sync.Mutex
-	cmd   *exec.Cmd
-	conn  net.Conn
-	ipc   string
-	reqID int
+	mu       sync.Mutex
+	cmd      *exec.Cmd
+	conn     net.Conn
+	ipc      string
+	reqID    int
+	duration float64
 }
 
 func Percent(position, duration float64) float64 {
@@ -72,6 +73,7 @@ func (p *Player) Stop() {
 	p.cmd = nil
 	p.conn = nil
 	p.ipc = ""
+	p.duration = 0
 	p.mu.Unlock()
 
 	if conn != nil {
@@ -155,15 +157,15 @@ func (p *Player) watch(cmd *exec.Cmd, ipc string, onProgress func(Progress), onE
 			}
 			return
 		case <-ticker.C:
-			pos, dur, err := p.properties()
+			position, duration, err := p.properties()
 			if err != nil {
 				continue
 			}
 			if onProgress != nil {
 				onProgress(Progress{
-					Position: pos,
-					Duration: dur,
-					Percent:  Percent(pos, dur),
+					Position: position,
+					Duration: duration,
+					Percent:  Percent(position, duration),
 				})
 			}
 		}
@@ -183,42 +185,63 @@ func (p *Player) cleanup(cmd *exec.Cmd, ipc string) {
 	}
 	p.cmd = nil
 	p.ipc = ""
+	p.duration = 0
 	removeEndpoint(ipc)
 }
 
 func (p *Player) properties() (float64, float64, error) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.conn == nil {
+	conn := p.conn
+	cachedDuration := p.duration
+	p.mu.Unlock()
+	if conn == nil {
 		return 0, 0, fmt.Errorf("ipc closed")
 	}
-	pos, err := p.getNumber("time-pos")
+
+	position, err := p.getNumber(conn, "time-pos")
 	if err != nil {
 		return 0, 0, err
 	}
-	dur, err := p.getNumber("duration")
+	if cachedDuration > 0 {
+		return position, cachedDuration, nil
+	}
+
+	duration, err := p.getNumber(conn, "duration")
 	if err != nil {
 		return 0, 0, err
 	}
-	return pos, dur, nil
+	if duration <= 0 {
+		return position, duration, nil
+	}
+
+	p.mu.Lock()
+	if p.conn == conn {
+		p.duration = duration
+	}
+	p.mu.Unlock()
+	return position, duration, nil
 }
 
-func (p *Player) getNumber(name string) (float64, error) {
+func (p *Player) getNumber(conn net.Conn, name string) (float64, error) {
+	p.mu.Lock()
 	p.reqID++
+	requestID := p.reqID
+	p.mu.Unlock()
+
 	req := map[string]any{
 		"command":    []any{"get_property", name},
-		"request_id": p.reqID,
+		"request_id": requestID,
 	}
 	payload, err := json.Marshal(req)
 	if err != nil {
 		return 0, err
 	}
-	_ = p.conn.SetDeadline(time.Now().Add(800 * time.Millisecond))
-	if _, err := p.conn.Write(append(payload, '\n')); err != nil {
+	_ = conn.SetDeadline(time.Now().Add(800 * time.Millisecond))
+	if _, err := conn.Write(append(payload, '\n')); err != nil {
 		return 0, err
 	}
 
-	reader := bufio.NewReader(p.conn)
+	reader := bufio.NewReader(conn)
 	for {
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
@@ -232,7 +255,7 @@ func (p *Player) getNumber(name string) (float64, error) {
 		if err := json.Unmarshal(line, &resp); err != nil {
 			continue
 		}
-		if resp.RequestID != p.reqID {
+		if resp.RequestID != requestID {
 			continue
 		}
 		if resp.Error != "" && resp.Error != "success" {

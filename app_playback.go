@@ -144,6 +144,12 @@ func (a *App) onMpvClosed(session *playSession, threshold float64, exitErr error
 	progress := session.lastProgress
 	a.playMu.Unlock()
 
+	msg := ""
+	if exitErr != nil && !strings.Contains(exitErr.Error(), "signal: killed") {
+		msg = exitErr.Error()
+	}
+	runtime.EventsEmit(a.ctx, "mpv:ended", SyncEvent{EpisodeID: session.episodeID, OK: true, Message: msg})
+
 	if progress.Duration > 0 || progress.Position > 0 {
 		resume := mpv.ResumePosition(progress.Position, progress.Duration, progress.Percent, threshold)
 		a.saveFinalPlaybackPosition(session, resume, progress.Percent)
@@ -151,12 +157,6 @@ func (a *App) onMpvClosed(session *playSession, threshold float64, exitErr error
 	a.closePlaybackWriter(session, "save playback state")
 	runtime.EventsEmit(a.ctx, "library:changed", true)
 	a.maybeSync(session, progress.Percent, threshold)
-
-	msg := ""
-	if exitErr != nil && !strings.Contains(exitErr.Error(), "signal: killed") {
-		msg = exitErr.Error()
-	}
-	runtime.EventsEmit(a.ctx, "mpv:ended", SyncEvent{EpisodeID: session.episodeID, OK: true, Message: msg})
 	if session.done != nil {
 		session.doneOnce.Do(func() { close(session.done) })
 	}
