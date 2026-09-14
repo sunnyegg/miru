@@ -182,6 +182,9 @@ func (a *App) init() error {
 	if err := store.RecoverInterruptedDownloads(); err != nil {
 		return err
 	}
+	if err := store.HealSingleEpisodeNumbers(); err != nil {
+		return err
+	}
 	if err := a.ensureDefaults(); err != nil {
 		return err
 	}

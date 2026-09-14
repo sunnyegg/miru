@@ -2,9 +2,11 @@ package anilist
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -220,6 +222,61 @@ func TestListProgressForMedia(t *testing.T) {
 	}
 	if progressByMedia[22].MediaStatus != "FINISHED" || progressByMedia[22].NextAiringEpisode != 0 {
 		t.Fatalf("media 22 status = %+v", progressByMedia[22])
+	}
+}
+
+func TestListProgressForMediaChunksConcurrently(t *testing.T) {
+	var requestCount atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount.Add(1)
+		var body struct {
+			Variables struct {
+				IDs []int `json:"ids"`
+			} `json:"variables"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+			return
+		}
+		if len(body.Variables.IDs) == 0 || len(body.Variables.IDs) > 50 {
+			t.Errorf("chunk size = %d", len(body.Variables.IDs))
+			return
+		}
+		mediaJSON := make([]string, 0, len(body.Variables.IDs))
+		for _, id := range body.Variables.IDs {
+			mediaJSON = append(mediaJSON, fmt.Sprintf(
+				`{"id":%d,"episodes":12,"status":"FINISHED","nextAiringEpisode":null,"mediaListEntry":{"progress":%d}}`,
+				id, id,
+			))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"Page":{"media":[` + strings.Join(mediaJSON, ",") + `]}}}`))
+	}))
+	defer server.Close()
+
+	client := New("tok")
+	client.Endpoint = server.URL
+	client.HTTP = server.Client()
+
+	ids := make([]int, 51)
+	for i := range ids {
+		ids[i] = i + 1
+	}
+	progressByMedia, err := client.ListProgressForMedia(ids)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if requestCount.Load() != 2 {
+		t.Fatalf("requestCount = %d, want 2", requestCount.Load())
+	}
+	if len(progressByMedia) != 51 {
+		t.Fatalf("len(progressByMedia) = %d", len(progressByMedia))
+	}
+	if progressByMedia[1].Progress != 1 {
+		t.Fatalf("first chunk media = %+v", progressByMedia[1])
+	}
+	if progressByMedia[51].Progress != 51 {
+		t.Fatalf("second chunk media = %+v", progressByMedia[51])
 	}
 }
 
