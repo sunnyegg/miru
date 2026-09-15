@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -377,6 +378,19 @@ func TestHealSingleEpisodeNumbers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	beforeHeal, err := store.ListEpisodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(beforeHeal) != 1 {
+		t.Fatalf("len = %d", len(beforeHeal))
+	}
+	if beforeHeal[0].EpisodeNumber.Valid {
+		t.Fatalf("ListEpisodes must not heal unread rows: %+v", beforeHeal[0].EpisodeNumber)
+	}
+	if err := store.HealSingleEpisodeNumbers(); err != nil {
+		t.Fatal(err)
+	}
 	episodes, err := store.ListEpisodes()
 	if err != nil {
 		t.Fatal(err)
@@ -744,5 +758,33 @@ func TestAPICacheTTL(t *testing.T) {
 	_, err = store.GetAPICache("watching", 0)
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("deleted err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestEpisodeDownloadsCreatedAtIndex(t *testing.T) {
+	store := openTestStore(t)
+	rows, err := store.db.Query(`EXPLAIN QUERY PLAN SELECT id FROM episode_downloads ORDER BY created_at DESC`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	var plan strings.Builder
+	for rows.Next() {
+		var selectID, order, from int
+		var detail string
+		if err := rows.Scan(&selectID, &order, &from, &detail); err != nil {
+			t.Fatal(err)
+		}
+		if plan.Len() > 0 {
+			plan.WriteByte('\n')
+		}
+		plan.WriteString(detail)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(plan.String(), "episode_downloads_created_at_idx") {
+		t.Fatalf("query plan = %q, want episode_downloads_created_at_idx", plan.String())
 	}
 }
