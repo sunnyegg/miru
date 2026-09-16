@@ -47,7 +47,9 @@ func TestMapSeasonEpisodeWalksTVPrequels(t *testing.T) {
 		163134: {ID: 163134, Episodes: 66, Format: "TV"},
 	}
 
+	requestCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
 		var body struct {
 			Variables struct {
 				ID int `json:"id"`
@@ -98,6 +100,9 @@ func TestMapSeasonEpisodeWalksTVPrequels(t *testing.T) {
 	if got != 13 {
 		t.Fatalf("mapped = %d want 13", got)
 	}
+	if requestCount != 2 {
+		t.Fatalf("first walk requestCount = %d, want 2", requestCount)
+	}
 
 	relative, err := client.MapSeasonEpisode(189046, 8)
 	if err != nil {
@@ -105,5 +110,19 @@ func TestMapSeasonEpisodeWalksTVPrequels(t *testing.T) {
 	}
 	if relative != 8 {
 		t.Fatalf("relative = %d want 8", relative)
+	}
+	if requestCount != 2 {
+		t.Fatalf("cached walk requestCount = %d, want 2", requestCount)
+	}
+
+	again, err := client.MapSeasonEpisode(189046, 79)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again != 13 {
+		t.Fatalf("remapped = %d want 13", again)
+	}
+	if requestCount != 2 {
+		t.Fatalf("second absolute walk requestCount = %d, want 2 (memoized)", requestCount)
 	}
 }

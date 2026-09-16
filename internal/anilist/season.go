@@ -91,6 +91,13 @@ func (c *Client) MapSeasonEpisode(mediaID, parsed int) (int, error) {
 }
 
 func (c *Client) mediaWithRelations(id int) (relatedMedia, error) {
+	c.mediaMu.Lock()
+	if cached, ok := c.mediaCache[id]; ok {
+		c.mediaMu.Unlock()
+		return cached, nil
+	}
+	c.mediaMu.Unlock()
+
 	const q = `
 	query ($id: Int) {
 	  Media(id: $id, type: ANIME) {
@@ -114,6 +121,13 @@ func (c *Client) mediaWithRelations(id int) (relatedMedia, error) {
 	if out.Media.ID == 0 {
 		return relatedMedia{}, fmt.Errorf("anime %d not found", id)
 	}
+
+	c.mediaMu.Lock()
+	if c.mediaCache == nil {
+		c.mediaCache = make(map[int]relatedMedia)
+	}
+	c.mediaCache[id] = out.Media
+	c.mediaMu.Unlock()
 	return out.Media, nil
 }
 
