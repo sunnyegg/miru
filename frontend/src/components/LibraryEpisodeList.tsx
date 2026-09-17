@@ -1,21 +1,35 @@
-import {useRef} from 'react'
+import {memo, useRef, type RefObject} from 'react'
 import {episodeSlots, type ShowGroup} from '../lib/groupEpisodes'
 import {torrentSearchQuery} from '../lib/libraryWatching'
-import type {EpisodeView, PlaybackEvent} from '../lib/types'
+import type {EpisodeView} from '../lib/types'
+import {usePlaybackStore} from '../stores/playbackStore'
 import {Button} from '@/components/ui/button'
 import {cn} from '@/lib/utils'
 
 type Props = {
   show: ShowGroup
-  playing: PlaybackEvent | null
-  lastPlayback: PlaybackEvent | null
-  progressByEpisodeId: Record<number, number>
+  playingEpisodeId: number | null
   busyId: number | null
   unmatchingEpisodeId: number | null
   episodeThumbnails: Record<number, string>
   onPlay: (episodeId: number) => void
   onUnmatch?: (episodeId: number) => void
   onFindTorrent?: (query: string) => void
+}
+
+type RowProps = {
+  episode: EpisodeView
+  thumbnailUrl: string
+  label: string
+  subtitle: string
+  isLatest: boolean
+  isNextUnwatched: boolean
+  nextUnwatchedRef: RefObject<HTMLLIElement | null>
+  isBusy: boolean
+  isUnmatching: boolean
+  unmatchingBusy: boolean
+  onPlay: (episodeId: number) => void
+  onUnmatch?: (episodeId: number) => void
 }
 
 const rowClassName =
@@ -82,10 +96,10 @@ function EpisodeThumbnail({
 
 function latestPlayedEpisodeId(
   episodes: EpisodeView[],
-  playing: PlaybackEvent | null,
-  lastPlayback: PlaybackEvent | null,
+  playingEpisodeId: number | null,
+  lastPlaybackEpisodeId: number | null,
 ): number | null {
-  const sessionEpisodeId = playing?.episodeId ?? lastPlayback?.episodeId
+  const sessionEpisodeId = playingEpisodeId ?? lastPlaybackEpisodeId
   if (
     sessionEpisodeId !== undefined &&
     episodes.some((episode) => episode.id === sessionEpisodeId)
@@ -116,49 +130,122 @@ function clampPercent(percent: number): number {
   return Math.min(100, Math.max(0, percent))
 }
 
-function episodePlaybackState(
-  episode: EpisodeView,
-  playing: PlaybackEvent | null,
-  lastPlayback: PlaybackEvent | null,
-  progressByEpisodeId: Record<number, number>,
-  latestEpisodeId: number | null,
-): {
-  highlighted: boolean
-  isLatest: boolean
-  isPlaying: boolean
-  percent: number
-} {
-  const isPlaying = playing?.episodeId === episode.id
+const LibraryEpisodeRow = memo(function LibraryEpisodeRow({
+  episode,
+  thumbnailUrl,
+  label,
+  subtitle,
+  isLatest,
+  isNextUnwatched,
+  nextUnwatchedRef,
+  isBusy,
+  isUnmatching,
+  unmatchingBusy,
+  onPlay,
+  onUnmatch,
+}: RowProps) {
+  const isPlaying = usePlaybackStore(
+    (state) => state.playing?.episodeId === episode.id,
+  )
+  const sessionPercent = usePlaybackStore(
+    (state) => state.progressByEpisodeId[episode.id],
+  )
+  const lastPlaybackPercent = usePlaybackStore((state) =>
+    state.lastPlayback?.episodeId === episode.id
+      ? state.lastPlayback.percent
+      : null,
+  )
+
   let percent = clampPercent(episode.playbackPercent)
-  if (lastPlayback?.episodeId === episode.id && percent === 0) {
-    percent = clampPercent(lastPlayback.percent)
+  if (lastPlaybackPercent !== null && percent === 0) {
+    percent = clampPercent(lastPlaybackPercent)
   }
-  const sessionPercent = progressByEpisodeId[episode.id]
   if (sessionPercent !== undefined) {
     percent = clampPercent(sessionPercent)
   }
-  if (isPlaying && playing) {
-    percent = clampPercent(playing.percent)
-  }
-  const hasBeenPlayed =
+  const highlighted =
     percent > 0 ||
     Boolean(episode.lastPlayedAt) ||
-    episode.id === playing?.episodeId ||
-    episode.id === lastPlayback?.episodeId
+    isPlaying ||
+    lastPlaybackPercent !== null
 
-  return {
-    highlighted: hasBeenPlayed,
-    isLatest: latestEpisodeId === episode.id,
-    isPlaying,
-    percent,
-  }
-}
+  return (
+    <li ref={isNextUnwatched ? nextUnwatchedRef : undefined}>
+      <div
+        className={cn(
+          'relative overflow-hidden border-l-2',
+          rowClassName,
+          highlighted ? 'border-l-accent' : 'border-l-transparent',
+          (isBusy || isUnmatching) && 'opacity-50',
+        )}
+      >
+        {percent > 0 && (
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-2 bg-muted"
+            role="progressbar"
+            aria-label={`Playback progress for ${label}`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(percent)}
+            aria-valuetext={`${Math.round(percent)}% played`}
+          >
+            <div
+              className={cn(
+                'h-full bg-accent',
+                isPlaying &&
+                  'transition-[width] duration-200 motion-reduce:transition-none',
+              )}
+              style={{width: `${percent}%`}}
+            />
+          </div>
+        )}
+        <EpisodeThumbnail imageUrl={thumbnailUrl} />
+        <span className={cn(episodeNumberClassName, 'text-muted-foreground')}>
+          {episode.episodeNumber > 0 ? episode.episodeNumber : '—'}
+        </span>
+        <span className="min-w-0 flex-1 py-2.5">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className={titleClassName}>{label}</span>
+            {isLatest && (
+              <span className="shrink-0 text-xs font-medium text-accent">
+                Latest watched
+              </span>
+            )}
+          </span>
+          <span className={cn(subtitleClassName, 'text-muted-foreground')}>
+            {subtitle}
+          </span>
+        </span>
+        <div className="flex shrink-0 gap-2">
+          {episode.bound && onUnmatch && (
+            <Button
+              type="button"
+              variant="secondary"
+              className={episodeActionButtonClassName}
+              disabled={isBusy || isUnmatching || unmatchingBusy}
+              onClick={() => onUnmatch(episode.id)}
+            >
+              {isUnmatching ? 'Removing…' : 'Unmatch'}
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="default"
+            className={episodeActionButtonClassName}
+            disabled={isBusy || isUnmatching}
+            onClick={() => onPlay(episode.id)}
+          >
+            {isBusy ? 'Starting…' : 'Play'}
+          </Button>
+        </div>
+      </div>
+    </li>
+  )
+})
 
 export function LibraryEpisodeList({
   show,
-  playing,
-  lastPlayback,
-  progressByEpisodeId,
+  playingEpisodeId,
   busyId,
   unmatchingEpisodeId,
   episodeThumbnails,
@@ -166,11 +253,14 @@ export function LibraryEpisodeList({
   onUnmatch,
   onFindTorrent,
 }: Props) {
+  const lastPlaybackEpisodeId = usePlaybackStore(
+    (state) => state.lastPlayback?.episodeId ?? null,
+  )
   const slots = episodeSlots(show)
   const latestEpisodeId = latestPlayedEpisodeId(
     show.episodes,
-    playing,
-    lastPlayback,
+    playingEpisodeId,
+    lastPlaybackEpisodeId,
   )
   const nextUnwatchedSlot = show.bound
     ? (slots.find((slot) => slot.number === show.progress + 1) ?? null)
@@ -310,101 +400,22 @@ export function LibraryEpisodeList({
           }
 
           const episode = slot.file
-          const isBusy = busyId === episode.id
-          const isUnmatching = unmatchingEpisodeId === episode.id
-          const playback = episodePlaybackState(
-            episode,
-            playing,
-            lastPlayback,
-            progressByEpisodeId,
-            latestEpisodeId,
-          )
-
           return (
-            <li
+            <LibraryEpisodeRow
               key={slotKey(slot)}
-              ref={slot === nextUnwatchedSlot ? nextUnwatchedRef : undefined}
-            >
-              <div
-                className={cn(
-                  'relative overflow-hidden border-l-2',
-                  rowClassName,
-                  playback.highlighted
-                    ? 'border-l-accent'
-                    : 'border-l-transparent',
-                  (isBusy || isUnmatching) && 'opacity-50',
-                )}
-              >
-                {playback.percent > 0 && (
-                  <div
-                    className="pointer-events-none absolute inset-x-0 bottom-0 h-2 bg-muted"
-                    role="progressbar"
-                    aria-label={`Playback progress for ${label}`}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={Math.round(playback.percent)}
-                    aria-valuetext={`${Math.round(playback.percent)}% played`}
-                  >
-                    <div
-                      className={cn(
-                        'h-full bg-accent',
-                        playback.isPlaying &&
-                          'transition-[width] duration-200 motion-reduce:transition-none',
-                      )}
-                      style={{width: `${playback.percent}%`}}
-                    />
-                  </div>
-                )}
-                <EpisodeThumbnail imageUrl={thumbnailUrl} />
-                <span
-                  className={cn(
-                    episodeNumberClassName,
-                    'text-muted-foreground',
-                  )}
-                >
-                  {slot.number > 0 ? slot.number : '—'}
-                </span>
-                <span className="min-w-0 flex-1 py-2.5">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className={titleClassName}>{label}</span>
-                    {playback.isLatest && (
-                      <span className="shrink-0 text-xs font-medium text-accent">
-                        Latest watched
-                      </span>
-                    )}
-                  </span>
-                  <span
-                    className={cn(subtitleClassName, 'text-muted-foreground')}
-                  >
-                    {subtitle}
-                  </span>
-                </span>
-                <div className="flex shrink-0 gap-2">
-                  {episode.bound && onUnmatch && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className={episodeActionButtonClassName}
-                      disabled={
-                        isBusy || isUnmatching || unmatchingEpisodeId !== null
-                      }
-                      onClick={() => onUnmatch(episode.id)}
-                    >
-                      {isUnmatching ? 'Removing…' : 'Unmatch'}
-                    </Button>
-                  )}
-                  <Button
-                    type="button"
-                    variant="default"
-                    className={episodeActionButtonClassName}
-                    disabled={isBusy || isUnmatching}
-                    onClick={() => onPlay(episode.id)}
-                  >
-                    {isBusy ? 'Starting…' : 'Play'}
-                  </Button>
-                </div>
-              </div>
-            </li>
+              episode={episode}
+              thumbnailUrl={thumbnailUrl}
+              label={label}
+              subtitle={subtitle}
+              isLatest={latestEpisodeId === episode.id}
+              isNextUnwatched={slot === nextUnwatchedSlot}
+              nextUnwatchedRef={nextUnwatchedRef}
+              isBusy={busyId === episode.id}
+              isUnmatching={unmatchingEpisodeId === episode.id}
+              unmatchingBusy={unmatchingEpisodeId !== null}
+              onPlay={onPlay}
+              onUnmatch={onUnmatch}
+            />
           )
         })}
       </ul>

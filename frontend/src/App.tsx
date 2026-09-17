@@ -11,6 +11,7 @@ import {
 import {errorMessage} from './lib/format'
 import {Sidebar} from './components/Sidebar'
 import {Splash} from './components/Splash'
+import {NowPlayingStrip} from './components/NowPlayingStrip'
 import {ChangelogDialog} from './components/ChangelogDialog'
 import {CloseToTrayDialog} from './components/CloseToTrayDialog'
 import {UpdateProgressBar} from './components/UpdateProgressBar'
@@ -43,7 +44,6 @@ import {useWatchingStore} from './stores/watchingStore'
 export default function App() {
   const tab = useNavigationStore((state) => state.tab)
   const setTab = useNavigationStore((state) => state.setTab)
-  const playing = usePlaybackStore((state) => state.playing)
 
   const [initError, setInitError] = useState('')
   const [bootDone, setBootDone] = useState(false)
@@ -285,14 +285,7 @@ export default function App() {
               )}
             </Alert>
           )}
-          {playing && (
-            <div
-              className="border-b border-border bg-bezel px-4 py-2 text-sm"
-              role="status"
-            >
-              Playing · {Math.round(playing.percent)}%
-            </div>
-          )}
+          <NowPlayingStrip />
           <main
             ref={mainRef}
             tabIndex={-1}

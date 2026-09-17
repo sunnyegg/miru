@@ -110,7 +110,7 @@ export function SettingsView({
   const reloadKey = useSettingsStore((state) => state.reloadKey)
   const playbackActive = usePlaybackStore((state) => state.playing !== null)
   const downloadsActive = useDownloadStore((state) =>
-    state.jobs.some((job) => job.live),
+    Object.values(state.jobsById).some((job) => job.live),
   )
 
   const loadDownloadHistory = useDownloadStore((state) => state.loadHistory)
