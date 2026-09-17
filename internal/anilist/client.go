@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -126,6 +127,9 @@ type Client struct {
 	HTTP     *http.Client
 	Endpoint string
 	Token    string
+
+	mediaMu    sync.Mutex
+	mediaCache map[int]relatedMedia
 }
 
 func New(token string) *Client {
