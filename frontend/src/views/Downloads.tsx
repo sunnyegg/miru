@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {
   CancelDownload,
   FinishDownload,
@@ -12,7 +12,7 @@ import {
   StartTorrent,
 } from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
-import {groupDownloads, type DownloadGroup} from '../lib/downloadGroups'
+import type {DownloadGroup} from '../lib/downloadGroups'
 import type {TorrentContentsView, TorrentFileView} from '../lib/types'
 import {useDownloadStore} from '../stores/downloadStore'
 import {AddTorrentDialog} from '../components/AddTorrentDialog'
@@ -44,8 +44,36 @@ const downloadTabs: {group: DownloadGroup; label: string}[] = [
   {group: 'completed', label: 'Completed'},
 ]
 
+function DownloadJobCardContainer({
+  id,
+  group,
+  busy,
+  confirmingDelete,
+  actions,
+}: {
+  id: number
+  group: DownloadGroup
+  busy: boolean
+  confirmingDelete: boolean
+  actions: {current: DownloadJobActions}
+}) {
+  const item = useDownloadStore((state) => state.jobsById[id])
+  if (!item) {
+    return null
+  }
+  return (
+    <DownloadJobCard
+      item={item}
+      group={group}
+      busy={busy}
+      confirmingDelete={confirmingDelete}
+      actions={actions}
+    />
+  )
+}
+
 export function DownloadsView({notice}: Props) {
-  const jobs = useDownloadStore((state) => state.jobs)
+  const groups = useDownloadStore((state) => state.groups)
   const activeTab = useDownloadStore((state) => state.activeTab)
   const setActiveTab = useDownloadStore((state) => state.setActiveTab)
   const loadHistory = useDownloadStore((state) => state.loadHistory)
@@ -71,13 +99,17 @@ export function DownloadsView({notice}: Props) {
     onFinish: () => {},
   })
 
-  const grouped = useMemo(() => groupDownloads(jobs), [jobs])
-  const hasJobs = jobs.length > 0
-  const tabJobs = grouped[activeTab]
-  const deleteFilesConfirmJob =
+  const tabIds = groups[activeTab]
+  const hasJobs =
+    groups.downloading.length +
+      groups.seeding.length +
+      groups.completed.length >
+    0
+  const deleteFilesConfirmJob = useDownloadStore((state) =>
     deleteFilesConfirmId === null
       ? null
-      : (jobs.find((job) => job.id === deleteFilesConfirmId) ?? null)
+      : (state.jobsById[deleteFilesConfirmId] ?? null),
+  )
 
   useEffect(() => {
     void refreshHistory()
@@ -314,7 +346,7 @@ export function DownloadsView({notice}: Props) {
                       : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground',
                   )}
                 >
-                  {label} · {grouped[group].length}
+                  {label} · {groups[group].length}
                 </Button>
               )
             })}
@@ -336,15 +368,15 @@ export function DownloadsView({notice}: Props) {
           </AlertAction>
         </Alert>
       ) : hasJobs ? (
-        tabJobs.length > 0 ? (
+        tabIds.length > 0 ? (
           <div className="flex flex-col gap-3">
-            {tabJobs.map((item) => (
-              <DownloadJobCard
-                key={item.id}
-                item={item}
+            {tabIds.map((id) => (
+              <DownloadJobCardContainer
+                key={id}
+                id={id}
                 group={activeTab}
                 busy={busy}
-                confirmingDelete={pendingDeleteId === item.id}
+                confirmingDelete={pendingDeleteId === id}
                 actions={actionsRef}
               />
             ))}
