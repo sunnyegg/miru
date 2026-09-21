@@ -9,9 +9,9 @@ import {
   SaveLastSeenVersion,
 } from '../wailsjs/go/main/App'
 import {errorMessage} from './lib/format'
+import {NowPlayingStrip} from './components/NowPlayingStrip'
 import {Sidebar} from './components/Sidebar'
 import {Splash} from './components/Splash'
-import {NowPlayingStrip} from './components/NowPlayingStrip'
 import {ChangelogDialog} from './components/ChangelogDialog'
 import {CloseToTrayDialog} from './components/CloseToTrayDialog'
 import {UpdateProgressBar} from './components/UpdateProgressBar'
@@ -336,8 +336,10 @@ export default function App() {
           onOpenChange={setChangelogOpen}
           version={update?.latest ?? ''}
           notes={update?.notes ?? ''}
-          releaseUrl={update?.releaseUrl ?? ''}
+          applyingUpdate={applyingUpdate}
+          updateProgress={updateProgress}
           notice={showNotice}
+          onApplyUpdate={() => void applyUpdate()}
           onDismiss={markChangelogSeen}
         />
       </div>
