@@ -2,7 +2,7 @@ import type {DownloadView} from './types'
 
 export type DownloadGroup = 'downloading' | 'seeding' | 'completed'
 
-export type GroupedDownloads = Record<DownloadGroup, DownloadView[]>
+export type DownloadIdsByGroup = Record<DownloadGroup, number[]>
 
 export function downloadGroup(status: string): DownloadGroup {
   if (status === 'SEEDING') {
@@ -14,16 +14,19 @@ export function downloadGroup(status: string): DownloadGroup {
   return 'downloading'
 }
 
-export function groupDownloads(jobs: DownloadView[]): GroupedDownloads {
-  const grouped: GroupedDownloads = {
+export function indexDownloadJobs(jobs: DownloadView[]): {
+  jobsById: Record<number, DownloadView>
+  idsByGroup: DownloadIdsByGroup
+} {
+  const jobsById: Record<number, DownloadView> = {}
+  const idsByGroup: DownloadIdsByGroup = {
     downloading: [],
     seeding: [],
     completed: [],
   }
-
   for (const job of jobs) {
-    grouped[downloadGroup(job.status)].push(job)
+    jobsById[job.id] = job
+    idsByGroup[downloadGroup(job.status)].push(job.id)
   }
-
-  return grouped
+  return {jobsById, idsByGroup}
 }

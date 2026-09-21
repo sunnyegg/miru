@@ -1,6 +1,7 @@
 import {useState} from 'react'
-import {BrowserOpenURL} from '../../wailsjs/runtime/runtime'
 import {errorMessage} from '../lib/format'
+import type {UpdateProgress} from '../lib/types'
+import {UpdateProgressBar} from './UpdateProgressBar'
 import {Button} from '@/components/ui/button'
 import {Dialog} from '@/components/ui/dialog'
 import ReactMarkdown from 'react-markdown'
@@ -12,8 +13,10 @@ type Props = {
   onOpenChange: (open: boolean) => void
   version: string
   notes: string
-  releaseUrl: string
+  applyingUpdate: boolean
+  updateProgress: UpdateProgress | null
   notice: (message: string, isError?: boolean) => void
+  onApplyUpdate: () => void
   onDismiss: (version: string) => Promise<void> | void
 }
 
@@ -22,14 +25,17 @@ export function ChangelogDialog({
   onOpenChange,
   version,
   notes,
-  releaseUrl,
+  applyingUpdate,
+  updateProgress,
   notice,
+  onApplyUpdate,
   onDismiss,
 }: Props) {
   const [marking, setMarking] = useState(false)
+  const busy = marking || applyingUpdate
 
   async function handleDismiss() {
-    if (marking || !version) {
+    if (busy || !version) {
       onOpenChange(false)
       return
     }
@@ -44,12 +50,6 @@ export function ChangelogDialog({
     }
   }
 
-  function openRelease() {
-    if (releaseUrl) {
-      BrowserOpenURL(releaseUrl)
-    }
-  }
-
   const trimmedNotes = notes.trim()
 
   return (
@@ -58,6 +58,9 @@ export function ChangelogDialog({
       onOpenChange={(nextOpen) => {
         if (nextOpen) {
           onOpenChange(true)
+          return
+        }
+        if (applyingUpdate) {
           return
         }
         void handleDismiss()
@@ -112,23 +115,26 @@ export function ChangelogDialog({
                 </p>
               )}
             </div>
+            {applyingUpdate && updateProgress && (
+              <div className="mt-4">
+                <UpdateProgressBar progress={updateProgress} />
+              </div>
+            )}
             <div className="mt-4 flex flex-wrap justify-end gap-2">
-              {releaseUrl && (
-                <Button
-                  type="button"
-                  variant="muted"
-                  disabled={marking}
-                  onClick={openRelease}
-                >
-                  Open on GitHub
-                </Button>
-              )}
               <Button
                 type="button"
-                disabled={marking}
+                variant="muted"
+                disabled={busy}
                 onClick={() => void handleDismiss()}
               >
-                {marking ? 'Saving…' : 'Close'}
+                {marking ? 'Saving…' : 'Later'}
+              </Button>
+              <Button
+                type="button"
+                disabled={busy || !version}
+                onClick={onApplyUpdate}
+              >
+                {applyingUpdate ? 'Updating…' : 'Update'}
               </Button>
             </div>
           </Dialog.Panel>

@@ -9,6 +9,7 @@ import {
   SaveLastSeenVersion,
 } from '../wailsjs/go/main/App'
 import {errorMessage} from './lib/format'
+import {NowPlayingStrip} from './components/NowPlayingStrip'
 import {Sidebar} from './components/Sidebar'
 import {Splash} from './components/Splash'
 import {ChangelogDialog} from './components/ChangelogDialog'
@@ -43,7 +44,6 @@ import {useWatchingStore} from './stores/watchingStore'
 export default function App() {
   const tab = useNavigationStore((state) => state.tab)
   const setTab = useNavigationStore((state) => state.setTab)
-  const playing = usePlaybackStore((state) => state.playing)
 
   const [initError, setInitError] = useState('')
   const [bootDone, setBootDone] = useState(false)
@@ -285,14 +285,7 @@ export default function App() {
               )}
             </Alert>
           )}
-          {playing && (
-            <div
-              className="border-b border-border bg-bezel px-4 py-2 text-sm"
-              role="status"
-            >
-              Playing · {Math.round(playing.percent)}%
-            </div>
-          )}
+          <NowPlayingStrip />
           <main
             ref={mainRef}
             tabIndex={-1}
@@ -343,8 +336,10 @@ export default function App() {
           onOpenChange={setChangelogOpen}
           version={update?.latest ?? ''}
           notes={update?.notes ?? ''}
-          releaseUrl={update?.releaseUrl ?? ''}
+          applyingUpdate={applyingUpdate}
+          updateProgress={updateProgress}
           notice={showNotice}
+          onApplyUpdate={() => void applyUpdate()}
           onDismiss={markChangelogSeen}
         />
       </div>

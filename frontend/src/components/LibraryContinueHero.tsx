@@ -9,14 +9,13 @@ import {
   type WatchingShowItem,
 } from '../lib/libraryWatching'
 import type {EpisodeView, PlaybackEvent, WatchingEntryView} from '../lib/types'
+import {usePlaybackStore} from '../stores/playbackStore'
 import {Button} from '@/components/ui/button'
 
 type Props = {
   entries: WatchingEntryView[]
   localShows: ShowGroup[]
   libraryEpisodes: EpisodeView[]
-  playing: PlaybackEvent | null
-  lastPlayback: PlaybackEvent | null
   playingShowKey: string | null
   episodeShowKeys: ReadonlyMap<number, string>
   onOpenShow: (showKey: string) => void
@@ -66,13 +65,13 @@ export function LibraryContinueHero({
   entries,
   localShows,
   libraryEpisodes,
-  playing,
-  lastPlayback,
   playingShowKey,
   episodeShowKeys,
   onOpenShow,
   onFindTorrent,
 }: Props) {
+  const playing = usePlaybackStore((state) => state.playing)
+  const lastPlayback = usePlaybackStore((state) => state.lastPlayback)
   const heroKey = useMemo(
     () =>
       pickContinueHeroKey(

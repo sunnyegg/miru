@@ -64,10 +64,11 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
   const loadEpisodeThumbnails = useLibraryStore(
     (state) => state.loadEpisodeThumbnails,
   )
-  const playing = usePlaybackStore((state) => state.playing)
-  const lastPlayback = usePlaybackStore((state) => state.lastPlayback)
-  const progressByEpisodeId = usePlaybackStore(
-    (state) => state.progressByEpisodeId,
+  const playingEpisodeId = usePlaybackStore(
+    (state) => state.playing?.episodeId ?? null,
+  )
+  const lastPlaybackEpisodeId = usePlaybackStore(
+    (state) => state.lastPlayback?.episodeId ?? null,
   )
 
   const [busyId, setBusyId] = useState<number | null>(null)
@@ -141,7 +142,6 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
     selectedShow && !watchingKeys.has(selectedShow.key),
   )
   const episodeShowKeys = useMemo(() => buildEpisodeShowKeyMap(shows), [shows])
-  const playingEpisodeId = playing?.episodeId ?? null
   const playingShowKey = useMemo(
     () =>
       playingEpisodeId === null
@@ -156,7 +156,7 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
         watchingEntries,
         shows,
         playingShowKey,
-        lastPlayback?.episodeId ?? null,
+        lastPlaybackEpisodeId,
         episodes,
         episodeShowKeys,
       ),
@@ -164,7 +164,7 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
       watchingEntries,
       shows,
       playingShowKey,
-      lastPlayback?.episodeId,
+      lastPlaybackEpisodeId,
       episodes,
       episodeShowKeys,
     ],
@@ -584,9 +584,6 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
             )}
             <LibraryEpisodeList
               show={selectedShow}
-              playing={playing}
-              lastPlayback={lastPlayback}
-              progressByEpisodeId={progressByEpisodeId}
               busyId={busyId}
               unmatchingEpisodeId={unmatchingEpisodeId}
               episodeThumbnails={episodeThumbnails}
@@ -605,8 +602,6 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
               entries={watchingEntries}
               localShows={shows}
               libraryEpisodes={episodes}
-              playing={playing}
-              lastPlayback={lastPlayback}
               playingShowKey={playingShowKey}
               episodeShowKeys={episodeShowKeys}
               onOpenShow={openWatchingShow}

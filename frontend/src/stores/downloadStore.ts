@@ -1,10 +1,16 @@
 import {create} from 'zustand'
 import {DownloadHistory} from '../../wailsjs/go/main/App'
-import type {DownloadGroup} from '../lib/downloadGroups'
+import {
+  downloadGroup,
+  indexDownloadJobs,
+  type DownloadGroup,
+  type DownloadIdsByGroup,
+} from '../lib/downloadGroups'
 import type {DownloadView} from '../lib/types'
 
 type DownloadState = {
-  jobs: DownloadView[]
+  jobsById: Record<number, DownloadView>
+  idsByGroup: DownloadIdsByGroup
   activeTab: DownloadGroup
   setActiveTab: (tab: DownloadGroup) => void
   setJobs: (jobs: DownloadView[]) => void
@@ -12,30 +18,51 @@ type DownloadState = {
   loadHistory: () => Promise<void>
 }
 
+const emptyIndex = indexDownloadJobs([])
+
 export const useDownloadStore = create<DownloadState>((set) => ({
-  jobs: [],
+  jobsById: emptyIndex.jobsById,
+  idsByGroup: emptyIndex.idsByGroup,
   activeTab: 'downloading',
 
   setActiveTab: (tab) => set({activeTab: tab}),
 
-  setJobs: (jobs) => set({jobs}),
+  setJobs: (jobs) => set(indexDownloadJobs(jobs)),
 
   upsertJob: (job) => {
     set((state) => {
-      const exists = state.jobs.some((existing) => existing.id === job.id)
-      if (!exists) {
-        return {jobs: [job, ...state.jobs]}
+      const previous = state.jobsById[job.id]
+      const jobsById = {...state.jobsById, [job.id]: job}
+      if (previous === undefined) {
+        const group = downloadGroup(job.status)
+        return {
+          jobsById,
+          idsByGroup: {
+            ...state.idsByGroup,
+            [group]: [job.id, ...state.idsByGroup[group]],
+          },
+        }
+      }
+      const previousGroup = downloadGroup(previous.status)
+      const nextGroup = downloadGroup(job.status)
+      if (previousGroup === nextGroup) {
+        return {jobsById}
       }
       return {
-        jobs: state.jobs.map((existing) =>
-          existing.id === job.id ? job : existing,
-        ),
+        jobsById,
+        idsByGroup: {
+          ...state.idsByGroup,
+          [previousGroup]: state.idsByGroup[previousGroup].filter(
+            (id) => id !== job.id,
+          ),
+          [nextGroup]: [job.id, ...state.idsByGroup[nextGroup]],
+        },
       }
     })
   },
 
   loadHistory: async () => {
     const history = await DownloadHistory()
-    set({jobs: history ?? []})
+    set(indexDownloadJobs(history ?? []))
   },
 }))

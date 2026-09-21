@@ -2,14 +2,12 @@ import {useRef} from 'react'
 import {episodeSlots, type ShowGroup} from '../lib/groupEpisodes'
 import {torrentSearchQuery} from '../lib/libraryWatching'
 import type {EpisodeView, PlaybackEvent} from '../lib/types'
+import {usePlaybackStore} from '../stores/playbackStore'
 import {Button} from '@/components/ui/button'
 import {cn} from '@/lib/utils'
 
 type Props = {
   show: ShowGroup
-  playing: PlaybackEvent | null
-  lastPlayback: PlaybackEvent | null
-  progressByEpisodeId: Record<number, number>
   busyId: number | null
   unmatchingEpisodeId: number | null
   episodeThumbnails: Record<number, string>
@@ -156,9 +154,6 @@ function episodePlaybackState(
 
 export function LibraryEpisodeList({
   show,
-  playing,
-  lastPlayback,
-  progressByEpisodeId,
   busyId,
   unmatchingEpisodeId,
   episodeThumbnails,
@@ -166,6 +161,11 @@ export function LibraryEpisodeList({
   onUnmatch,
   onFindTorrent,
 }: Props) {
+  const playing = usePlaybackStore((state) => state.playing)
+  const lastPlayback = usePlaybackStore((state) => state.lastPlayback)
+  const progressByEpisodeId = usePlaybackStore(
+    (state) => state.progressByEpisodeId,
+  )
   const slots = episodeSlots(show)
   const latestEpisodeId = latestPlayedEpisodeId(
     show.episodes,
