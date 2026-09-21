@@ -170,9 +170,6 @@ func (s *Store) HealSingleEpisodeNumbers() error {
 }
 
 func (s *Store) ListEpisodes() ([]Episode, error) {
-	if err := s.HealSingleEpisodeNumbers(); err != nil {
-		return nil, err
-	}
 	rows, err := s.db.Query(
 		`SELECT e.id, e.anilist_id, e.episode_number, e.file_path, e.display_title,
 		        e.downloaded_bytes, e.status,

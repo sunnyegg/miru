@@ -5,7 +5,6 @@ export function NowPlayingStrip() {
   if (!playing) {
     return null
   }
-
   return (
     <div
       className="border-b border-border bg-bezel px-4 py-2 text-sm"

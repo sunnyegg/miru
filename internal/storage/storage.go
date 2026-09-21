@@ -11,7 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const currentVersion = 10
+const currentVersion = 11
 
 var ErrNotFound = errors.New("not found")
 
@@ -104,6 +104,11 @@ func (s *Store) migrate() error {
 	}
 	if version < 10 {
 		if _, err := tx.Exec(schemaV10); err != nil {
+			return err
+		}
+	}
+	if version < 11 {
+		if _, err := tx.Exec(schemaV11); err != nil {
 			return err
 		}
 	}
@@ -300,6 +305,11 @@ ON CONFLICT(anilist_id, episode_number) DO UPDATE SET
 
 const schemaV10 = `
 ALTER TABLE episode_playback ADD COLUMN percent REAL NOT NULL DEFAULT 0;
+`
+
+const schemaV11 = `
+CREATE INDEX IF NOT EXISTS episode_downloads_created_at_idx
+    ON episode_downloads(created_at DESC);
 `
 
 func (s *Store) GetSetting(key string) (string, error) {

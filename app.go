@@ -59,6 +59,17 @@ type App struct {
 	settingsMu    sync.RWMutex
 	settingsCache map[string]string
 
+	httpClientMu         sync.Mutex
+	httpClient           *http.Client
+	httpClientNetworkKey string
+
+	anilistMu         sync.Mutex
+	anilistClients    map[string]*anilist.Client
+	anilistNetworkKey string
+
+	apiMemoryMu sync.Mutex
+	apiMemory   map[string]apiMemoryEntry
+
 	loginMu     sync.Mutex
 	loginSrv    *http.Server
 	loginCancel context.CancelFunc
@@ -182,6 +193,9 @@ func (a *App) init() error {
 	if err := store.RecoverInterruptedDownloads(); err != nil {
 		return err
 	}
+	if err := store.HealSingleEpisodeNumbers(); err != nil {
+		return err
+	}
 	if err := a.ensureDefaults(); err != nil {
 		return err
 	}
@@ -273,22 +287,67 @@ func (a *App) InitError() string {
 	return a.initErr.Error()
 }
 
+type apiMemoryEntry struct {
+	value     any
+	fetchedAt time.Time
+}
+
 func (a *App) networkHTTPClient() (*http.Client, error) {
+	client, _, err := a.cachedNetworkHTTPClient()
+	return client, err
+}
+
+func (a *App) cachedNetworkHTTPClient() (*http.Client, string, error) {
 	settings, err := a.loadSettings()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return (networking.Config{
+	config := networking.Config{
 		Mode:     settings.NetworkMode,
 		Address:  settings.Socks5Address,
 		ProxyURL: settings.HttpProxyURL,
-	}).HTTPClient()
+	}
+	networkKey, err := config.NetworkKey()
+	if err != nil {
+		return nil, "", err
+	}
+
+	a.httpClientMu.Lock()
+	defer a.httpClientMu.Unlock()
+	if a.httpClient != nil && a.httpClientNetworkKey == networkKey {
+		return a.httpClient, networkKey, nil
+	}
+	client, err := config.HTTPClient()
+	if err != nil {
+		return nil, "", err
+	}
+	a.httpClient = client
+	a.httpClientNetworkKey = networkKey
+	return client, networkKey, nil
 }
 
 func (a *App) newAnilist(token string) (*anilist.Client, error) {
-	httpClient, err := a.networkHTTPClient()
+	httpClient, networkKey, err := a.cachedNetworkHTTPClient()
 	if err != nil {
 		return nil, err
 	}
-	return anilist.NewWithHTTP(token, httpClient), nil
+
+	a.anilistMu.Lock()
+	defer a.anilistMu.Unlock()
+	if a.anilistClients == nil || a.anilistNetworkKey != networkKey {
+		a.anilistClients = make(map[string]*anilist.Client, 2)
+		a.anilistNetworkKey = networkKey
+	}
+	if client, ok := a.anilistClients[token]; ok {
+		return client, nil
+	}
+	client := anilist.NewWithHTTP(token, httpClient)
+	a.anilistClients[token] = client
+	return client, nil
+}
+
+func (a *App) invalidateAnilistClients() {
+	a.anilistMu.Lock()
+	a.anilistClients = nil
+	a.anilistMu.Unlock()
 }

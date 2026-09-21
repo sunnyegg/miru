@@ -18,14 +18,25 @@ export const usePlaybackStore = create<PlaybackState>()(
       progressByEpisodeId: {},
 
       trackProgress: (event) =>
-        set((state) => ({
-          playing: event,
-          lastPlayback: event,
-          progressByEpisodeId: {
-            ...state.progressByEpisodeId,
-            [event.episodeId]: event.percent,
-          },
-        })),
+        set((state) => {
+          if (
+            state.playing?.episodeId === event.episodeId &&
+            state.playing.percent === event.percent
+          ) {
+            return state
+          }
+          return {
+            playing: event,
+            lastPlayback: event,
+            progressByEpisodeId:
+              state.progressByEpisodeId[event.episodeId] === event.percent
+                ? state.progressByEpisodeId
+                : {
+                    ...state.progressByEpisodeId,
+                    [event.episodeId]: event.percent,
+                  },
+          }
+        }),
 
       clearPlaying: () => set({playing: null}),
     }),

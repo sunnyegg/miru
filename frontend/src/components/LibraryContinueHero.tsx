@@ -8,7 +8,7 @@ import {
   watchingPosterCaption,
   type WatchingShowItem,
 } from '../lib/libraryWatching'
-import type {EpisodeView, PlaybackEvent, WatchingEntryView} from '../lib/types'
+import type {EpisodeView, WatchingEntryView} from '../lib/types'
 import {usePlaybackStore} from '../stores/playbackStore'
 import {Button} from '@/components/ui/button'
 
@@ -25,7 +25,7 @@ type Props = {
 function heroProgressCaption(
   show: ShowGroup,
   item: WatchingShowItem | null,
-  lastPlayback: PlaybackEvent | null,
+  lastPlayback: {episodeId: number; percent: number} | null,
 ): string {
   if (lastPlayback) {
     const episode = show.episodes.find(
@@ -70,15 +70,24 @@ export function LibraryContinueHero({
   onOpenShow,
   onFindTorrent,
 }: Props) {
-  const playing = usePlaybackStore((state) => state.playing)
-  const lastPlayback = usePlaybackStore((state) => state.lastPlayback)
+  const playingActive = usePlaybackStore((state) => state.playing !== null)
+  const lastPlaybackEpisodeId = usePlaybackStore(
+    (state) => state.lastPlayback?.episodeId ?? null,
+  )
+  const lastPlaybackPercent = usePlaybackStore(
+    (state) => state.lastPlayback?.percent ?? 0,
+  )
+  const lastPlayback =
+    lastPlaybackEpisodeId === null
+      ? null
+      : {episodeId: lastPlaybackEpisodeId, percent: lastPlaybackPercent}
   const heroKey = useMemo(
     () =>
       pickContinueHeroKey(
         entries,
         localShows,
         playingShowKey,
-        lastPlayback?.episodeId ?? null,
+        lastPlaybackEpisodeId,
         libraryEpisodes,
         episodeShowKeys,
       ),
@@ -86,7 +95,7 @@ export function LibraryContinueHero({
       entries,
       localShows,
       playingShowKey,
-      lastPlayback?.episodeId,
+      lastPlaybackEpisodeId,
       libraryEpisodes,
       episodeShowKeys,
     ],
@@ -105,7 +114,7 @@ export function LibraryContinueHero({
   const watchingItem = findWatchingItem(watchingItems, heroKey)
   const title = show?.title ?? watchingItem?.title ?? 'Continue watching'
   const heroBackground = libraryHeroBackgroundImage(watchingItem, show)
-  const isPlaying = playingShowKey === heroKey && playing !== null
+  const isPlaying = playingShowKey === heroKey && playingActive
   const progressCaption = show
     ? heroProgressCaption(show, watchingItem, lastPlayback)
     : watchingItem

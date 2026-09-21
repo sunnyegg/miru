@@ -44,7 +44,7 @@ const downloadTabs: {group: DownloadGroup; label: string}[] = [
   {group: 'completed', label: 'Completed'},
 ]
 
-function DownloadJobRow({
+function DownloadJobCardContainer({
   id,
   group,
   busy,
@@ -73,7 +73,7 @@ function DownloadJobRow({
 }
 
 export function DownloadsView({notice}: Props) {
-  const idsByGroup = useDownloadStore((state) => state.idsByGroup)
+  const groups = useDownloadStore((state) => state.groups)
   const activeTab = useDownloadStore((state) => state.activeTab)
   const setActiveTab = useDownloadStore((state) => state.setActiveTab)
   const loadHistory = useDownloadStore((state) => state.loadHistory)
@@ -87,12 +87,6 @@ export function DownloadsView({notice}: Props) {
   const [loadError, setLoadError] = useState('')
   const [picker, setPicker] = useState<PickerState | null>(null)
   const [confirming, setConfirming] = useState(false)
-  const deleteFilesConfirmName = useDownloadStore((state) => {
-    if (deleteFilesConfirmId === null) {
-      return null
-    }
-    return state.jobsById[deleteFilesConfirmId]?.name ?? null
-  })
   const actionsRef = useRef<DownloadJobActions>({
     onPendingDelete: () => {},
     onClearPendingDelete: () => {},
@@ -105,12 +99,17 @@ export function DownloadsView({notice}: Props) {
     onFinish: () => {},
   })
 
-  const tabIds = idsByGroup[activeTab]
+  const tabIds = groups[activeTab]
   const hasJobs =
-    idsByGroup.downloading.length +
-      idsByGroup.seeding.length +
-      idsByGroup.completed.length >
+    groups.downloading.length +
+      groups.seeding.length +
+      groups.completed.length >
     0
+  const deleteFilesConfirmJob = useDownloadStore((state) =>
+    deleteFilesConfirmId === null
+      ? null
+      : (state.jobsById[deleteFilesConfirmId] ?? null),
+  )
 
   useEffect(() => {
     void refreshHistory()
@@ -347,7 +346,7 @@ export function DownloadsView({notice}: Props) {
                       : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground',
                   )}
                 >
-                  {label} · {idsByGroup[group].length}
+                  {label} · {groups[group].length}
                 </Button>
               )
             })}
@@ -372,7 +371,7 @@ export function DownloadsView({notice}: Props) {
         tabIds.length > 0 ? (
           <div className="flex flex-col gap-3">
             {tabIds.map((id) => (
-              <DownloadJobRow
+              <DownloadJobCardContainer
                 key={id}
                 id={id}
                 group={activeTab}
@@ -393,17 +392,17 @@ export function DownloadsView({notice}: Props) {
         </p>
       )}
 
-      {deleteFilesConfirmId !== null && deleteFilesConfirmName !== null && (
+      {deleteFilesConfirmJob && (
         <DeleteDownloadDialog
           open={deleteFilesConfirmId !== null}
-          torrentName={deleteFilesConfirmName || 'Torrent'}
+          torrentName={deleteFilesConfirmJob.name || 'Torrent'}
           busy={busy}
           onOpenChange={(open) => {
             if (!open) {
               setDeleteFilesConfirmId(null)
             }
           }}
-          onConfirm={() => void remove(deleteFilesConfirmId, true)}
+          onConfirm={() => void remove(deleteFilesConfirmJob.id, true)}
         />
       )}
 

@@ -1,61 +1,74 @@
 import {create} from 'zustand'
 import {DownloadHistory} from '../../wailsjs/go/main/App'
-import {
-  downloadGroup,
-  indexDownloadJobs,
-  type DownloadGroup,
-  type DownloadIdsByGroup,
-} from '../lib/downloadGroups'
+import {downloadGroup, type DownloadGroup} from '../lib/downloadGroups'
 import type {DownloadView} from '../lib/types'
 
 type DownloadState = {
   jobsById: Record<number, DownloadView>
-  idsByGroup: DownloadIdsByGroup
+  groups: Record<DownloadGroup, number[]>
   activeTab: DownloadGroup
   setActiveTab: (tab: DownloadGroup) => void
-  setJobs: (jobs: DownloadView[]) => void
   upsertJob: (job: DownloadView) => void
   loadHistory: () => Promise<void>
 }
 
-const emptyIndex = indexDownloadJobs([])
-
 export const useDownloadStore = create<DownloadState>((set) => ({
-  jobsById: emptyIndex.jobsById,
-  idsByGroup: emptyIndex.idsByGroup,
+  jobsById: {},
+  groups: {downloading: [], seeding: [], completed: []},
   activeTab: 'downloading',
 
   setActiveTab: (tab) => set({activeTab: tab}),
 
-  setJobs: (jobs) => set(indexDownloadJobs(jobs)),
-
   upsertJob: (job) => {
     set((state) => {
-      const previous = state.jobsById[job.id]
-      const jobsById = {...state.jobsById, [job.id]: job}
-      if (previous === undefined) {
+      const current = state.jobsById[job.id]
+      if (current === undefined) {
         const group = downloadGroup(job.status)
         return {
-          jobsById,
-          idsByGroup: {
-            ...state.idsByGroup,
-            [group]: [job.id, ...state.idsByGroup[group]],
-          },
+          jobsById: {...state.jobsById, [job.id]: job},
+          groups: {...state.groups, [group]: [job.id, ...state.groups[group]]},
         }
       }
-      const previousGroup = downloadGroup(previous.status)
-      const nextGroup = downloadGroup(job.status)
-      if (previousGroup === nextGroup) {
+      const currentFiles = current.files ?? []
+      const nextFiles = job.files ?? []
+      const filesEqual =
+        currentFiles.length === nextFiles.length &&
+        currentFiles.every(
+          (file, index) =>
+            file.path === nextFiles[index].path &&
+            file.length === nextFiles[index].length &&
+            file.bytesCompleted === nextFiles[index].bytesCompleted &&
+            file.selected === nextFiles[index].selected,
+        )
+      if (
+        current.status === job.status &&
+        current.name === job.name &&
+        current.percent === job.percent &&
+        current.bytesCompleted === job.bytesCompleted &&
+        current.bytesTotal === job.bytesTotal &&
+        current.bytesUploaded === job.bytesUploaded &&
+        current.uploadRatio === job.uploadRatio &&
+        current.speedBytesPerSecond === job.speedBytesPerSecond &&
+        current.uploadSpeedBytesPerSecond === job.uploadSpeedBytesPerSecond &&
+        current.error === job.error &&
+        current.source === job.source &&
+        current.live === job.live &&
+        filesEqual
+      ) {
+        return state
+      }
+      const jobsById = {...state.jobsById, [job.id]: job}
+      const oldGroup = downloadGroup(current.status)
+      const newGroup = downloadGroup(job.status)
+      if (oldGroup === newGroup) {
         return {jobsById}
       }
       return {
         jobsById,
-        idsByGroup: {
-          ...state.idsByGroup,
-          [previousGroup]: state.idsByGroup[previousGroup].filter(
-            (id) => id !== job.id,
-          ),
-          [nextGroup]: [job.id, ...state.idsByGroup[nextGroup]],
+        groups: {
+          ...state.groups,
+          [oldGroup]: state.groups[oldGroup].filter((id) => id !== job.id),
+          [newGroup]: [job.id, ...state.groups[newGroup]],
         },
       }
     })
@@ -63,6 +76,16 @@ export const useDownloadStore = create<DownloadState>((set) => ({
 
   loadHistory: async () => {
     const history = await DownloadHistory()
-    set(indexDownloadJobs(history ?? []))
+    const jobsById: Record<number, DownloadView> = {}
+    const groups: Record<DownloadGroup, number[]> = {
+      downloading: [],
+      seeding: [],
+      completed: [],
+    }
+    for (const job of history ?? []) {
+      jobsById[job.id] = job
+      groups[downloadGroup(job.status)].push(job.id)
+    }
+    set({jobsById, groups})
   },
 }))

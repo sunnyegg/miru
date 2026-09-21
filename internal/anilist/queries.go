@@ -3,6 +3,9 @@ package anilist
 import (
 	"fmt"
 	"strings"
+	"sync"
+
+	"golang.org/x/sync/errgroup"
 )
 
 func (c *Client) ViewerName() (string, error) {
@@ -219,6 +222,7 @@ func (c *Client) ListProgressForMedia(ids []int) (map[int]MediaProgress, error) 
 	}
 
 	const chunkSize = 50
+	const maxConcurrentChunks = 4
 	const q = `
 	query ($ids: [Int]) {
 	  Page(perPage: 50) {
@@ -235,6 +239,10 @@ func (c *Client) ListProgressForMedia(ids []int) (map[int]MediaProgress, error) 
 	}`
 
 	result := make(map[int]MediaProgress, len(ids))
+	var resultMu sync.Mutex
+	group := new(errgroup.Group)
+	group.SetLimit(maxConcurrentChunks)
+
 	for start := 0; start < len(ids); start += chunkSize {
 		end := start + chunkSize
 		if end > len(ids) {
@@ -242,17 +250,25 @@ func (c *Client) ListProgressForMedia(ids []int) (map[int]MediaProgress, error) 
 		}
 		chunk := ids[start:end]
 
-		var out struct {
-			Page struct {
-				Media []gqlMediaProgress `json:"media"`
-			} `json:"Page"`
-		}
-		if err := c.query(q, map[string]any{"ids": chunk}, &out); err != nil {
-			return nil, err
-		}
-		for _, media := range out.Page.Media {
-			result[media.ID] = media.toMediaProgress()
-		}
+		group.Go(func() error {
+			var out struct {
+				Page struct {
+					Media []gqlMediaProgress `json:"media"`
+				} `json:"Page"`
+			}
+			if err := c.query(q, map[string]any{"ids": chunk}, &out); err != nil {
+				return err
+			}
+			resultMu.Lock()
+			defer resultMu.Unlock()
+			for _, media := range out.Page.Media {
+				result[media.ID] = media.toMediaProgress()
+			}
+			return nil
+		})
+	}
+	if err := group.Wait(); err != nil {
+		return nil, err
 	}
 	return result, nil
 }

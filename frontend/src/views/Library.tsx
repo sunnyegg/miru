@@ -584,6 +584,7 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
             )}
             <LibraryEpisodeList
               show={selectedShow}
+              playingEpisodeId={playingEpisodeId}
               busyId={busyId}
               unmatchingEpisodeId={unmatchingEpisodeId}
               episodeThumbnails={episodeThumbnails}

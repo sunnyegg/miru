@@ -140,6 +140,7 @@ func (a *App) SaveAnilistToken(token string) error {
 	if err := a.tokens.Set(token); err != nil {
 		return err
 	}
+	a.invalidateAnilistClients()
 	runtime.LogInfo(a.ctx, "AniList connected as "+name)
 	return nil
 }
@@ -149,6 +150,7 @@ func (a *App) LogoutAnilist() error {
 		return err
 	}
 	a.invalidateAnimeListCache()
+	a.invalidateAnilistClients()
 	return a.tokens.Delete()
 }
 
@@ -342,16 +344,23 @@ func (a *App) SaveAnimeListEntry(input AnimeListEntryInput) error {
 }
 
 func (a *App) invalidateAnimeCache(mediaID int) {
-	_ = a.store.DeleteAPICache(animeCacheKey(mediaID))
+	key := animeCacheKey(mediaID)
+	_ = a.store.DeleteAPICache(key)
+	a.deleteAPIMemory(key)
 }
 
 func (a *App) invalidateAnimeListCache() {
 	for _, status := range anilist.ListStatuses {
-		_ = a.store.DeleteAPICache(animeListCacheKey(status))
+		key := animeListCacheKey(status)
+		_ = a.store.DeleteAPICache(key)
+		a.deleteAPIMemory(key)
 	}
 	_ = a.store.DeleteAPICache(watchingCacheKey)
+	a.deleteAPIMemory(watchingCacheKey)
 	_ = a.store.DeleteAPICache(completedCacheKey)
+	a.deleteAPIMemory(completedCacheKey)
 	_ = a.store.DeleteAPICache(animeListCountsCacheKey)
+	a.deleteAPIMemory(animeListCountsCacheKey)
 }
 
 func toWatchingEntryViews(entries []anilist.CurrentEntry) []WatchingEntryView {
@@ -381,12 +390,20 @@ func toWatchingEntryViews(entries []anilist.CurrentEntry) []WatchingEntryView {
 }
 
 func loadCachedJSON[T any](a *App, key string, ttl time.Duration, fetch func() (T, error)) (T, error) {
+	if cached, ok := memoryCachedJSON[T](a, key, ttl); ok {
+		return cached, nil
+	}
 	if cached, ok := cachedJSON[T](a.store, key, ttl); ok {
+		putAPIMemory(a, key, cached)
 		return cached, nil
 	}
 
 	result, err := fetch()
 	if err != nil {
+		if stale, ok := memoryCachedJSON[T](a, key, 0); ok {
+			a.logDebugErr("api cache stale fallback", err)
+			return stale, nil
+		}
 		if stale, ok := cachedJSON[T](a.store, key, 0); ok {
 			a.logDebugErr("api cache stale fallback", err)
 			return stale, nil
@@ -395,6 +412,7 @@ func loadCachedJSON[T any](a *App, key string, ttl time.Duration, fetch func() (
 		return zero, err
 	}
 
+	putAPIMemory(a, key, result)
 	encoded, encodeErr := json.Marshal(result)
 	if encodeErr != nil {
 		a.logDebugErr("api cache encode", encodeErr)
@@ -404,6 +422,41 @@ func loadCachedJSON[T any](a *App, key string, ttl time.Duration, fetch func() (
 		a.logDebugErr("api cache write", err)
 	}
 	return result, nil
+}
+
+func memoryCachedJSON[T any](a *App, key string, ttl time.Duration) (T, bool) {
+	var zero T
+	a.apiMemoryMu.Lock()
+	defer a.apiMemoryMu.Unlock()
+	entry, ok := a.apiMemory[key]
+	if !ok {
+		return zero, false
+	}
+	if ttl > 0 && time.Since(entry.fetchedAt) > ttl {
+		delete(a.apiMemory, key)
+		return zero, false
+	}
+	typed, ok := entry.value.(T)
+	if !ok {
+		delete(a.apiMemory, key)
+		return zero, false
+	}
+	return typed, true
+}
+
+func putAPIMemory(a *App, key string, value any) {
+	a.apiMemoryMu.Lock()
+	defer a.apiMemoryMu.Unlock()
+	if a.apiMemory == nil {
+		a.apiMemory = make(map[string]apiMemoryEntry)
+	}
+	a.apiMemory[key] = apiMemoryEntry{value: value, fetchedAt: time.Now()}
+}
+
+func (a *App) deleteAPIMemory(key string) {
+	a.apiMemoryMu.Lock()
+	defer a.apiMemoryMu.Unlock()
+	delete(a.apiMemory, key)
 }
 
 func cachedJSON[T any](store *storage.Store, key string, ttl time.Duration) (T, bool) {
