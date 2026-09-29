@@ -1,4 +1,4 @@
-import {IconLibrary} from './Icons'
+import {IconMiru} from './Icons'
 
 export function Splash() {
   return (
@@ -8,7 +8,7 @@ export function Splash() {
       aria-label="Loading Miru"
     >
       <div className="flex items-center gap-3 text-foreground">
-        <IconLibrary className="h-6 w-6" />
+        <IconMiru className="h-6 w-6 text-accent" />
         <span className="text-lg font-semibold tracking-tight">Miru</span>
       </div>
       <div
