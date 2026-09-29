@@ -85,3 +85,16 @@ export function IconFolder({className}: IconProps) {
 export function IconHelp({className}: IconProps) {
   return <CircleHelp className={className} {...stroke} />
 }
+
+export function IconMiru({className}: IconProps) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 100 100"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M4.8 0 L50.1 39.6 L95.2 0 L95.2 100 L75.3 84.6 L75.2 43.9 L50.2 66.2 L25.1 43.9 L24.7 84.7 L4.8 100 Z" />
+    </svg>
+  )
+}
