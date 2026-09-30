@@ -6,6 +6,10 @@ export function AddRSSFeed(arg1, arg2) {
   return window['go']['main']['App']['AddRSSFeed'](arg1, arg2);
 }
 
+export function AiringAvailable() {
+  return window['go']['main']['App']['AiringAvailable']();
+}
+
 export function AnilistStatus() {
   return window['go']['main']['App']['AnilistStatus']();
 }

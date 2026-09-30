@@ -27,8 +27,7 @@ const destinations: {
     id: 'calendar',
     label: 'Airing',
     icon: IconCalendar,
-    disabled: true,
-    hint: 'Temporarily unavailable. AniList is returning 403 for its API.',
+    hint: 'Airing schedules are unavailable from AniList.',
   },
 ]
 
@@ -87,7 +86,7 @@ function NavButton({
   )
 }
 
-export function Sidebar() {
+export function Sidebar({airingAvailable}: {airingAvailable: boolean}) {
   const current = useNavigationStore((state) => state.tab)
   const onChange = useNavigationStore((state) => state.setTab)
 
@@ -104,7 +103,17 @@ export function Sidebar() {
       <ul className="flex flex-col">
         {destinations.map((item) => (
           <li key={item.id}>
-            <NavButton {...item} current={current} onChange={onChange} />
+            <NavButton
+              {...item}
+              disabled={item.id === 'calendar' && !airingAvailable}
+              hint={
+                item.id === 'calendar' && !airingAvailable
+                  ? item.hint
+                  : undefined
+              }
+              current={current}
+              onChange={onChange}
+            />
           </li>
         ))}
       </ul>

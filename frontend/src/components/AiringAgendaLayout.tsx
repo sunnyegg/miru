@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState} from 'react'
+import {useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {
   dateKey,
   dayFormatter,
@@ -55,19 +55,25 @@ function easeInOutCubic(progress: number): number {
     : 1 - Math.pow(-2 * progress + 2, 3) / 2
 }
 
-function scrollMainToTodaySection(element: HTMLElement): () => void {
+function scrollMainToTodaySection(
+  element: HTMLElement,
+  smooth: boolean,
+): () => void {
   const scrollContainer = element.closest('main')
   if (!scrollContainer) {
-    element.scrollIntoView({behavior: 'smooth', block: 'start'})
+    element.scrollIntoView({
+      behavior: smooth ? 'smooth' : 'auto',
+      block: 'start',
+    })
     return () => {}
   }
 
   const container = scrollContainer
   const scrollOffset = 24
-  const durationMs = window.matchMedia('(prefers-reduced-motion: reduce)')
-    .matches
-    ? 0
-    : 800
+  const durationMs =
+    smooth && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 800
+      : 0
 
   const containerTop = container.getBoundingClientRect().top
   const elementTop = element.getBoundingClientRect().top
@@ -115,6 +121,7 @@ export function AiringAgendaLayout({
   notice,
 }: Props) {
   const todaySectionRef = useRef<HTMLElement>(null)
+  const lastScrollToTodayRequest = useRef(scrollToTodayRequest)
   const [selectedSchedule, setSelectedSchedule] =
     useState<AiringScheduleView | null>(null)
   const formattedDays = useMemo(
@@ -127,35 +134,19 @@ export function AiringAgendaLayout({
     [days],
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (loading) {
       return
     }
     const todayVisible = formattedDays.some((day) => day.today)
-    if (!todayVisible || !todaySectionRef.current) {
+    const todaySection = todaySectionRef.current
+    if (!todayVisible || !todaySection) {
       return
     }
 
-    let cancelScrollAnimation = () => {}
-    let paintFrame = 0
-    const layoutFrame = requestAnimationFrame(() => {
-      paintFrame = requestAnimationFrame(() => {
-        if (!todaySectionRef.current) {
-          return
-        }
-        cancelScrollAnimation = scrollMainToTodaySection(
-          todaySectionRef.current,
-        )
-      })
-    })
-
-    return () => {
-      cancelAnimationFrame(layoutFrame)
-      if (paintFrame !== 0) {
-        cancelAnimationFrame(paintFrame)
-      }
-      cancelScrollAnimation()
-    }
+    const smooth = scrollToTodayRequest !== lastScrollToTodayRequest.current
+    lastScrollToTodayRequest.current = scrollToTodayRequest
+    return scrollMainToTodaySection(todaySection, smooth)
   }, [loading, formattedDays, scrollToTodayRequest])
 
   if (loading) {

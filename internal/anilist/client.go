@@ -123,6 +123,15 @@ type MediaProgress struct {
 	NextAiringAt      int64  `json:"nextAiringAt"`
 }
 
+type HTTPStatusError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *HTTPStatusError) Error() string {
+	return fmt.Sprintf("anilist http %d: %s", e.StatusCode, e.Body)
+}
+
 type Client struct {
 	HTTP     *http.Client
 	Endpoint string
@@ -184,7 +193,10 @@ func (c *Client) query(query string, variables map[string]any, dest any) error {
 		return err
 	}
 	if resp.StatusCode >= 400 {
-		return fmt.Errorf("anilist http %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
+		return &HTTPStatusError{
+			StatusCode: resp.StatusCode,
+			Body:       strings.TrimSpace(string(raw)),
+		}
 	}
 	var envelope struct {
 		Data   json.RawMessage `json:"data"`

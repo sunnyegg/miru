@@ -5,6 +5,8 @@ import {torrentx} from '../models';
 
 export function AddRSSFeed(arg1:string,arg2:string):Promise<main.RSSFeedView>;
 
+export function AiringAvailable():Promise<boolean>;
+
 export function AnilistStatus():Promise<main.AnilistStatus>;
 
 export function AppVersion():Promise<string>;

@@ -163,6 +163,30 @@ func (a *App) anilistClientID() string {
 	return strings.TrimSpace(id)
 }
 
+func (a *App) AiringAvailable() (bool, error) {
+	if err := a.ready(); err != nil {
+		return false, err
+	}
+	return loadCachedJSON(a, airingAvailabilityCacheKey, airingAvailabilityCacheTTL, func() (bool, error) {
+		client, err := a.newAnilist("")
+		if err != nil {
+			a.logDebugErr("airing availability client", err)
+			return false, nil
+		}
+		start := time.Now().Unix()
+		_, err = client.AiringSchedules(start, start+1)
+		if err == nil {
+			return true, nil
+		}
+		var statusErr *anilist.HTTPStatusError
+		if errors.As(err, &statusErr) && statusErr.StatusCode == http.StatusForbidden {
+			return false, nil
+		}
+		a.logDebugErr("airing availability check", err)
+		return false, nil
+	})
+}
+
 func (a *App) ListAiringSchedule(start, end int64) ([]AiringScheduleView, error) {
 	if err := a.ready(); err != nil {
 		return nil, err

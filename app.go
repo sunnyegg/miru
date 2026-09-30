@@ -27,12 +27,14 @@ import (
 )
 
 const (
-	apiCacheTTL             = 7 * 24 * time.Hour
-	currentListCacheTTL     = time.Hour
-	animeDetailCacheTTL     = time.Hour
-	watchingCacheKey        = "watching"
-	completedCacheKey       = "completed"
-	animeListCountsCacheKey = "anilist:list-counts:v1"
+	apiCacheTTL                = 7 * 24 * time.Hour
+	currentListCacheTTL        = time.Hour
+	animeDetailCacheTTL        = time.Hour
+	airingAvailabilityCacheTTL = 6 * time.Hour
+	airingAvailabilityCacheKey = "anilist:airing-availability:v1"
+	watchingCacheKey           = "watching"
+	completedCacheKey          = "completed"
+	animeListCountsCacheKey    = "anilist:list-counts:v1"
 )
 
 func animeListCacheKey(status string) string {

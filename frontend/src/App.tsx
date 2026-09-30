@@ -3,6 +3,7 @@ import {BrowserOpenURL, EventsOff, EventsOn} from '../wailsjs/runtime/runtime'
 import {
   ApplyUpdate,
   AppVersion,
+  AiringAvailable,
   CheckForUpdate,
   GetSettings,
   InitError,
@@ -47,6 +48,7 @@ export default function App() {
 
   const [initError, setInitError] = useState('')
   const [bootDone, setBootDone] = useState(false)
+  const [airingAvailable, setAiringAvailable] = useState(false)
   const [appVersion, setAppVersion] = useState('')
   const [update, setUpdate] = useState<UpdateInfo | null>(null)
   const [showUpdateBanner, setShowUpdateBanner] = useState(true)
@@ -150,6 +152,14 @@ export default function App() {
     }
   }
 
+  async function loadAiringAvailability() {
+    try {
+      setAiringAvailable(await AiringAvailable())
+    } catch {
+      setAiringAvailable(false)
+    }
+  }
+
   async function markChangelogSeen(version: string) {
     if (!version) {
       return
@@ -165,6 +175,7 @@ export default function App() {
   useEffect(() => {
     void loadInitError()
     void loadVersion()
+    void loadAiringAvailability()
     void (async () => {
       setCheckingUpdate(true)
       try {
@@ -245,7 +256,7 @@ export default function App() {
   return (
     <TooltipProvider delay={300}>
       <div className="flex h-full bg-background text-foreground">
-        <Sidebar />
+        <Sidebar airingAvailable={airingAvailable} />
         <div className="relative flex min-w-0 flex-1 flex-col bg-background">
           {initError && (
             <Alert className="border-0 bg-destructive px-4 py-2 text-sm text-destructive-foreground">

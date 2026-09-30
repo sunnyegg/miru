@@ -8,6 +8,7 @@ type CalendarState = {
   weekOffset: number
   scrollToTodayRequest: number
   schedules: AiringScheduleView[]
+  loadedWeekStart: number | null
   loading: boolean
   error: string
   setWeekOffset: (offset: number | ((current: number) => number)) => void
@@ -25,6 +26,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
   weekOffset: 0,
   scrollToTodayRequest: 0,
   schedules: [],
+  loadedWeekStart: null,
   loading: true,
   error: '',
 
@@ -43,14 +45,18 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
   },
 
   loadSchedules: async () => {
+    const weekStart = weekStartForOffset(get().weekOffset)
+    if (get().loadedWeekStart === weekStart.getTime()) {
+      return
+    }
+
     set({loading: true, error: ''})
     try {
-      const weekStart = weekStartForOffset(get().weekOffset)
       const days = buildWeekDays(weekStart)
       const start = Math.floor(weekStart.getTime() / 1000)
       const end = Math.floor(days[6].getTime() / 1000) + 24 * 60 * 60
       const result = await ListAiringSchedule(Math.max(0, start - 1), end)
-      set({schedules: result ?? []})
+      set({schedules: result ?? [], loadedWeekStart: weekStart.getTime()})
     } catch (err) {
       set({error: errorMessage(err)})
     } finally {
