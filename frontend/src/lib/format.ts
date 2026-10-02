@@ -17,11 +17,18 @@ export function formatSpeed(bytesPerSecond: number): string {
 }
 
 export function errorMessage(err: unknown): string {
-  if (err instanceof Error) {
-    return err.message
+  const message =
+    err instanceof Error
+      ? err.message
+      : typeof err === 'string'
+        ? err
+        : String(err)
+
+  if (
+    /\bhttp(?:\s+status)?\s+429\b|\b429\s+too many requests\b/i.test(message)
+  ) {
+    return 'Too many requests. Please wait a moment, then try again.'
   }
-  if (typeof err === 'string') {
-    return err
-  }
-  return String(err)
+
+  return message
 }

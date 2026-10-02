@@ -286,7 +286,7 @@ func (a *App) maybeSync(session *playSession, percent, threshold float64) {
 	if err := a.store.RecordSync(session.anilistID, session.episodeNum); err != nil {
 		a.logDebugErr("record sync", err)
 	}
-	a.invalidateAnimeListCache()
+	a.invalidateAnilistUserCaches()
 	a.playMu.Lock()
 	session.synced = true
 	a.playMu.Unlock()

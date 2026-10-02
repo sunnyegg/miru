@@ -137,6 +137,10 @@ type Client struct {
 	Endpoint string
 	Token    string
 
+	viewerMu       sync.Mutex
+	viewerID       int
+	viewerIDLoaded bool
+
 	mediaMu    sync.Mutex
 	mediaCache map[int]relatedMedia
 }

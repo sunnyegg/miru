@@ -381,3 +381,11 @@ func (s *Store) DeleteAPICache(key string) error {
 	_, err := s.db.Exec(`DELETE FROM api_cache WHERE cache_key = ?`, key)
 	return err
 }
+
+func (s *Store) DeleteAPICachePrefix(prefix string) error {
+	if prefix == "" {
+		return nil
+	}
+	_, err := s.db.Exec(`DELETE FROM api_cache WHERE substr(cache_key, 1, ?) = ?`, len(prefix), prefix)
+	return err
+}

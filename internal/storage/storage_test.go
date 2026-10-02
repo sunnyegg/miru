@@ -761,6 +761,26 @@ func TestAPICacheTTL(t *testing.T) {
 	}
 }
 
+func TestDeleteAPICachePrefix(t *testing.T) {
+	store := openTestStore(t)
+	for _, key := range []string{"anilist:list:a", "anilist:list:b", "anilist:lists:c"} {
+		if err := store.SetAPICache(key, `[]`); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := store.DeleteAPICachePrefix("anilist:list:"); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"anilist:list:a", "anilist:list:b"} {
+		if _, err := store.GetAPICache(key, 0); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("GetAPICache(%q) = %v, want ErrNotFound", key, err)
+		}
+	}
+	if _, err := store.GetAPICache("anilist:lists:c", 0); err != nil {
+		t.Fatalf("unmatched key was deleted: %v", err)
+	}
+}
+
 func TestEpisodeDownloadsCreatedAtIndex(t *testing.T) {
 	store := openTestStore(t)
 	rows, err := store.db.Query(`EXPLAIN QUERY PLAN SELECT id FROM episode_downloads ORDER BY created_at DESC`)

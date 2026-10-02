@@ -24,6 +24,12 @@ func (c *Client) ViewerName() (string, error) {
 }
 
 func (c *Client) ViewerID() (int, error) {
+	c.viewerMu.Lock()
+	defer c.viewerMu.Unlock()
+	if c.viewerIDLoaded {
+		return c.viewerID, nil
+	}
+
 	var out struct {
 		Viewer struct {
 			ID int `json:"id"`
@@ -35,6 +41,8 @@ func (c *Client) ViewerID() (int, error) {
 	if out.Viewer.ID == 0 {
 		return 0, fmt.Errorf("invalid AniList token")
 	}
+	c.viewerID = out.Viewer.ID
+	c.viewerIDLoaded = true
 	return out.Viewer.ID, nil
 }
 
