@@ -226,8 +226,8 @@ func (a *App) GetAnime(mediaID int) (AnimeView, error) {
 	if mediaID <= 0 {
 		return AnimeView{}, errors.New("invalid anime id")
 	}
-	return loadCachedJSON(a, animeCacheKey(mediaID), animeDetailCacheTTL, func() (AnimeView, error) {
-		token, _ := a.tokens.Get()
+	token, _ := a.tokens.Get()
+	return loadCachedJSON(a, animeCacheKey(mediaID, token), animeDetailCacheTTL, func() (AnimeView, error) {
 		client, err := a.newAnilist(token)
 		if err != nil {
 			return AnimeView{}, err
@@ -368,7 +368,8 @@ func (a *App) SaveAnimeListEntry(input AnimeListEntryInput) error {
 }
 
 func (a *App) invalidateAnimeCache(mediaID int) {
-	key := animeCacheKey(mediaID)
+	token, _ := a.tokens.Get()
+	key := animeCacheKey(mediaID, token)
 	_ = a.store.DeleteAPICache(key)
 	a.deleteAPIMemory(key)
 }
@@ -457,7 +458,6 @@ func memoryCachedJSON[T any](a *App, key string, ttl time.Duration) (T, bool) {
 		return zero, false
 	}
 	if ttl > 0 && time.Since(entry.fetchedAt) > ttl {
-		delete(a.apiMemory, key)
 		return zero, false
 	}
 	typed, ok := entry.value.(T)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"net/http"
@@ -41,8 +42,12 @@ func animeListCacheKey(status string) string {
 	return "anilist:list:v2:" + strings.ToLower(strings.TrimSpace(status))
 }
 
-func animeCacheKey(mediaID int) string {
-	return fmt.Sprintf("anime:v2:%d", mediaID)
+func animeCacheKey(mediaID int, token string) string {
+	scope := "anonymous"
+	if token != "" {
+		scope = fmt.Sprintf("%x", sha256.Sum256([]byte(token)))
+	}
+	return fmt.Sprintf("anime:v3:%s:%d", scope, mediaID)
 }
 
 type App struct {

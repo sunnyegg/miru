@@ -84,11 +84,14 @@ func TestGetAnime(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(body.Query, "studios") || !strings.Contains(body.Query, "bannerImage") || !strings.Contains(body.Query, "nextAiringEpisode") {
-			t.Fatalf("query missing detail fields: %s", body.Query)
+		for _, field := range []string{"native", "extraLarge", "bannerImage", "format", "episodes", "duration", "status", "nextAiringEpisode", "season", "seasonYear", "source", "genres", "averageScore", "popularity", "favourites", "studios", "description(asHtml: true)", "mediaListEntry { status }"} {
+			if !strings.Contains(body.Query, field) {
+				t.Fatalf("query missing %s: %s", field, body.Query)
+			}
 		}
+
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":{"Media":{"id":21,"title":{"romaji":"Sousou no Frieren","english":"Frieren: Beyond Journey's End","native":"葬送のフリーレン"},"coverImage":{"extraLarge":"xl","large":"l"},"bannerImage":"banner","format":"TV","episodes":28,"duration":24,"status":"RELEASING","nextAiringEpisode":{"episode":5,"airingAt":1730000000},"season":"FALL","seasonYear":2023,"source":"MANGA","genres":["Adventure","Drama"],"averageScore":90,"popularity":500000,"favourites":40000,"studios":{"nodes":[{"name":"Madhouse"},{"name":"Toho"}]},"description":"<p>syn</p>"}}}`))
+		_, _ = w.Write([]byte(`{"data":{"Media":{"id":21,"title":{"romaji":"Sousou no Frieren","english":"Frieren: Beyond Journey's End","native":"葬送のフリーレン"},"coverImage":{"extraLarge":"xl","large":"l"},"bannerImage":"banner","format":"TV","episodes":28,"duration":24,"status":"RELEASING","nextAiringEpisode":{"episode":5,"airingAt":1730000000},"season":"FALL","seasonYear":2023,"source":"MANGA","genres":["Adventure","Drama"],"averageScore":90,"popularity":500000,"favourites":40000,"studios":{"nodes":[{"name":"Madhouse"},{"name":"Toho"}]},"description":"<p>syn</p>","mediaListEntry":{"status":"PLANNING"}}}}`))
 	}))
 	defer server.Close()
 
@@ -99,6 +102,9 @@ func TestGetAnime(t *testing.T) {
 	anime, err := client.GetAnime(21)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if anime.ListStatus != "PLANNING" || anime.Synopsis != "<p>syn</p>" {
+		t.Fatalf("synopsis/list status = %+v", anime)
 	}
 	if anime.TitleNative != "葬送のフリーレン" || anime.BannerImage != "banner" {
 		t.Fatalf("title/banner = %+v", anime)
