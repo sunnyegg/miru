@@ -76,6 +76,29 @@ func TestSearchAndSave(t *testing.T) {
 	}
 }
 
+func TestViewerIDIsCachedForClient(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"Viewer":{"id":42}}}`))
+	}))
+	defer server.Close()
+
+	client := New("token")
+	client.Endpoint = server.URL
+	client.HTTP = server.Client()
+	for range 2 {
+		id, err := client.ViewerID()
+		if err != nil || id != 42 {
+			t.Fatalf("ViewerID() = %d, %v", id, err)
+		}
+	}
+	if requests.Load() != 1 {
+		t.Fatalf("ViewerID requests = %d, want 1", requests.Load())
+	}
+}
+
 func TestGetAnime(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {

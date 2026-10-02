@@ -72,12 +72,13 @@ func (a *App) applyAnilistProgress(episodes []EpisodeView) {
 		ids = append(ids, mediaID)
 	}
 	token, _ := a.tokens.Get()
-	client, err := a.newAnilist(token)
-	if err != nil {
-		a.logDebugErr("anilist progress client", err)
-		return
-	}
-	progressByMedia, err := client.ListProgressForMedia(ids)
+	progressByMedia, err := loadCachedJSON(a, animeProgressCacheKey(ids, token), animeProgressCacheTTL, func() (map[int]anilist.MediaProgress, error) {
+		client, err := a.newAnilist(token)
+		if err != nil {
+			return nil, err
+		}
+		return client.ListProgressForMedia(ids)
+	})
 	if err != nil {
 		a.logDebugErr("anilist progress fetch", err)
 		return
@@ -124,15 +125,21 @@ func (a *App) SearchAnime(query string) ([]AnimeView, error) {
 		return nil, err
 	}
 	token, _ := a.tokens.Get()
-	client, err := a.newAnilist(token)
-	if err != nil {
-		return nil, err
-	}
-	results, err := client.Search(query)
-	if err != nil {
-		return nil, err
-	}
-	return toAnimeViews(results), nil
+	return a.searchAnime(query, token)
+}
+
+func (a *App) searchAnime(query, token string) ([]AnimeView, error) {
+	return loadCachedJSON(a, animeSearchCacheKey(query, token), animeSearchCacheTTL, func() ([]AnimeView, error) {
+		client, err := a.newAnilist(token)
+		if err != nil {
+			return nil, err
+		}
+		results, err := client.Search(query)
+		if err != nil {
+			return nil, err
+		}
+		return toAnimeViews(results), nil
+	})
 }
 
 func (a *App) BindEpisode(episodeID int64, anilistID int) error {
@@ -143,16 +150,16 @@ func (a *App) BindEpisode(episodeID int64, anilistID int) error {
 	if err != nil {
 		return err
 	}
-	token, _ := a.tokens.Get()
-	client, err := a.newAnilist(token)
-	if err != nil {
-		return err
-	}
-	anime, err := client.GetAnime(anilistID)
+	anime, err := a.GetAnime(anilistID)
 	if err != nil {
 		return err
 	}
 	if err := a.store.UpsertAnime(toStoredAnime(anime)); err != nil {
+		return err
+	}
+	token, _ := a.tokens.Get()
+	client, err := a.newAnilist(token)
+	if err != nil {
 		return err
 	}
 	episodeNum := 0
@@ -243,18 +250,13 @@ func (a *App) resolveImportMatch(parsed media.Parsed, ep *storage.Episode) ([]An
 	if parsed.Title == "" {
 		return nil, false, nil
 	}
-	client, err := a.newAnilist("")
-	if err != nil {
-		return nil, false, err
-	}
-	found, err := client.Search(parsed.Title)
+	found, err := a.searchAnime(parsed.Title, "")
 	if err != nil {
 		a.logDebugErr("import anilist search", err)
 		return nil, false, nil
 	}
-	candidates := toAnimeViews(found)
 	if len(found) != 1 {
-		return candidates, false, nil
+		return found, false, nil
 	}
 	if err := a.store.UpsertAnime(toStoredAnime(found[0])); err != nil {
 		return nil, false, err
@@ -262,14 +264,18 @@ func (a *App) resolveImportMatch(parsed media.Parsed, ep *storage.Episode) ([]An
 	ep.AnilistID = sql.NullInt64{Int64: int64(found[0].ID), Valid: true}
 	number, hasNumber := media.EpisodeOrSingle(parsed, found[0].TotalEpisodes)
 	if !hasNumber {
-		return candidates, true, nil
+		return found, true, nil
 	}
 	taken, err := a.store.HasEpisodeNumber(found[0].ID, number, 0)
 	if err != nil {
 		return nil, false, err
 	}
 	if taken {
-		return candidates, true, nil
+		return found, true, nil
+	}
+	client, err := a.newAnilist("")
+	if err != nil {
+		return nil, false, err
 	}
 	mapped, mapErr := client.MapSeasonEpisode(found[0].ID, number)
 	if mapErr != nil {
@@ -278,7 +284,7 @@ func (a *App) resolveImportMatch(parsed media.Parsed, ep *storage.Episode) ([]An
 		number = mapped
 	}
 	ep.EpisodeNumber = sql.NullInt64{Int64: int64(number), Valid: true}
-	return candidates, true, nil
+	return found, true, nil
 }
 
 func toEpisodeView(e storage.Episode) EpisodeView {
@@ -347,7 +353,7 @@ func toAnimeViews(in []anilist.Anime) []AnimeView {
 	return out
 }
 
-func toStoredAnime(a anilist.Anime) storage.Anime {
+func toStoredAnime(a AnimeView) storage.Anime {
 	return storage.Anime{
 		AnilistID:     a.ID,
 		TitleRomaji:   a.TitleRomaji,

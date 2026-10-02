@@ -202,7 +202,7 @@ export default function App() {
       usePlaybackStore.getState().clearPlaying()
     })
     EventsOn('sync:result', (payload: SyncEvent) => {
-      showNotice(payload.message, !payload.ok)
+      showNotice(errorMessage(payload.message), !payload.ok)
       if (payload.ok) {
         void useLibraryStore.getState().reload(showNotice)
       }

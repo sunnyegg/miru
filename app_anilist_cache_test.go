@@ -2,8 +2,8 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
-	"github.com/sunnyegg/miru/internal/secrets"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -11,6 +11,9 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/sunnyegg/miru/internal/secrets"
+	"github.com/sunnyegg/miru/internal/storage"
 )
 
 func TestNewAnilistReusesClientAndHTTPTransport(t *testing.T) {
@@ -250,5 +253,189 @@ func TestGetAnimeSharesDetailCacheWithinAccount(t *testing.T) {
 	}
 	if requests.Load() != 6 {
 		t.Fatalf("disk stale requests = %d", requests.Load())
+	}
+}
+
+func TestAnimeSearchCacheIsAccountScopedAndInvalidated(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		status := "PLANNING"
+		if r.Header.Get("Authorization") == "Bearer token-b" {
+			status = "CURRENT"
+		}
+		_, _ = fmt.Fprintf(w, `{"data":{"Page":{"media":[{"id":21,"title":{"romaji":"Test"},"coverImage":{"large":"cover"},"episodes":12,"status":"FINISHED","description":"synopsis","mediaListEntry":{"status":%q}}]}}}`, status)
+	}))
+	defer server.Close()
+
+	a := newSettingsApp(t)
+	a.tokens = &secrets.MemoryStore{}
+	for _, token := range []string{"token-a", "token-b"} {
+		client, err := a.newAnilist(token)
+		if err != nil {
+			t.Fatal(err)
+		}
+		client.Endpoint = server.URL
+		client.HTTP = server.Client()
+	}
+	if err := a.tokens.Set("token-a"); err != nil {
+		t.Fatal(err)
+	}
+	first, err := a.SearchAnime("Test")
+	if err != nil || len(first) != 1 || first[0].ListStatus != "PLANNING" {
+		t.Fatalf("first search = %+v, %v", first, err)
+	}
+	if _, err := a.SearchAnime(" test "); err != nil {
+		t.Fatal(err)
+	}
+	if requests.Load() != 1 {
+		t.Fatalf("same normalized query requests = %d, want 1", requests.Load())
+	}
+
+	if err := a.tokens.Set("token-b"); err != nil {
+		t.Fatal(err)
+	}
+	second, err := a.SearchAnime("test")
+	if err != nil || len(second) != 1 || second[0].ListStatus != "CURRENT" {
+		t.Fatalf("second account search = %+v, %v", second, err)
+	}
+	if requests.Load() != 2 {
+		t.Fatalf("account-scoped requests = %d, want 2", requests.Load())
+	}
+
+	a.invalidateAnilistUserCaches()
+	if _, err := a.SearchAnime("test"); err != nil {
+		t.Fatal(err)
+	}
+	if requests.Load() != 3 {
+		t.Fatalf("requests after invalidation = %d, want 3", requests.Load())
+	}
+}
+
+func TestAnimeListCachesAreAccountScoped(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		var body struct {
+			Query string `json:"query"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		userID := 1
+		mediaID := 101
+		count := 1
+		if r.Header.Get("Authorization") == "Bearer token-b" {
+			userID, mediaID, count = 2, 202, 2
+		}
+		switch {
+		case strings.Contains(body.Query, "Viewer {"):
+			_, _ = fmt.Fprintf(w, `{"data":{"Viewer":{"id":%d}}}`, userID)
+		case strings.Contains(body.Query, "MediaListCollection"):
+			entries := strings.Repeat(`{"status":"CURRENT"},`, count)
+			entries = strings.TrimSuffix(entries, ",")
+			_, _ = fmt.Fprintf(w, `{"data":{"MediaListCollection":{"lists":[{"entries":[%s]}]}}}`, entries)
+		default:
+			_, _ = fmt.Fprintf(w, `{"data":{"Page":{"pageInfo":{"hasNextPage":false},"mediaList":[{"status":"CURRENT","progress":1,"media":{"id":%d,"title":{"romaji":"Test"},"episodes":12,"status":"FINISHED"}}]}}}`, mediaID)
+		}
+	}))
+	defer server.Close()
+
+	a := newSettingsApp(t)
+	a.tokens = &secrets.MemoryStore{}
+	for _, token := range []string{"token-a", "token-b"} {
+		client, err := a.newAnilist(token)
+		if err != nil {
+			t.Fatal(err)
+		}
+		client.Endpoint = server.URL
+		client.HTTP = server.Client()
+	}
+	if err := a.tokens.Set("token-a"); err != nil {
+		t.Fatal(err)
+	}
+	entriesA, err := a.ListAnimeList("CURRENT")
+	if err != nil || len(entriesA) != 1 || entriesA[0].MediaID != 101 {
+		t.Fatalf("account A list = %+v, %v", entriesA, err)
+	}
+	if _, err := a.ListAnimeList("CURRENT"); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.tokens.Set("token-b"); err != nil {
+		t.Fatal(err)
+	}
+	entriesB, err := a.ListAnimeList("CURRENT")
+	if err != nil || len(entriesB) != 1 || entriesB[0].MediaID != 202 {
+		t.Fatalf("account B list = %+v, %v", entriesB, err)
+	}
+	if err := a.tokens.Set("token-a"); err != nil {
+		t.Fatal(err)
+	}
+	countsA, err := a.ListAnimeListCounts()
+	if err != nil || countsA["CURRENT"] != 1 {
+		t.Fatalf("account A counts = %+v, %v", countsA, err)
+	}
+	if err := a.tokens.Set("token-b"); err != nil {
+		t.Fatal(err)
+	}
+	countsB, err := a.ListAnimeListCounts()
+	if err != nil || countsB["CURRENT"] != 2 {
+		t.Fatalf("account B counts = %+v, %v", countsB, err)
+	}
+	if requests.Load() != 6 {
+		t.Fatalf("requests = %d, want 6 including one cached ViewerID per account", requests.Load())
+	}
+}
+
+func TestListEpisodesCachesProgressUntilUserDataInvalidation(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(w, `{"data":{"Page":{"media":[{"id":42,"episodes":12,"status":"RELEASING","mediaListEntry":{"progress":6}}]}}}`)
+	}))
+	defer server.Close()
+
+	a := newSettingsApp(t)
+	a.tokens = &secrets.MemoryStore{}
+	if err := a.tokens.Set("token-a"); err != nil {
+		t.Fatal(err)
+	}
+	client, err := a.newAnilist("token-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.Endpoint = server.URL
+	client.HTTP = server.Client()
+	if err := a.store.UpsertAnime(storage.Anime{AnilistID: 42, TitleRomaji: "Test", TotalEpisodes: 12}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = a.store.InsertEpisode(storage.Episode{
+		AnilistID:     sql.NullInt64{Int64: 42, Valid: true},
+		EpisodeNumber: sql.NullInt64{Int64: 6, Valid: true},
+		FilePath:      "/tmp/test.mkv",
+		Status:        "COMPLETED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		episodes, err := a.ListEpisodes()
+		if err != nil || len(episodes) != 1 || episodes[0].Progress != 6 {
+			t.Fatalf("ListEpisodes() = %+v, %v", episodes, err)
+		}
+	}
+	if requests.Load() != 1 {
+		t.Fatalf("cached progress requests = %d, want 1", requests.Load())
+	}
+
+	a.invalidateAnilistUserCaches()
+	if _, err := a.ListEpisodes(); err != nil {
+		t.Fatal(err)
+	}
+	if requests.Load() != 2 {
+		t.Fatalf("requests after invalidation = %d, want 2", requests.Load())
 	}
 }

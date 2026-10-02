@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -28,26 +29,54 @@ import (
 )
 
 const (
-	apiCacheTTL                = 7 * 24 * time.Hour
-	currentListCacheTTL        = time.Hour
-	animeDetailCacheTTL        = time.Hour
-	airingAvailabilityCacheTTL = 6 * time.Hour
-	airingAvailabilityCacheKey = "anilist:airing-availability:v1"
-	watchingCacheKey           = "watching"
-	completedCacheKey          = "completed"
-	animeListCountsCacheKey    = "anilist:list-counts:v1"
+	apiCacheTTL                    = 7 * 24 * time.Hour
+	currentListCacheTTL            = time.Hour
+	animeDetailCacheTTL            = time.Hour
+	animeSearchCacheTTL            = 15 * time.Minute
+	animeProgressCacheTTL          = time.Minute
+	airingAvailabilityCacheTTL     = 6 * time.Hour
+	airingAvailabilityCacheKey     = "anilist:airing-availability:v1"
+	watchingCacheKey               = "watching"
+	completedCacheKey              = "completed"
+	animeListCacheFamilyPrefix     = "anilist:list:"
+	animeListCachePrefix           = animeListCacheFamilyPrefix + "v3:"
+	animeListCountsFamilyPrefix    = "anilist:list-counts:"
+	animeListCountsCachePrefix     = animeListCountsFamilyPrefix + "v2:"
+	animeSearchCacheFamilyPrefix   = "anilist:search:"
+	animeSearchCachePrefix         = animeSearchCacheFamilyPrefix + "v1:"
+	animeProgressCacheFamilyPrefix = "anilist:progress:"
+	animeProgressCachePrefix       = animeProgressCacheFamilyPrefix + "v1:"
 )
 
-func animeListCacheKey(status string) string {
-	return "anilist:list:v2:" + strings.ToLower(strings.TrimSpace(status))
+func anilistCacheScope(token string) string {
+	if token == "" {
+		return "anonymous"
+	}
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(token)))
+}
+
+func animeListCacheKey(status, token string) string {
+	return fmt.Sprintf("%s%s:%s", animeListCachePrefix, anilistCacheScope(token), strings.ToLower(strings.TrimSpace(status)))
+}
+
+func animeListCountsCacheKey(token string) string {
+	return animeListCountsCachePrefix + anilistCacheScope(token)
+}
+
+func animeSearchCacheKey(query, token string) string {
+	queryHash := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(query))))
+	return fmt.Sprintf("%s%s:%x", animeSearchCachePrefix, anilistCacheScope(token), queryHash)
+}
+
+func animeProgressCacheKey(ids []int, token string) string {
+	sortedIDs := append([]int(nil), ids...)
+	sort.Ints(sortedIDs)
+	idsHash := sha256.Sum256([]byte(fmt.Sprint(sortedIDs)))
+	return fmt.Sprintf("%s%s:%x", animeProgressCachePrefix, anilistCacheScope(token), idsHash)
 }
 
 func animeCacheKey(mediaID int, token string) string {
-	scope := "anonymous"
-	if token != "" {
-		scope = fmt.Sprintf("%x", sha256.Sum256([]byte(token)))
-	}
-	return fmt.Sprintf("anime:v3:%s:%d", scope, mediaID)
+	return fmt.Sprintf("anime:v3:%s:%d", anilistCacheScope(token), mediaID)
 }
 
 type App struct {

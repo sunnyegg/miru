@@ -140,6 +140,7 @@ func (a *App) SaveAnilistToken(token string) error {
 	if err := a.tokens.Set(token); err != nil {
 		return err
 	}
+	a.invalidateAnilistUserCaches()
 	a.invalidateAnilistClients()
 	runtime.LogInfo(a.ctx, "AniList connected as "+name)
 	return nil
@@ -149,7 +150,7 @@ func (a *App) LogoutAnilist() error {
 	if err := a.ready(); err != nil {
 		return err
 	}
-	a.invalidateAnimeListCache()
+	a.invalidateAnilistUserCaches()
 	a.invalidateAnilistClients()
 	return a.tokens.Delete()
 }
@@ -257,7 +258,7 @@ func (a *App) ListAnimeList(status string) ([]WatchingEntryView, error) {
 	if err != nil {
 		return nil, errors.New("AniList not connected")
 	}
-	cacheKey := animeListCacheKey(status)
+	cacheKey := animeListCacheKey(status, token)
 	cacheTTL := apiCacheTTL
 	if status == "CURRENT" {
 		cacheTTL = currentListCacheTTL
@@ -283,7 +284,7 @@ func (a *App) ListAnimeListCounts() (map[string]int, error) {
 	if err != nil {
 		return nil, errors.New("AniList not connected")
 	}
-	return loadCachedJSON(a, animeListCountsCacheKey, currentListCacheTTL, func() (map[string]int, error) {
+	return loadCachedJSON(a, animeListCountsCacheKey(token), currentListCacheTTL, func() (map[string]int, error) {
 		client, err := a.newAnilist(token)
 		if err != nil {
 			return nil, err
@@ -320,7 +321,7 @@ func (a *App) SetAnimeListStatus(mediaID int, status string, totalEpisodes int) 
 	if err := client.SaveListStatus(mediaID, status, progress); err != nil {
 		return err
 	}
-	a.invalidateAnimeListCache()
+	a.invalidateAnilistUserCaches()
 	a.invalidateAnimeCache(mediaID)
 	return nil
 }
@@ -362,7 +363,7 @@ func (a *App) SaveAnimeListEntry(input AnimeListEntryInput) error {
 	if err := client.SaveListEntry(save); err != nil {
 		return err
 	}
-	a.invalidateAnimeListCache()
+	a.invalidateAnilistUserCaches()
 	a.invalidateAnimeCache(input.MediaID)
 	return nil
 }
@@ -374,18 +375,19 @@ func (a *App) invalidateAnimeCache(mediaID int) {
 	a.deleteAPIMemory(key)
 }
 
-func (a *App) invalidateAnimeListCache() {
-	for _, status := range anilist.ListStatuses {
-		key := animeListCacheKey(status)
+func (a *App) invalidateAnilistUserCaches() {
+	for _, prefix := range []string{
+		animeListCacheFamilyPrefix,
+		animeListCountsFamilyPrefix,
+		animeSearchCacheFamilyPrefix,
+		animeProgressCacheFamilyPrefix,
+	} {
+		a.deleteAPICachePrefix(prefix)
+	}
+	for _, key := range []string{watchingCacheKey, completedCacheKey} {
 		_ = a.store.DeleteAPICache(key)
 		a.deleteAPIMemory(key)
 	}
-	_ = a.store.DeleteAPICache(watchingCacheKey)
-	a.deleteAPIMemory(watchingCacheKey)
-	_ = a.store.DeleteAPICache(completedCacheKey)
-	a.deleteAPIMemory(completedCacheKey)
-	_ = a.store.DeleteAPICache(animeListCountsCacheKey)
-	a.deleteAPIMemory(animeListCountsCacheKey)
 }
 
 func toWatchingEntryViews(entries []anilist.CurrentEntry) []WatchingEntryView {
@@ -481,6 +483,19 @@ func (a *App) deleteAPIMemory(key string) {
 	a.apiMemoryMu.Lock()
 	defer a.apiMemoryMu.Unlock()
 	delete(a.apiMemory, key)
+}
+
+func (a *App) deleteAPICachePrefix(prefix string) {
+	if err := a.store.DeleteAPICachePrefix(prefix); err != nil {
+		a.logDebugErr("api cache prefix invalidate", err)
+	}
+	a.apiMemoryMu.Lock()
+	defer a.apiMemoryMu.Unlock()
+	for key := range a.apiMemory {
+		if strings.HasPrefix(key, prefix) {
+			delete(a.apiMemory, key)
+		}
+	}
 }
 
 func cachedJSON[T any](store *storage.Store, key string, ttl time.Duration) (T, bool) {
