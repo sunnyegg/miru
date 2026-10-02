@@ -12,6 +12,7 @@ the [issue tracker](https://github.com/sunnyegg/miru/issues).
 - **Playback** — MPV playback with per-episode resume and watch-position indicators that survive download cleanup, plus watch progress synced to AniList at a configurable threshold (default 85%)
 - **AniList** — browser OAuth, list statuses, and an episode catalog on each show page
 - **Search** — AniList anime search, plus Nyaa and Tokyo Toshokan torrent RSS with pagination
+- **Anime details** — Library, Search, and Airing share the same complete metadata, including labeled genres and the next-episode countdown. Details share an account-scoped memory and SQLite cache for one hour, with cached data available when a refresh fails; search summaries and airing schedules remain separate.
 - **Downloads** — built-in BitTorrent for magnet and `.torrent` links, with file selection, a concurrent limit, queue, bandwidth caps, and seeding across restarts
 - **Airing** — weekly AniList schedule with controls for adding titles to Watching, Planning, or Completed; enabled after AniList responds successfully, with availability cached for six hours
 - **Settings** — MPV path, Anime4K upscaling, Discord Rich Presence, close to system tray, download folder, speed limits, max concurrent downloads, seed ratio, RSS poll interval, auto-download from RSS, desktop notifications, network mode (system / direct / SOCKS5 / HTTP proxy), AniList, updates, and a full data reset

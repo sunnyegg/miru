@@ -1,6 +1,10 @@
-import {useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {IconCalendar, IconCheck, IconChevronDown, IconPlay} from './Icons'
-import {sanitizeAnilistSynopsis} from '../lib/anilistDescription'
+import {GetAnime} from '../../wailsjs/go/main/App'
+import {AnimeMetadata} from './AnimeMetadata'
+import {errorMessage} from '../lib/format'
+import {Alert, AlertDescription} from '@/components/ui/alert'
+import {Skeleton} from '@/components/ui/skeleton'
 import type {AnimeView} from '../lib/types'
 import {useWatchingStore, type QuickAddStatus} from '../stores/watchingStore'
 import {Button} from '@/components/ui/button'
@@ -39,24 +43,6 @@ const listActions: {
   {status: 'COMPLETED', label: 'Add to Completed', Icon: IconCheck},
 ]
 
-const mediaStatusLabels: Record<string, string> = {
-  RELEASING: 'Airing',
-  FINISHED: 'Finished',
-  NOT_YET_RELEASED: 'Not yet aired',
-  CANCELLED: 'Cancelled',
-  HIATUS: 'On hiatus',
-}
-
-function mediaStatusLabel(status: string): string {
-  return mediaStatusLabels[status] ?? status
-}
-
-function episodeCountLabel(totalEpisodes: number): string {
-  return totalEpisodes > 0
-    ? `${totalEpisodes} episodes`
-    : 'Unknown episode count'
-}
-
 export function AnimeDetailDialog({
   anime,
   notice,
@@ -67,8 +53,42 @@ export function AnimeDetailDialog({
   const [activeListStatus, setActiveListStatus] = useState(anime.listStatus)
   const [savingStatus, setSavingStatus] = useState<QuickAddStatus | null>(null)
 
-  const title = anime.titleEnglish || anime.titleRomaji
-  const romajiTitle = anime.titleRomaji.trim()
+  const [details, setDetails] = useState<AnimeView | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const saveRequestRef = useRef(0)
+
+  useEffect(() => {
+    let cancelled = false
+    saveRequestRef.current += 1
+    setDetails(null)
+    setActiveListStatus('')
+    setSavingStatus(null)
+    setLoading(true)
+    setError('')
+    async function loadAnimeDetails() {
+      try {
+        const result = await GetAnime(anime.id)
+        if (!cancelled) {
+          setDetails(result)
+          setActiveListStatus(result.listStatus)
+        }
+      } catch (err) {
+        if (!cancelled) setError(errorMessage(err))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    void loadAnimeDetails()
+    return () => {
+      cancelled = true
+      saveRequestRef.current += 1
+    }
+  }, [anime.id])
+
+  const displayedAnime = details ?? anime
+  const title = displayedAnime.titleEnglish || displayedAnime.titleRomaji
+  const romajiTitle = displayedAnime.titleRomaji.trim()
   const showRomaji = romajiTitle.length > 0 && romajiTitle !== title
   const activeListLabel = listStatusLabels[activeListStatus]
   const listButtonLabel = savingStatus
@@ -78,23 +98,29 @@ export function AnimeDetailDialog({
       : 'Add to list'
 
   async function updateListStatus(status: QuickAddStatus) {
-    if (savingStatus !== null || activeListStatus === status) {
+    if (
+      !details ||
+      loading ||
+      savingStatus !== null ||
+      activeListStatus === status
+    ) {
       return
     }
+    const request = ++saveRequestRef.current
     setSavingStatus(status)
     try {
       const saved = await saveListStatus(
         anime.id,
         status,
-        status === 'COMPLETED' ? anime.totalEpisodes : 0,
+        status === 'COMPLETED' ? details.totalEpisodes : 0,
         notice,
       )
-      if (saved) {
+      if (saved && saveRequestRef.current === request) {
         setActiveListStatus(status)
         onStatusChange(status)
       }
     } finally {
-      setSavingStatus(null)
+      if (saveRequestRef.current === request) setSavingStatus(null)
     }
   }
 
@@ -129,13 +155,15 @@ export function AnimeDetailDialog({
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <DropdownMenu disabled={savingStatus !== null}>
+                <DropdownMenu
+                  disabled={loading || !details || savingStatus !== null}
+                >
                   <DropdownMenuTrigger
                     render={
                       <Button
                         type="button"
                         variant="secondary"
-                        disabled={savingStatus !== null}
+                        disabled={loading || !details || savingStatus !== null}
                         aria-busy={savingStatus !== null}
                       />
                     }
@@ -146,7 +174,7 @@ export function AnimeDetailDialog({
                   <DropdownMenuContent aria-label="Add anime to list">
                     <DropdownMenuRadioGroup
                       value={activeListStatus}
-                      disabled={savingStatus !== null}
+                      disabled={loading || !details || savingStatus !== null}
                       onValueChange={(value) =>
                         void updateListStatus(value as QuickAddStatus)
                       }
@@ -183,9 +211,9 @@ export function AnimeDetailDialog({
             </div>
 
             <div className="mt-6 flex flex-col gap-6 sm:flex-row">
-              {anime.coverImage ? (
+              {displayedAnime.coverImage ? (
                 <img
-                  src={anime.coverImage}
+                  src={displayedAnime.coverImage}
                   alt=""
                   width={224}
                   height={336}
@@ -200,33 +228,15 @@ export function AnimeDetailDialog({
               )}
 
               <div className="flex min-w-0 flex-1 flex-col gap-4 text-base">
-                <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-                  {anime.status && (
-                    <div>
-                      <dt className="text-sm text-muted-foreground">Status</dt>
-                      <dd className="font-medium">
-                        {mediaStatusLabel(anime.status)}
-                      </dd>
-                    </div>
-                  )}
-                  <div>
-                    <dt className="text-sm text-muted-foreground">Episodes</dt>
-                    <dd className="font-medium">
-                      {episodeCountLabel(anime.totalEpisodes)}
-                    </dd>
-                  </div>
-                </dl>
-                {anime.synopsis.trim() && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Synopsis</p>
-                    <div
-                      className="mt-1 max-h-72 overflow-y-auto text-foreground/90 [&_a]:text-accent [&_a]:underline"
-                      dangerouslySetInnerHTML={{
-                        __html: sanitizeAnilistSynopsis(anime.synopsis),
-                      }}
-                    />
-                  </div>
-                )}
+                {loading ? (
+                  <Skeleton className="h-40 w-full" />
+                ) : error ? (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                ) : details ? (
+                  <AnimeMetadata anime={details} />
+                ) : null}
               </div>
             </div>
           </Dialog.Panel>

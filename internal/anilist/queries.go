@@ -202,6 +202,7 @@ func (c *Client) GetAnime(id int) (Anime, error) {
 	    favourites
 	    studios(isMain: true) { nodes { name } }
 	    description(asHtml: true)
+    mediaListEntry { status }
 	  }
 	}`
 	var out struct {

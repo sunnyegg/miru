@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from 'react'
 import {GetAnime} from '../../wailsjs/go/main/App'
 import {IconCalendar, IconCheck, IconChevronDown, IconPlay} from './Icons'
 import {anilistExtraLargeCover} from '../lib/anilistImage'
-import {sanitizeAnilistSynopsis} from '../lib/anilistDescription'
+import {AnimeMetadata} from './AnimeMetadata'
 import {dayFormatter, scheduleTitle, timeFormatter} from '../lib/calendar'
 import {errorMessage} from '../lib/format'
 import type {AiringScheduleView, AnimeView} from '../lib/types'
@@ -43,28 +43,6 @@ const listActions: {
   {status: 'PLANNING', label: 'Add to Planning', Icon: IconCalendar},
   {status: 'COMPLETED', label: 'Add to Completed', Icon: IconCheck},
 ]
-
-const mediaStatusLabels: Record<string, string> = {
-  RELEASING: 'Airing',
-  FINISHED: 'Finished',
-  NOT_YET_RELEASED: 'Not yet aired',
-  CANCELLED: 'Cancelled',
-  HIATUS: 'On hiatus',
-}
-
-function mediaStatusLabel(status: string): string {
-  if (!status) {
-    return ''
-  }
-  return mediaStatusLabels[status] ?? status
-}
-
-function episodeCountLabel(totalEpisodes: number): string {
-  if (totalEpisodes <= 0) {
-    return 'Unknown episode count'
-  }
-  return `${totalEpisodes} episodes`
-}
 
 export function AiringScheduleDialog({schedule, notice, onClose}: Props) {
   const saveListStatus = useWatchingStore((state) => state.setListStatus)
@@ -122,6 +100,7 @@ export function AiringScheduleDialog({schedule, notice, onClose}: Props) {
 
     return () => {
       cancelled = true
+      saveRequestRef.current += 1
     }
   }, [schedule])
 
@@ -140,7 +119,13 @@ export function AiringScheduleDialog({schedule, notice, onClose}: Props) {
   }, [posterExpanded])
 
   async function updateListStatus(status: QuickAddStatus) {
-    if (!schedule || savingStatus !== null || activeListStatus === status) {
+    if (
+      !schedule ||
+      !anime ||
+      loading ||
+      savingStatus !== null ||
+      activeListStatus === status
+    ) {
       return
     }
     const request = saveRequestRef.current + 1
@@ -171,8 +156,10 @@ export function AiringScheduleDialog({schedule, notice, onClose}: Props) {
   }
 
   const airingDate = new Date(schedule.airingAt * 1000)
-  const title = scheduleTitle(schedule)
-  const romajiTitle = schedule.titleRomaji.trim()
+  const title = anime
+    ? anime.titleEnglish || anime.titleRomaji
+    : scheduleTitle(schedule)
+  const romajiTitle = (anime?.titleRomaji ?? schedule.titleRomaji).trim()
   const showRomaji = romajiTitle.length > 0 && romajiTitle !== title
   const coverImage =
     anime?.coverImage || anilistExtraLargeCover(schedule.coverImage)
@@ -214,13 +201,15 @@ export function AiringScheduleDialog({schedule, notice, onClose}: Props) {
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <DropdownMenu disabled={loading || savingStatus !== null}>
+                <DropdownMenu
+                  disabled={loading || !anime || savingStatus !== null}
+                >
                   <DropdownMenuTrigger
                     render={
                       <Button
                         type="button"
                         variant="secondary"
-                        disabled={loading || savingStatus !== null}
+                        disabled={loading || !anime || savingStatus !== null}
                         aria-busy={savingStatus !== null}
                       />
                     }
@@ -267,7 +256,7 @@ export function AiringScheduleDialog({schedule, notice, onClose}: Props) {
               </div>
             </div>
 
-            <div className="mt-6 flex flex-col gap-6 sm:flex-row">
+            <div className="mt-6 flex flex-col gap-6 sm:flex-row sm:items-start">
               {coverImage ? (
                 <button
                   type="button"
@@ -303,48 +292,15 @@ export function AiringScheduleDialog({schedule, notice, onClose}: Props) {
                     <dt className="text-sm text-muted-foreground">Episode</dt>
                     <dd className="font-medium">{schedule.episode}</dd>
                   </div>
-                  {loading ? (
-                    <>
-                      <Skeleton className="h-10 w-full animate-pulse" />
-                      <Skeleton className="h-10 w-full animate-pulse" />
-                    </>
-                  ) : error ? null : anime ? (
-                    <>
-                      {anime.status && (
-                        <div>
-                          <dt className="text-sm text-muted-foreground">
-                            Status
-                          </dt>
-                          <dd className="font-medium">
-                            {mediaStatusLabel(anime.status)}
-                          </dd>
-                        </div>
-                      )}
-                      <div>
-                        <dt className="text-sm text-muted-foreground">
-                          Episodes
-                        </dt>
-                        <dd className="font-medium">
-                          {episodeCountLabel(anime.totalEpisodes)}
-                        </dd>
-                      </div>
-                    </>
-                  ) : null}
                 </dl>
-                {error ? (
+                {loading ? (
+                  <Skeleton className="h-40 w-full" />
+                ) : error ? (
                   <Alert variant="destructive">
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
-                ) : anime?.synopsis.trim() ? (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Synopsis</p>
-                    <div
-                      className="mt-1 max-h-72 overflow-y-auto text-foreground/90 [&_a]:text-accent [&_a]:underline"
-                      dangerouslySetInnerHTML={{
-                        __html: sanitizeAnilistSynopsis(anime.synopsis),
-                      }}
-                    />
-                  </div>
+                ) : anime ? (
+                  <AnimeMetadata anime={anime} />
                 ) : null}
               </div>
             </div>
