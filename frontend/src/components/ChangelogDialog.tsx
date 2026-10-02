@@ -134,7 +134,7 @@ export function ChangelogDialog({
                 disabled={busy || !version}
                 onClick={onApplyUpdate}
               >
-                {applyingUpdate ? 'Updating…' : 'Update'}
+                {applyingUpdate ? 'Updating…' : 'Download & install'}
               </Button>
             </div>
           </Dialog.Panel>

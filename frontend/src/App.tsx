@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from 'react'
-import {BrowserOpenURL, EventsOff, EventsOn} from '../wailsjs/runtime/runtime'
+import {EventsOff, EventsOn} from '../wailsjs/runtime/runtime'
 import {
   ApplyUpdate,
   AppVersion,
@@ -135,12 +135,6 @@ export default function App() {
       showNotice(errorMessage(err), true)
       setApplyingUpdate(false)
       setUpdateProgress(null)
-    }
-  }
-
-  function openReleasePage() {
-    if (update?.releaseUrl) {
-      BrowserOpenURL(update.releaseUrl)
     }
   }
 
@@ -323,7 +317,6 @@ export default function App() {
                 applyingUpdate={applyingUpdate}
                 onCheckUpdate={() => void checkUpdate(true)}
                 onApplyUpdate={() => void applyUpdate()}
-                onOpenRelease={openReleasePage}
                 onOpenChangelog={() => setChangelogOpen(true)}
               />
             )}

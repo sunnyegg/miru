@@ -18,6 +18,7 @@ type Props = {
   libraryEpisodes: EpisodeView[]
   playingShowKey: string | null
   episodeShowKeys: ReadonlyMap<number, string>
+  completedShowKeys: ReadonlySet<string>
   onOpenShow: (showKey: string) => void
   onFindTorrent: (query: string) => void
 }
@@ -67,6 +68,7 @@ export function LibraryContinueHero({
   libraryEpisodes,
   playingShowKey,
   episodeShowKeys,
+  completedShowKeys,
   onOpenShow,
   onFindTorrent,
 }: Props) {
@@ -90,6 +92,7 @@ export function LibraryContinueHero({
         lastPlaybackEpisodeId,
         libraryEpisodes,
         episodeShowKeys,
+        completedShowKeys,
       ),
     [
       entries,
@@ -98,6 +101,7 @@ export function LibraryContinueHero({
       lastPlaybackEpisodeId,
       libraryEpisodes,
       episodeShowKeys,
+      completedShowKeys,
     ],
   )
 

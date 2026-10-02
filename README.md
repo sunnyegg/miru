@@ -8,7 +8,7 @@ the [issue tracker](https://github.com/sunnyegg/miru/issues).
 
 ## What's included
 
-- **Library** — local files with AniList posters, Upcoming / Available / Unlisted sections sorted by the nearest upcoming episode airing (with a countdown on each card), a catch-up flow, and full AniList metadata (status, format, season, score, genres, studios, synopsis) with the next-episode air date and countdown on each show page
+- **Library** — local files with AniList posters, Upcoming / Available sections for Watching and an On disk section filterable by AniList list status, a catch-up flow, and full AniList metadata (status, format, season, score, genres, studios, synopsis) with the next-episode air date and countdown on each show page
 - **Playback** — MPV playback with per-episode resume and watch-position indicators that survive download cleanup, plus watch progress synced to AniList at a configurable threshold (default 85%)
 - **AniList** — browser OAuth, list statuses, and an episode catalog on each show page
 - **Search** — AniList anime search, plus Nyaa and Tokyo Toshokan torrent RSS with pagination

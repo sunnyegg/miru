@@ -30,7 +30,6 @@ type Props = {
   onSaveUpdateChannel: (channel: string) => void
   onCheckUpdate: () => void
   onApplyUpdate: () => void
-  onOpenRelease: () => void
   onOpenChangelog: () => void
   dataSize: DataSizeView | null
   dataSizeError: string
@@ -54,7 +53,6 @@ export function SettingsAboutPanel({
   onSaveUpdateChannel,
   onCheckUpdate,
   onApplyUpdate,
-  onOpenRelease,
   onOpenChangelog,
   dataSize,
   dataSizeError,
@@ -106,9 +104,6 @@ export function SettingsAboutPanel({
                 </Button>
                 <Button type="button" variant="muted" onClick={onOpenChangelog}>
                   View changelog
-                </Button>
-                <Button type="button" variant="muted" onClick={onOpenRelease}>
-                  Open download page
                 </Button>
               </div>
               {applyingUpdate && updateProgress && (

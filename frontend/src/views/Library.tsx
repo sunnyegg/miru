@@ -31,7 +31,7 @@ import {
 import {LibraryEpisodeList} from '../components/LibraryEpisodeList'
 import {LibraryShowDetailHero} from '../components/LibraryShowDetailHero'
 import {LibraryAnimeDetail} from '../components/LibraryAnimeDetail'
-import {LibraryUnlistedSection} from '../components/LibraryUnlistedSection'
+import {LibraryOnDiskSection} from '../components/LibraryOnDiskSection'
 import {LibraryWatchingSection} from '../components/LibraryWatchingSection'
 import {IconBack} from '../components/Icons'
 import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
@@ -48,9 +48,12 @@ type Props = {
 export function LibraryView({notice, onFindTorrent, onReady}: Props) {
   const episodes = useLibraryStore((state) => state.episodes)
   const watchingEntries = useLibraryStore((state) => state.watchingEntries)
+  const onDiskEntries = useLibraryStore((state) => state.onDiskEntries)
   const loading = useLibraryStore((state) => state.loading)
   const watchingLoading = useLibraryStore((state) => state.watchingLoading)
+  const onDiskLoading = useLibraryStore((state) => state.onDiskLoading)
   const loadError = useLibraryStore((state) => state.loadError)
+  const onDiskError = useLibraryStore((state) => state.onDiskError)
   const episodeThumbnailsByMediaId = useLibraryStore(
     (state) => state.episodeThumbnailsByMediaId,
   )
@@ -61,6 +64,7 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
   const setSelectedKey = useLibraryStore((state) => state.setSelectedKey)
   const reload = useLibraryStore((state) => state.reload)
   const reloadWatching = useLibraryStore((state) => state.reloadWatching)
+  const reloadOnDisk = useLibraryStore((state) => state.reloadOnDisk)
   const loadEpisodeThumbnails = useLibraryStore(
     (state) => state.loadEpisodeThumbnails,
   )
@@ -93,6 +97,15 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
   const watchingKeys = useMemo(
     () => new Set(watchingEntries.map((entry) => `anilist:${entry.mediaId}`)),
     [watchingEntries],
+  )
+  const completedShowKeys = useMemo(
+    () =>
+      new Set(
+        onDiskEntries
+          .filter((entry) => entry.listStatus === 'COMPLETED')
+          .map((entry) => `anilist:${entry.mediaId}`),
+      ),
+    [onDiskEntries],
   )
   const gridShows = useMemo(() => {
     const now = Date.now()
@@ -138,7 +151,7 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
       episodes: [],
     } satisfies ShowGroup
   }, [shows, selectedKey, watchingEntries])
-  const selectedShowIsUnlisted = Boolean(
+  const selectedShowIsNotWatching = Boolean(
     selectedShow && !watchingKeys.has(selectedShow.key),
   )
   const episodeShowKeys = useMemo(() => buildEpisodeShowKeyMap(shows), [shows])
@@ -159,6 +172,7 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
         lastPlaybackEpisodeId,
         episodes,
         episodeShowKeys,
+        completedShowKeys,
       ),
     [
       watchingEntries,
@@ -167,6 +181,7 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
       lastPlaybackEpisodeId,
       episodes,
       episodeShowKeys,
+      completedShowKeys,
     ],
   )
 
@@ -196,6 +211,7 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
   useEffect(() => {
     void reload(notice)
     void reloadWatching()
+    void reloadOnDisk()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -522,7 +538,7 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
             <p className="mt-0.5 text-sm text-muted-foreground">
               {sectionsLoading
                 ? 'Loading…'
-                : `${upcomingItems.length} upcoming · ${availableItems.length} available · ${gridShows.length} unlisted`}
+                : `${upcomingItems.length} upcoming · ${availableItems.length} available · ${gridShows.length} on disk`}
             </p>
           </div>
         )}
@@ -554,7 +570,7 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
             <LibraryShowDetailHero
               show={selectedShow}
               bannerImage={selectedWatchingEntry?.bannerImage ?? ''}
-              showAddToWatching={selectedShowIsUnlisted}
+              showAddToWatching={selectedShowIsNotWatching}
               saving={addingToWatching}
               unmatching={unmatching}
               onAddToWatching={() => void addSelectedToWatching()}
@@ -605,6 +621,7 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
               libraryEpisodes={episodes}
               playingShowKey={playingShowKey}
               episodeShowKeys={episodeShowKeys}
+              completedShowKeys={completedShowKeys}
               onOpenShow={openWatchingShow}
               onFindTorrent={onFindTorrent}
             />
@@ -626,13 +643,16 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
               excludeHeroKey={continueHeroKey}
               onOpenShow={openWatchingShow}
             />
-            <LibraryUnlistedSection
-              loading={loading}
+            <LibraryOnDiskSection
+              loading={sectionsLoading || onDiskLoading}
               loadError={loadError}
+              statusError={onDiskError}
               shows={gridShows}
+              entries={onDiskEntries}
               highlightedKey={playingShowKey}
               onSelectShow={selectShow}
-              onRetry={retryLoad}
+              onRetry={() => void reloadOnDisk()}
+              onRetryLibrary={retryLoad}
               suppressEmptyState={watchingEntries.length > 0}
             />
           </div>
