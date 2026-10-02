@@ -49,6 +49,7 @@ type Props = {
   onSelectShow: (key: string) => void
   onRetry: () => void
   suppressEmptyState?: boolean
+  emptyMessage?: string
 }
 
 export function LibraryPosterGrid({
@@ -59,6 +60,7 @@ export function LibraryPosterGrid({
   onSelectShow,
   onRetry,
   suppressEmptyState = false,
+  emptyMessage = 'No shows on disk yet. Import a file, or finish a torrent download and it will appear here.',
 }: Props) {
   if (loading) {
     return (
@@ -103,10 +105,7 @@ export function LibraryPosterGrid({
     }
     return (
       <div className="flex min-h-32 items-end">
-        <p className="max-w-md text-sm text-muted-foreground">
-          No unlisted shows yet. Import a file, or finish a torrent download and
-          it will land here.
-        </p>
+        <p className="max-w-md text-sm text-muted-foreground">{emptyMessage}</p>
       </div>
     )
   }

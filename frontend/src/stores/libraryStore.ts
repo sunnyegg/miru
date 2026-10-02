@@ -5,6 +5,7 @@ import {
   ListStreamingEpisodeThumbnails,
 } from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
+import {onDiskListStatuses} from '../lib/libraryOnDisk'
 import type {
   EpisodeView,
   StreamingEpisodeThumbnailView,
@@ -16,15 +17,19 @@ type NoticeFn = (message: string, isError?: boolean) => void
 type LibraryState = {
   episodes: EpisodeView[]
   watchingEntries: WatchingEntryView[]
+  onDiskEntries: WatchingEntryView[]
   episodeThumbnailsByMediaId: Record<number, Record<number, string>>
   selectedKey: string | null
   loading: boolean
   watchingLoading: boolean
+  onDiskLoading: boolean
   loadError: string
+  onDiskError: string
   episodeThumbnailsError: string
   setSelectedKey: (key: string | null) => void
   reload: (notice?: NoticeFn) => Promise<void>
   reloadWatching: () => Promise<void>
+  reloadOnDisk: () => Promise<void>
   loadEpisodeThumbnails: (mediaId: number) => Promise<void>
 }
 
@@ -45,11 +50,14 @@ function mapEpisodeThumbnails(
 export const useLibraryStore = create<LibraryState>((set, get) => ({
   episodes: [],
   watchingEntries: [],
+  onDiskEntries: [],
   episodeThumbnailsByMediaId: {},
   selectedKey: null,
   loading: true,
   watchingLoading: true,
+  onDiskLoading: true,
   loadError: '',
+  onDiskError: '',
   episodeThumbnailsError: '',
 
   setSelectedKey: (key) => set({selectedKey: key}),
@@ -79,6 +87,20 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       set({watchingEntries: []})
     } finally {
       set({watchingLoading: false})
+    }
+  },
+
+  reloadOnDisk: async () => {
+    set({onDiskLoading: true, onDiskError: ''})
+    try {
+      const lists = await Promise.all(
+        onDiskListStatuses.map((status) => ListAnimeList(status)),
+      )
+      set({onDiskEntries: lists.flat()})
+    } catch (err) {
+      set({onDiskEntries: [], onDiskError: errorMessage(err)})
+    } finally {
+      set({onDiskLoading: false})
     }
   },
 

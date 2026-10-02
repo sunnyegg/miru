@@ -72,7 +72,6 @@ type Props = {
   applyingUpdate: boolean
   onCheckUpdate: () => void
   onApplyUpdate: () => void
-  onOpenRelease: () => void
   onOpenChangelog: () => void
 }
 
@@ -102,7 +101,6 @@ export function SettingsView({
   applyingUpdate,
   onCheckUpdate,
   onApplyUpdate,
-  onOpenRelease,
   onOpenChangelog,
 }: Props) {
   const activeTab = useSettingsStore((state) => state.activeTab)
@@ -489,7 +487,6 @@ export function SettingsView({
                 }
                 onCheckUpdate={onCheckUpdate}
                 onApplyUpdate={onApplyUpdate}
-                onOpenRelease={onOpenRelease}
                 onOpenChangelog={onOpenChangelog}
                 dataSize={dataSize}
                 dataSizeError={dataSizeError}

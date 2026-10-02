@@ -225,6 +225,7 @@ export function pickContinueHeroKey(
   lastPlaybackEpisodeId: number | null = null,
   libraryEpisodes: EpisodeView[] = [],
   episodeShowKeys: ReadonlyMap<number, string> = new Map(),
+  completedShowKeys: ReadonlySet<string> = new Set(),
 ): string | null {
   if (playingShowKey) {
     return playingShowKey
@@ -234,7 +235,7 @@ export function pickContinueHeroKey(
   const lastWatchedShowKey =
     episodeShowKeys.get(rememberedEpisodeId ?? 0) ?? null
   if (lastWatchedShowKey) {
-    return lastWatchedShowKey
+    return completedShowKeys.has(lastWatchedShowKey) ? null : lastWatchedShowKey
   }
   const items = buildWatchingShowItems(entries, localShows)
   const candidate = items.find((item) => {
