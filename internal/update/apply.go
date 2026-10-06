@@ -22,10 +22,45 @@ func CleanupOld(executable string) {
 	}
 	_ = os.Remove(exe + ".old")
 	bundle, ok := appBundleRoot(exe)
-	if !ok {
+	if ok {
+		_ = os.RemoveAll(bundle + ".old")
+		cleanupStaleReleaseArtifacts(filepath.Dir(bundle), filepath.Base(bundle), isMiruReleaseBundle)
 		return
 	}
-	_ = os.RemoveAll(bundle + ".old")
+	cleanupStaleReleaseArtifacts(filepath.Dir(exe), filepath.Base(exe), isMiruReleaseBinary)
+}
+
+// cleanupStaleReleaseArtifacts removes previous versioned release files left
+// beside the running binary. On Windows the prior .exe often survives update
+// because a running image cannot be deleted until the process exits.
+func cleanupStaleReleaseArtifacts(dir, currentBase string, isRelease func(string) bool) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if name == currentBase {
+			continue
+		}
+		releaseName := strings.TrimSuffix(strings.TrimSuffix(name, ".old"), ".new")
+		if !isRelease(releaseName) {
+			continue
+		}
+		_ = os.RemoveAll(filepath.Join(dir, name))
+	}
+}
+
+func isMiruReleaseBinary(name string) bool {
+	if !strings.HasPrefix(name, "miru-") {
+		return false
+	}
+	return strings.HasSuffix(name, "-linux-amd64") ||
+		strings.HasSuffix(name, "-windows-amd64.exe")
+}
+
+func isMiruReleaseBundle(name string) bool {
+	return strings.HasPrefix(name, "miru-") && strings.HasSuffix(name, "-mac-universal.app")
 }
 
 func Apply(ctx context.Context, client *http.Client, downloadURL, assetName, executable string) (string, error) {
@@ -140,9 +175,21 @@ func installToTarget(current, target, staged string) error {
 		return fmt.Errorf("cannot replace binary: %w", err)
 	}
 	if filepath.Clean(current) != filepath.Clean(target) {
-		_ = os.RemoveAll(current)
+		retireReplacedPath(current)
 	}
 	return nil
+}
+
+// retireReplacedPath deletes the previous install path. When delete fails
+// (typical on Windows while the process is still running), rename to a .old
+// sidecar so CleanupOld can finish after restart.
+func retireReplacedPath(path string) {
+	if err := os.RemoveAll(path); err == nil {
+		return
+	}
+	oldPath := path + ".old"
+	_ = os.RemoveAll(oldPath)
+	_ = os.Rename(path, oldPath)
 }
 
 func downloadFile(ctx context.Context, client *http.Client, url, dest string, progress Progress) error {

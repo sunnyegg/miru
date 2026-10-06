@@ -268,6 +268,84 @@ func TestCleanupOldRemovesSidecar(t *testing.T) {
 	}
 }
 
+func TestCleanupOldRemovesPreviousVersionedBinary(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	current := filepath.Join(dir, "miru-0.2.0-windows-amd64.exe")
+	previous := filepath.Join(dir, "miru-0.1.0-windows-amd64.exe")
+	previousOld := previous + ".old"
+	staleNew := filepath.Join(dir, "miru-0.1.5-windows-amd64.exe.new")
+	unrelated := filepath.Join(dir, "notes.txt")
+	custom := filepath.Join(dir, "miru.exe")
+	for path, contents := range map[string]string{
+		current:     "current",
+		previous:    "previous",
+		previousOld: "previous-old",
+		staleNew:    "stale-new",
+		unrelated:   "keep",
+		custom:      "keep-custom",
+	} {
+		if err := os.WriteFile(path, []byte(contents), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	CleanupOld(current)
+
+	for _, path := range []string{previous, previousOld, staleNew} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("expected %s gone, got %v", path, err)
+		}
+	}
+	for _, path := range []string{current, unrelated, custom} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected %s kept: %v", path, err)
+		}
+	}
+}
+
+func TestCleanupOldRemovesPreviousVersionedBundle(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	currentBundle := filepath.Join(dir, "miru-0.2.0-mac-universal.app")
+	previousBundle := filepath.Join(dir, "miru-0.1.0-mac-universal.app")
+	for _, bundle := range []string{currentBundle, previousBundle} {
+		macOSDir := filepath.Join(bundle, "Contents", "MacOS")
+		if err := os.MkdirAll(macOSDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(macOSDir, "miru"), []byte("bin"), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	exe := filepath.Join(currentBundle, "Contents", "MacOS", "miru")
+
+	CleanupOld(exe)
+
+	if _, err := os.Stat(previousBundle); !os.IsNotExist(err) {
+		t.Fatalf("expected previous bundle gone, got %v", err)
+	}
+	if _, err := os.Stat(currentBundle); err != nil {
+		t.Fatalf("expected current bundle kept: %v", err)
+	}
+}
+
+func TestRetireReplacedPathRemovesWhenPossible(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "miru-0.1.0-linux-amd64")
+	if err := os.WriteFile(path, []byte("old"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	retireReplacedPath(path)
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("expected path gone, got %v", err)
+	}
+	if _, err := os.Stat(path + ".old"); !os.IsNotExist(err) {
+		t.Fatalf("expected no .old leftover, got %v", err)
+	}
+}
+
 func writeAppZip(path, contents string) error {
 	file, err := os.Create(path)
 	if err != nil {
