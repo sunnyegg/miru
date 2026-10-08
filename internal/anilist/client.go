@@ -114,6 +114,21 @@ type ListEntrySave struct {
 	SendCompletedAt bool
 }
 
+type UserProfile struct {
+	Name                string
+	About               string
+	TitleLanguage       string
+	DisplayAdultContent bool
+	ScoreFormat         string
+}
+
+type UserProfileUpdate struct {
+	About               string
+	TitleLanguage       string
+	DisplayAdultContent bool
+	ScoreFormat         string
+}
+
 type MediaProgress struct {
 	MediaID           int    `json:"mediaId"`
 	Progress          int    `json:"progress"`

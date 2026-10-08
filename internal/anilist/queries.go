@@ -46,6 +46,124 @@ func (c *Client) ViewerID() (int, error) {
 	return out.Viewer.ID, nil
 }
 
+func (c *Client) ViewerProfile() (UserProfile, error) {
+	var out struct {
+		Viewer gqlUserProfile `json:"Viewer"`
+	}
+	const q = `
+	query {
+	  Viewer {
+	    name
+	    about
+	    options {
+	      titleLanguage
+	      displayAdultContent
+	    }
+	    mediaListOptions {
+	      scoreFormat
+	    }
+	  }
+	}`
+	if err := c.query(q, nil, &out); err != nil {
+		return UserProfile{}, err
+	}
+	if out.Viewer.Name == "" {
+		return UserProfile{}, fmt.Errorf("invalid AniList token")
+	}
+	return out.Viewer.toUserProfile(), nil
+}
+
+func (c *Client) UpdateUser(update UserProfileUpdate) (UserProfile, error) {
+	titleLanguage := strings.ToUpper(strings.TrimSpace(update.TitleLanguage))
+	if !validTitleLanguage(titleLanguage) {
+		return UserProfile{}, fmt.Errorf("unsupported title language %q", update.TitleLanguage)
+	}
+	scoreFormat := strings.ToUpper(strings.TrimSpace(update.ScoreFormat))
+	if !validScoreFormat(scoreFormat) {
+		return UserProfile{}, fmt.Errorf("unsupported score format %q", update.ScoreFormat)
+	}
+
+	const q = `
+	mutation (
+	  $about: String,
+	  $titleLanguage: UserTitleLanguage,
+	  $displayAdultContent: Boolean,
+	  $scoreFormat: ScoreFormat
+	) {
+	  UpdateUser(
+	    about: $about,
+	    titleLanguage: $titleLanguage,
+	    displayAdultContent: $displayAdultContent,
+	    scoreFormat: $scoreFormat
+	  ) {
+	    name
+	    about
+	    options {
+	      titleLanguage
+	      displayAdultContent
+	    }
+	    mediaListOptions {
+	      scoreFormat
+	    }
+	  }
+	}`
+	var out struct {
+		UpdateUser gqlUserProfile `json:"UpdateUser"`
+	}
+	if err := c.query(q, map[string]any{
+		"about":               update.About,
+		"titleLanguage":       titleLanguage,
+		"displayAdultContent": update.DisplayAdultContent,
+		"scoreFormat":         scoreFormat,
+	}, &out); err != nil {
+		return UserProfile{}, err
+	}
+	if out.UpdateUser.Name == "" {
+		return UserProfile{}, fmt.Errorf("AniList user update failed")
+	}
+	return out.UpdateUser.toUserProfile(), nil
+}
+
+func validTitleLanguage(value string) bool {
+	switch value {
+	case "ROMAJI", "ENGLISH", "NATIVE":
+		return true
+	default:
+		return false
+	}
+}
+
+func validScoreFormat(value string) bool {
+	switch value {
+	case "POINT_100", "POINT_10_DECIMAL", "POINT_10", "POINT_5", "POINT_3":
+		return true
+	default:
+		return false
+	}
+}
+
+type gqlUserProfile struct {
+	Name    string `json:"name"`
+	About   string `json:"about"`
+	Options struct {
+		TitleLanguage       string `json:"titleLanguage"`
+		DisplayAdultContent bool   `json:"displayAdultContent"`
+	} `json:"options"`
+	MediaListOptions struct {
+		ScoreFormat string `json:"scoreFormat"`
+	} `json:"mediaListOptions"`
+}
+
+func (profile gqlUserProfile) toUserProfile() UserProfile {
+	return UserProfile{
+		Name:                profile.Name,
+		About:               profile.About,
+		TitleLanguage:       profile.Options.TitleLanguage,
+		DisplayAdultContent: profile.Options.DisplayAdultContent,
+		ScoreFormat:         profile.MediaListOptions.ScoreFormat,
+	}
+}
+
 func (c *Client) ListCurrent() ([]CurrentEntry, error) {
 	return c.ListMediaList("CURRENT")
 }

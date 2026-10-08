@@ -99,6 +99,74 @@ func TestViewerIDIsCachedForClient(t *testing.T) {
 	}
 }
 
+func TestViewerProfileAndUpdateUser(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Query     string         `json:"query"`
+			Variables map[string]any `json:"variables"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(body.Query, "UpdateUser") {
+			if body.Variables["about"] != "hello" {
+				t.Errorf("about = %#v", body.Variables["about"])
+			}
+			if body.Variables["titleLanguage"] != "ENGLISH" {
+				t.Errorf("titleLanguage = %#v", body.Variables["titleLanguage"])
+			}
+			if body.Variables["displayAdultContent"] != true {
+				t.Errorf("displayAdultContent = %#v", body.Variables["displayAdultContent"])
+			}
+			if body.Variables["scoreFormat"] != "POINT_10" {
+				t.Errorf("scoreFormat = %#v", body.Variables["scoreFormat"])
+			}
+			_, _ = w.Write([]byte(`{"data":{"UpdateUser":{"name":"adila","about":"hello","options":{"titleLanguage":"ENGLISH","displayAdultContent":true},"mediaListOptions":{"scoreFormat":"POINT_10"}}}}`))
+			return
+		}
+		if strings.Contains(body.Query, "Viewer") {
+			_, _ = w.Write([]byte(`{"data":{"Viewer":{"name":"adila","about":"bio","options":{"titleLanguage":"ROMAJI","displayAdultContent":false},"mediaListOptions":{"scoreFormat":"POINT_100"}}}}`))
+			return
+		}
+		http.Error(w, "unexpected", 500)
+	}))
+	defer server.Close()
+
+	client := New("tok")
+	client.Endpoint = server.URL
+	client.HTTP = server.Client()
+
+	profile, err := client.ViewerProfile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profile.Name != "adila" || profile.About != "bio" || profile.TitleLanguage != "ROMAJI" {
+		t.Fatalf("profile = %+v", profile)
+	}
+	if profile.DisplayAdultContent || profile.ScoreFormat != "POINT_100" {
+		t.Fatalf("profile options = %+v", profile)
+	}
+
+	updated, err := client.UpdateUser(UserProfileUpdate{
+		About:               "hello",
+		TitleLanguage:       "english",
+		DisplayAdultContent: true,
+		ScoreFormat:         "point_10",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.About != "hello" || updated.TitleLanguage != "ENGLISH" || !updated.DisplayAdultContent {
+		t.Fatalf("updated = %+v", updated)
+	}
+	if updated.ScoreFormat != "POINT_10" {
+		t.Fatalf("scoreFormat = %q", updated.ScoreFormat)
+	}
+
+	if _, err := client.UpdateUser(UserProfileUpdate{TitleLanguage: "KLINGON", ScoreFormat: "POINT_10"}); err == nil {
+		t.Fatal("expected unsupported title language error")
+	}
+}
+
 func TestGetAnime(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {

@@ -85,6 +85,21 @@ type AnilistStatus struct {
 	Username  string `json:"username"`
 }
 
+type AnilistProfileView struct {
+	Username            string `json:"username"`
+	About               string `json:"about"`
+	TitleLanguage       string `json:"titleLanguage"`
+	DisplayAdultContent bool   `json:"displayAdultContent"`
+	ScoreFormat         string `json:"scoreFormat"`
+}
+
+type AnilistProfileInput struct {
+	About               string `json:"about"`
+	TitleLanguage       string `json:"titleLanguage"`
+	DisplayAdultContent bool   `json:"displayAdultContent"`
+	ScoreFormat         string `json:"scoreFormat"`
+}
+
 type AiringScheduleView struct {
 	ID           int64  `json:"id"`
 	AiringAt     int64  `json:"airingAt"`

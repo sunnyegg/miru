@@ -33,6 +33,8 @@ export function DownloadStatus():Promise<torrentx.JobView>;
 
 export function FinishDownload(arg1:number):Promise<void>;
 
+export function GetAnilistProfile():Promise<main.AnilistProfileView>;
+
 export function GetAnime(arg1:number):Promise<main.AnimeView>;
 
 export function GetDataSize():Promise<main.DataSizeView>;
@@ -132,3 +134,5 @@ export function StartTorrentURL(arg1:string):Promise<void>;
 export function TestNetworkConnection(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function UnbindEpisode(arg1:number):Promise<void>;
+
+export function UpdateAnilistProfile(arg1:main.AnilistProfileInput):Promise<main.AnilistProfileView>;

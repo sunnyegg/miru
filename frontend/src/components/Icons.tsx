@@ -6,12 +6,12 @@ import {
   ChevronRight,
   CircleHelp,
   Download,
-  Eye,
   Folder,
   LayoutGrid,
   Play,
   Search,
   Settings,
+  User,
   X,
   type LucideProps,
 } from 'lucide-react'
@@ -27,12 +27,12 @@ export function IconLibrary({className}: IconProps) {
   return <LayoutGrid className={className} {...stroke} />
 }
 
-export function IconWatching({className}: IconProps) {
-  return <Eye className={className} {...stroke} />
-}
-
 export function IconSearch({className}: IconProps) {
   return <Search className={className} {...stroke} />
+}
+
+export function IconProfile({className}: IconProps) {
+  return <User className={className} {...stroke} />
 }
 
 export function IconClose({className}: IconProps) {
