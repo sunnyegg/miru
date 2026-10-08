@@ -2,9 +2,9 @@ import {
   IconCalendar,
   IconDownload,
   IconLibrary,
+  IconProfile,
   IconSearch,
   IconSettings,
-  IconWatching,
 } from './Icons'
 import {Button} from '@/components/ui/button'
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'
@@ -20,7 +20,6 @@ const destinations: {
   hint?: string
 }[] = [
   {id: 'library', label: 'Library', icon: IconLibrary},
-  {id: 'watching', label: 'Watching', icon: IconWatching},
   {id: 'search', label: 'Search', icon: IconSearch},
   {id: 'downloads', label: 'Downloads', icon: IconDownload},
   {
@@ -117,7 +116,14 @@ export function Sidebar({airingAvailable}: {airingAvailable: boolean}) {
           </li>
         ))}
       </ul>
-      <div className="mt-auto">
+      <div className="mt-auto flex flex-col">
+        <NavButton
+          id="profile"
+          label="Profile"
+          icon={IconProfile}
+          current={current}
+          onChange={onChange}
+        />
         <NavButton
           id="settings"
           label="Settings"

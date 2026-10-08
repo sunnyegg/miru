@@ -62,6 +62,10 @@ export function FinishDownload(arg1) {
   return window['go']['main']['App']['FinishDownload'](arg1);
 }
 
+export function GetAnilistProfile() {
+  return window['go']['main']['App']['GetAnilistProfile']();
+}
+
 export function GetAnime(arg1) {
   return window['go']['main']['App']['GetAnime'](arg1);
 }
@@ -260,4 +264,8 @@ export function TestNetworkConnection(arg1, arg2, arg3) {
 
 export function UnbindEpisode(arg1) {
   return window['go']['main']['App']['UnbindEpisode'](arg1);
+}
+
+export function UpdateAnilistProfile(arg1) {
+  return window['go']['main']['App']['UpdateAnilistProfile'](arg1);
 }

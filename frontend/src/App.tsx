@@ -17,7 +17,7 @@ import {ChangelogDialog} from './components/ChangelogDialog'
 import {CloseToTrayDialog} from './components/CloseToTrayDialog'
 import {UpdateProgressBar} from './components/UpdateProgressBar'
 import {LibraryView} from './views/Library'
-import {WatchingView} from './views/Watching'
+import {ProfileView} from './views/Profile'
 import {SearchView} from './views/Search'
 import {DownloadsView} from './views/Downloads'
 import {CalendarView} from './views/Calendar'
@@ -303,7 +303,7 @@ export default function App() {
                 onReady={() => setBootDone(true)}
               />
             )}
-            {tab === 'watching' && <WatchingView notice={showNotice} />}
+            {tab === 'profile' && <ProfileView notice={showNotice} />}
             {tab === 'search' && <SearchView notice={showNotice} />}
             {tab === 'downloads' && <DownloadsView notice={showNotice} />}
             {tab === 'calendar' && <CalendarView notice={showNotice} />}

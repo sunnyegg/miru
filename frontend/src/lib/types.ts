@@ -1,6 +1,6 @@
 export type TabId =
   | 'library'
-  | 'watching'
+  | 'profile'
   | 'search'
   | 'downloads'
   | 'calendar'
@@ -89,6 +89,21 @@ export type ImportResult = {
 export type AnilistStatus = {
   connected: boolean
   username: string
+}
+
+export type AnilistProfileView = {
+  username: string
+  about: string
+  titleLanguage: string
+  displayAdultContent: boolean
+  scoreFormat: string
+}
+
+export type AnilistProfileInput = {
+  about: string
+  titleLanguage: string
+  displayAdultContent: boolean
+  scoreFormat: string
 }
 
 export type AiringScheduleView = {

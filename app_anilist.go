@@ -38,6 +38,59 @@ func (a *App) AnilistStatus() (AnilistStatus, error) {
 	return AnilistStatus{Connected: true, Username: name}, nil
 }
 
+func (a *App) GetAnilistProfile() (AnilistProfileView, error) {
+	if err := a.ready(); err != nil {
+		return AnilistProfileView{}, err
+	}
+	token, err := a.tokens.Get()
+	if err != nil {
+		return AnilistProfileView{}, errors.New("AniList not connected")
+	}
+	client, err := a.newAnilist(token)
+	if err != nil {
+		return AnilistProfileView{}, err
+	}
+	profile, err := client.ViewerProfile()
+	if err != nil {
+		return AnilistProfileView{}, err
+	}
+	return toAnilistProfileView(profile), nil
+}
+
+func (a *App) UpdateAnilistProfile(input AnilistProfileInput) (AnilistProfileView, error) {
+	if err := a.ready(); err != nil {
+		return AnilistProfileView{}, err
+	}
+	token, err := a.tokens.Get()
+	if err != nil {
+		return AnilistProfileView{}, errors.New("AniList not connected")
+	}
+	client, err := a.newAnilist(token)
+	if err != nil {
+		return AnilistProfileView{}, err
+	}
+	profile, err := client.UpdateUser(anilist.UserProfileUpdate{
+		About:               input.About,
+		TitleLanguage:       input.TitleLanguage,
+		DisplayAdultContent: input.DisplayAdultContent,
+		ScoreFormat:         input.ScoreFormat,
+	})
+	if err != nil {
+		return AnilistProfileView{}, err
+	}
+	return toAnilistProfileView(profile), nil
+}
+
+func toAnilistProfileView(profile anilist.UserProfile) AnilistProfileView {
+	return AnilistProfileView{
+		Username:            profile.Name,
+		About:               profile.About,
+		TitleLanguage:       profile.TitleLanguage,
+		DisplayAdultContent: profile.DisplayAdultContent,
+		ScoreFormat:         profile.ScoreFormat,
+	}
+}
+
 func (a *App) OpenAnilistLogin() error {
 	if err := a.ready(); err != nil {
 		return err

@@ -24,6 +24,44 @@ export namespace main {
 	        this.coverImage = source["coverImage"];
 	    }
 	}
+	export class AnilistProfileInput {
+	    about: string;
+	    titleLanguage: string;
+	    displayAdultContent: boolean;
+	    scoreFormat: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AnilistProfileInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.about = source["about"];
+	        this.titleLanguage = source["titleLanguage"];
+	        this.displayAdultContent = source["displayAdultContent"];
+	        this.scoreFormat = source["scoreFormat"];
+	    }
+	}
+	export class AnilistProfileView {
+	    username: string;
+	    about: string;
+	    titleLanguage: string;
+	    displayAdultContent: boolean;
+	    scoreFormat: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AnilistProfileView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.username = source["username"];
+	        this.about = source["about"];
+	        this.titleLanguage = source["titleLanguage"];
+	        this.displayAdultContent = source["displayAdultContent"];
+	        this.scoreFormat = source["scoreFormat"];
+	    }
+	}
 	export class AnilistStatus {
 	    connected: boolean;
 	    username: string;
