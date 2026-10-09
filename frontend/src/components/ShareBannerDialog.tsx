@@ -1,8 +1,8 @@
 import {useEffect, useState} from 'react'
 import {IconChevronDown, IconChevronUp, IconHelp} from './Icons'
 import {
-  SHARE_BANNER_MAX_POSTERS,
   buildShareBannerPng,
+  shareBannerPosterCapacity,
   shareBannerSize,
   uint8ToBase64,
   type ShareBannerLayout,
@@ -34,16 +34,27 @@ type Props = {
   onError: (message: string) => void
 }
 
-function defaultPosterCount(total: number): number {
+function defaultPosterCount(
+  total: number,
+  orientation: ShareBannerOrientation,
+  layout: ShareBannerLayout,
+): number {
   if (total <= 0) {
     return 0
   }
-  return Math.min(6, total, SHARE_BANNER_MAX_POSTERS)
+  return Math.min(total, shareBannerPosterCapacity(orientation, layout))
 }
 
-function posterCountOptions(total: number): number[] {
-  const capped = Math.min(total, SHARE_BANNER_MAX_POSTERS)
-  const options = [4, 6, 8, 10, 12].filter((count) => count <= capped)
+function posterCountOptions(
+  total: number,
+  orientation: ShareBannerOrientation,
+  layout: ShareBannerLayout,
+): number[] {
+  const capped = Math.min(total, shareBannerPosterCapacity(orientation, layout))
+  const options: number[] = []
+  for (let count = 4; count <= capped; count += 2) {
+    options.push(count)
+  }
   if (capped > 0 && !options.includes(capped)) {
     options.push(capped)
   }
@@ -90,11 +101,29 @@ export function ShareBannerDialog({
     if (!open || !session) {
       return
     }
+    const nextLayout: ShareBannerLayout = 'column'
+    const nextOrientation: ShareBannerOrientation = 'horizontal'
     setOrderedPosters(session.posters)
-    setPosterCount(defaultPosterCount(session.posters.length))
-    setLayout('row')
-    setOrientation('horizontal')
+    setLayout(nextLayout)
+    setOrientation(nextOrientation)
+    setPosterCount(
+      defaultPosterCount(session.posters.length, nextOrientation, nextLayout),
+    )
   }, [open, session])
+
+  useEffect(() => {
+    if (!open || orderedPosters.length === 0) {
+      return
+    }
+    const capacity = shareBannerPosterCapacity(orientation, layout)
+    setPosterCount((current) => {
+      const next = Math.min(current, orderedPosters.length, capacity)
+      if (next > 0) {
+        return next
+      }
+      return defaultPosterCount(orderedPosters.length, orientation, layout)
+    })
+  }, [open, orderedPosters.length, orientation, layout])
 
   useEffect(() => {
     if (!open || !session || orderedPosters.length === 0 || posterCount === 0) {
@@ -168,7 +197,11 @@ export function ShareBannerDialog({
     setImageLoaded(false)
   }, [open])
 
-  const countOptions = posterCountOptions(orderedPosters.length)
+  const countOptions = posterCountOptions(
+    orderedPosters.length,
+    orientation,
+    layout,
+  )
   const busy = saving || buildingPreview
   const bannerSize = shareBannerSize(orientation)
   const previewAspectClass =
