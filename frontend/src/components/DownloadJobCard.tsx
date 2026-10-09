@@ -1,7 +1,8 @@
-import {memo} from 'react'
+import {memo, useState} from 'react'
 import {formatBytes, formatSpeed} from '../lib/format'
 import type {DownloadGroup} from '../lib/downloadGroups'
 import type {DownloadView} from '../lib/types'
+import {IconChevronDown, IconChevronRight} from './Icons'
 import {Badge} from '@/components/ui/badge'
 import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
@@ -79,12 +80,14 @@ export const DownloadJobCard = memo(function DownloadJobCard({
   confirmingDelete,
   actions,
 }: Props) {
+  const [expanded, setExpanded] = useState(false)
   const isDownloading = item.status === 'DOWNLOADING'
   const isPaused = item.status === 'PAUSED'
   const isSeeding = item.status === 'SEEDING'
   const isQueued = item.status === 'QUEUED'
   const isLive = Boolean(item.live)
   const files = item.files ?? []
+  const torrentLabel = item.name || 'Torrent'
 
   let actionButtons = (
     <div className="flex flex-wrap gap-2">
@@ -230,50 +233,71 @@ export const DownloadJobCard = memo(function DownloadJobCard({
   return (
     <Card>
       <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="font-medium">{item.name || 'Torrent'}</p>
-            {group === 'completed' && completedStatusBadge(item.status)}
-          </div>
-          <p
-            className={`tabular-nums text-sm ${item.percent >= 100 ? 'text-foreground' : 'text-muted-foreground'}`}
-          >
-            {statusLine}
-          </p>
-        </div>
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-start gap-2 text-left"
+          aria-expanded={expanded}
+          aria-label={
+            expanded ? `Collapse ${torrentLabel}` : `Expand ${torrentLabel}`
+          }
+          onClick={() => setExpanded((current) => !current)}
+        >
+          <span className="mt-1 shrink-0 text-muted-foreground">
+            {expanded ? (
+              <IconChevronDown className="h-4 w-4" />
+            ) : (
+              <IconChevronRight className="h-4 w-4" />
+            )}
+          </span>
+          <span className="min-w-0">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="font-medium">{torrentLabel}</span>
+              {group === 'completed' && completedStatusBadge(item.status)}
+            </span>
+            <span
+              className={`block tabular-nums text-sm ${item.percent >= 100 ? 'text-foreground' : 'text-muted-foreground'}`}
+            >
+              {statusLine}
+            </span>
+          </span>
+        </button>
         {actionButtons}
       </div>
-      {!isQueued && (
-        <Progress
-          className="mt-3"
-          value={Math.min(100, Math.max(0, item.percent))}
-        />
-      )}
-      {files.length > 0 && (
-        <ul className="mt-3 max-h-40 overflow-y-auto border-t border-border/40 pt-3">
-          {files.map((file) => {
-            const filePercent =
-              file.length > 0
-                ? Math.min(100, (file.bytesCompleted / file.length) * 100)
-                : 0
-            return (
-              <li
-                key={file.path}
-                className="flex min-h-11 items-center justify-between gap-3 px-1 text-sm"
-              >
-                <span className="min-w-0 break-all">{file.path}</span>
-                <span className="shrink-0 tabular-nums text-xs text-muted-foreground">
-                  {file.bytesCompleted > 0
-                    ? `${formatBytes(file.bytesCompleted)} / ${formatBytes(file.length)}`
-                    : formatBytes(file.length)}
-                  {isLive && file.length > 0
-                    ? ` · ${Math.round(filePercent)}%`
-                    : ''}
-                </span>
-              </li>
-            )
-          })}
-        </ul>
+      {expanded && (
+        <>
+          {!isQueued && (
+            <Progress
+              className="mt-3"
+              value={Math.min(100, Math.max(0, item.percent))}
+            />
+          )}
+          {files.length > 0 && (
+            <ul className="mt-3 max-h-40 overflow-y-auto border-t border-border/40 pt-3">
+              {files.map((file) => {
+                const filePercent =
+                  file.length > 0
+                    ? Math.min(100, (file.bytesCompleted / file.length) * 100)
+                    : 0
+                return (
+                  <li
+                    key={file.path}
+                    className="flex min-h-11 items-center justify-between gap-3 px-1 text-sm"
+                  >
+                    <span className="min-w-0 break-all">{file.path}</span>
+                    <span className="shrink-0 tabular-nums text-xs text-muted-foreground">
+                      {file.bytesCompleted > 0
+                        ? `${formatBytes(file.bytesCompleted)} / ${formatBytes(file.length)}`
+                        : formatBytes(file.length)}
+                      {isLive && file.length > 0
+                        ? ` · ${Math.round(filePercent)}%`
+                        : ''}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </>
       )}
       {item.error && (
         <p className="mt-2 text-sm text-destructive">

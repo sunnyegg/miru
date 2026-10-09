@@ -27,6 +27,8 @@ export type SettingsView = {
   rssAutoDownloadLibraryOnly: boolean
   closeToTray: boolean
   lastSeenVersion: string
+  torrentSearchTitleLanguage: string
+  torrentSearchPrefix: string
 }
 
 export type DataSizeView = {
@@ -150,6 +152,7 @@ export type WatchingEntryView = {
   completedAt: FuzzyDateView
   titleRomaji: string
   titleEnglish: string
+  titleNative: string
   coverImage: string
   bannerImage: string
   totalEpisodes: number

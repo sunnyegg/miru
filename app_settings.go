@@ -192,6 +192,17 @@ func (a *App) SaveRSSPollSettings(intervalMinutes int) error {
 	return nil
 }
 
+func (a *App) SaveTorrentSearchSettings(titleLanguage, prefix string) error {
+	if err := a.ready(); err != nil {
+		return err
+	}
+	normalizedLanguage := normalizeTorrentSearchTitleLanguage(titleLanguage)
+	return a.setSettings(map[string]string{
+		"torrent_search_title_language": normalizedLanguage,
+		"torrent_search_prefix":         strings.TrimSpace(prefix),
+	})
+}
+
 func (a *App) SaveAnilistSettings(syncThreshold float64) error {
 	if err := a.ready(); err != nil {
 		return err
@@ -367,7 +378,20 @@ func buildSettingsView(cache map[string]string, configDir string) SettingsView {
 	view.RSSAutoDownloadLibraryOnly = parseSettingBool(cache["rss_auto_download_library_only"], true)
 	view.CloseToTray = parseSettingBool(cache["close_to_tray"], false)
 	view.LastSeenVersion = cache["last_seen_version"]
+	view.TorrentSearchTitleLanguage = normalizeTorrentSearchTitleLanguage(cache["torrent_search_title_language"])
+	view.TorrentSearchPrefix = cache["torrent_search_prefix"]
 	return view
+}
+
+func normalizeTorrentSearchTitleLanguage(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "english":
+		return "english"
+	case "native":
+		return "native"
+	default:
+		return "romaji"
+	}
 }
 
 func (a *App) setSettings(pairs map[string]string) error {

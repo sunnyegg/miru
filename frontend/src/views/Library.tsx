@@ -22,6 +22,8 @@ import {
   buildWatchingShowItems,
   isWatchingItemAvailable,
   pickContinueHeroKey,
+  torrentSearchTitlesFromEntry,
+  type TorrentSearchTitles,
 } from '../lib/libraryWatching'
 import {LibraryContinueHero} from '../components/LibraryContinueHero'
 import {
@@ -41,7 +43,7 @@ const EMPTY_EPISODE_THUMBNAILS: Record<number, string> = {}
 
 type Props = {
   notice: (msg: string, isError?: boolean) => void
-  onFindTorrent: (query: string) => void
+  onFindTorrent: (titles: TorrentSearchTitles, episodeNumber: number) => void
   onReady?: () => void
 }
 
@@ -205,6 +207,16 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
       null
     )
   }, [watchingEntries, selectedAnilistId])
+  const selectedTorrentTitles = useMemo(() => {
+    if (!selectedShow) {
+      return null
+    }
+    const entry =
+      selectedWatchingEntry ??
+      onDiskEntries.find((item) => item.mediaId === selectedAnilistId) ??
+      null
+    return torrentSearchTitlesFromEntry(entry, selectedShow.title)
+  }, [selectedShow, selectedWatchingEntry, onDiskEntries, selectedAnilistId])
   const episodeThumbnails =
     episodeThumbnailsByMediaId[selectedAnilistId] ?? EMPTY_EPISODE_THUMBNAILS
 
@@ -610,7 +622,12 @@ export function LibraryView({notice, onFindTorrent, onReady}: Props) {
                   ? (episodeId) => void unmatchEpisode(episodeId)
                   : undefined
               }
-              onFindTorrent={onFindTorrent}
+              onFindTorrent={
+                selectedTorrentTitles
+                  ? (episodeNumber) =>
+                      onFindTorrent(selectedTorrentTitles, episodeNumber)
+                  : undefined
+              }
             />
           </>
         ) : (

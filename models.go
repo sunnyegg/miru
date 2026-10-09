@@ -21,6 +21,8 @@ type SettingsView struct {
 	RSSAutoDownloadLibraryOnly bool    `json:"rssAutoDownloadLibraryOnly"`
 	CloseToTray                bool    `json:"closeToTray"`
 	LastSeenVersion            string  `json:"lastSeenVersion"`
+	TorrentSearchTitleLanguage string  `json:"torrentSearchTitleLanguage"`
+	TorrentSearchPrefix        string  `json:"torrentSearchPrefix"`
 }
 
 type DataSizeView struct {
@@ -144,6 +146,7 @@ type WatchingEntryView struct {
 	CompletedAt       FuzzyDateView `json:"completedAt"`
 	TitleRomaji       string        `json:"titleRomaji"`
 	TitleEnglish      string        `json:"titleEnglish"`
+	TitleNative       string        `json:"titleNative"`
 	CoverImage        string        `json:"coverImage"`
 	BannerImage       string        `json:"bannerImage"`
 	TotalEpisodes     int           `json:"totalEpisodes"`

@@ -12,6 +12,13 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import {Input} from '@/components/ui/input'
+import {NativeSelect, NativeSelectOption} from '@/components/ui/native-select'
+
+const torrentTitleLanguageOptions = [
+  {value: 'romaji', label: 'Romaji'},
+  {value: 'english', label: 'English'},
+  {value: 'native', label: 'Native (kanji)'},
+]
 
 type Props = {
   form: SettingsView
@@ -34,7 +41,7 @@ export function SettingsDownloadsPanel({
         <CardHeader>
           <CardTitle>Downloads</CardTitle>
           <CardDescription>
-            Folder, speed limits, queue, seeding, and RSS auto-download.
+            Folder, speed limits, queue, seeding, RSS, and torrent search.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -204,6 +211,51 @@ export function SettingsDownloadsPanel({
               setForm((current) => ({...current, downloadNotifications: value}))
             }
           />
+
+          <SettingsField
+            label="Torrent search title"
+            htmlFor="torrentSearchTitleLanguage"
+            hint="Language Find Torrent uses when filling the Search query."
+            className="mt-0"
+          >
+            <NativeSelect
+              id="torrentSearchTitleLanguage"
+              value={form.torrentSearchTitleLanguage}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  torrentSearchTitleLanguage: event.target.value,
+                }))
+              }
+              className="max-w-xs bg-card"
+            >
+              {torrentTitleLanguageOptions.map((option) => (
+                <NativeSelectOption key={option.value} value={option.value}>
+                  {option.label}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </SettingsField>
+
+          <SettingsField
+            label="Torrent search prefix"
+            htmlFor="torrentSearchPrefix"
+            hint="Prepended to every torrent indexer search (for example a fansub tag)."
+            className="mt-0"
+          >
+            <Input
+              id="torrentSearchPrefix"
+              value={form.torrentSearchPrefix}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  torrentSearchPrefix: event.target.value,
+                }))
+              }
+              placeholder="[SubsPlease]"
+              className="w-full bg-card"
+            />
+          </SettingsField>
         </CardContent>
         <CardFooter>
           <Button type="submit" variant="secondary" disabled={saving}>

@@ -6,6 +6,9 @@ export type WatchingShowItem = {
   mediaId: number
   key: string
   title: string
+  titleRomaji: string
+  titleEnglish: string
+  titleNative: string
   coverImage: string
   bannerImage: string
   progress: number
@@ -16,6 +19,13 @@ export type WatchingShowItem = {
   hasLocalFiles: boolean
   maxLocalEpisode: number
   newEpisodeNumber: number | null
+}
+
+export type TorrentSearchTitles = {
+  romaji: string
+  english: string
+  native: string
+  fallback: string
 }
 
 function showTitle(entry: WatchingEntryView): string {
@@ -89,6 +99,9 @@ export function buildWatchingShowItems(
       mediaId: entry.mediaId,
       key: `anilist:${entry.mediaId}`,
       title: showTitle(entry),
+      titleRomaji: entry.titleRomaji,
+      titleEnglish: entry.titleEnglish,
+      titleNative: entry.titleNative || '',
       coverImage: entry.coverImage || localShow?.coverImage || '',
       bannerImage: entry.bannerImage,
       progress: entry.progress,
@@ -161,6 +174,67 @@ export function watchingPosterSubcaption(
     return 'Finished'
   }
   return null
+}
+
+export function torrentSearchTitlesFromEntry(
+  entry: {
+    titleRomaji: string
+    titleEnglish: string
+    titleNative?: string
+  } | null,
+  fallback: string,
+): TorrentSearchTitles {
+  return {
+    romaji: entry?.titleRomaji ?? '',
+    english: entry?.titleEnglish ?? '',
+    native: entry?.titleNative ?? '',
+    fallback,
+  }
+}
+
+export function torrentSearchTitlesFromWatchingItem(
+  item: WatchingShowItem,
+): TorrentSearchTitles {
+  return {
+    romaji: item.titleRomaji,
+    english: item.titleEnglish,
+    native: item.titleNative,
+    fallback: item.title,
+  }
+}
+
+export function pickTorrentSearchTitle(
+  titles: TorrentSearchTitles,
+  language: string,
+): string {
+  const preferred =
+    language === 'english'
+      ? titles.english
+      : language === 'native'
+        ? titles.native
+        : titles.romaji
+  return (
+    preferred.trim() ||
+    titles.romaji.trim() ||
+    titles.english.trim() ||
+    titles.native.trim() ||
+    titles.fallback.trim()
+  )
+}
+
+export function withTorrentSearchPrefix(query: string, prefix: string): string {
+  const trimmedQuery = query.trim()
+  const trimmedPrefix = prefix.trim()
+  if (!trimmedQuery) {
+    return ''
+  }
+  if (!trimmedPrefix) {
+    return trimmedQuery
+  }
+  if (trimmedQuery.startsWith(trimmedPrefix)) {
+    return trimmedQuery
+  }
+  return `${trimmedPrefix} ${trimmedQuery}`
 }
 
 export function torrentSearchQuery(

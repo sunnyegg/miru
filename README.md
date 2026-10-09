@@ -16,7 +16,7 @@ the [issue tracker](https://github.com/sunnyegg/miru/issues).
 - **Anime details** — Library, Search, and Airing share the same complete metadata, including labeled genres and the next-episode countdown. Details share an account-scoped memory and SQLite cache for one hour, with cached data available when a refresh fails; search summaries and airing schedules remain separate.
 - **Downloads** — built-in BitTorrent for magnet and `.torrent` links, with file selection, a concurrent limit, queue, bandwidth caps, and seeding across restarts
 - **Airing** — weekly AniList schedule with controls for adding titles to Watching, Planning, or Completed; enabled after AniList responds successfully, with availability cached for six hours
-- **Settings** — MPV path, Anime4K upscaling, Discord Rich Presence, close to system tray, download folder, speed limits, max concurrent downloads, seed ratio, RSS poll interval, auto-download from RSS, desktop notifications, network mode (system / direct / SOCKS5 / HTTP proxy), AniList, updates, and a full data reset
+- **Settings** — MPV path, Anime4K upscaling, Discord Rich Presence, close to system tray, download folder, speed limits, max concurrent downloads, seed ratio, RSS poll interval, auto-download from RSS, desktop notifications, torrent search title language and optional search prefix, network mode (system / direct / SOCKS5 / HTTP proxy), AniList, updates, and a full data reset
 - **Updates** — Miru checks GitHub Releases and can update and restart from **Settings → About**
 
 ## Download

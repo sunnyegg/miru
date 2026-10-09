@@ -226,6 +226,10 @@ export function SaveShareBanner(arg1, arg2) {
   return window['go']['main']['App']['SaveShareBanner'](arg1, arg2);
 }
 
+export function SaveTorrentSearchSettings(arg1, arg2) {
+  return window['go']['main']['App']['SaveTorrentSearchSettings'](arg1, arg2);
+}
+
 export function SaveUpdateChannel(arg1) {
   return window['go']['main']['App']['SaveUpdateChannel'](arg1);
 }

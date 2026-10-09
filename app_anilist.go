@@ -458,6 +458,7 @@ func toWatchingEntryViews(entries []anilist.CurrentEntry) []WatchingEntryView {
 			CompletedAt:       FuzzyDateView{Year: entry.CompletedAt.Year, Month: entry.CompletedAt.Month, Day: entry.CompletedAt.Day},
 			TitleRomaji:       entry.TitleRomaji,
 			TitleEnglish:      entry.TitleEnglish,
+			TitleNative:       entry.TitleNative,
 			CoverImage:        entry.CoverImage,
 			BannerImage:       entry.BannerImage,
 			TotalEpisodes:     entry.TotalEpisodes,

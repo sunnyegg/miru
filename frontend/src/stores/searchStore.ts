@@ -1,11 +1,13 @@
 import {create} from 'zustand'
 import {persist} from 'zustand/middleware'
 import {
+  GetSettings,
   SearchAnime,
   SearchNyaa,
   SearchTokyoToshokan,
 } from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
+import {withTorrentSearchPrefix} from '../lib/libraryWatching'
 import type {AnimeView, NyaaResultView} from '../lib/types'
 
 export type SearchSource = 'nyaa' | 'tokyotosho'
@@ -114,12 +116,26 @@ export const useSearchStore = create<SearchState>()(
           return
         }
 
-        set({loading: true, error: '', submittedQuery: trimmed})
+        let searchPrefix = ''
+        try {
+          const settings = await GetSettings()
+          searchPrefix = settings?.torrentSearchPrefix || ''
+        } catch {
+          // Search without prefix when settings cannot be loaded.
+        }
+        const queryForIndexer = withTorrentSearchPrefix(trimmed, searchPrefix)
+
+        set({
+          loading: true,
+          error: '',
+          query: queryForIndexer,
+          submittedQuery: queryForIndexer,
+        })
         try {
           const found =
             source === 'tokyotosho'
-              ? await SearchTokyoToshokan(trimmed)
-              : await SearchNyaa(trimmed)
+              ? await SearchTokyoToshokan(queryForIndexer)
+              : await SearchNyaa(queryForIndexer)
           set({results: found ?? [], page: 1})
         } catch (err) {
           const message = errorMessage(err)
