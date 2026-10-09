@@ -115,6 +115,8 @@ export function SaveRSSPollSettings(arg1:number):Promise<void>;
 
 export function SaveShareBanner(arg1:string,arg2:string):Promise<string>;
 
+export function SaveTorrentSearchSettings(arg1:string,arg2:string):Promise<void>;
+
 export function SaveUpdateChannel(arg1:string):Promise<void>;
 
 export function SearchAnime(arg1:string):Promise<Array<main.AnimeView>>;

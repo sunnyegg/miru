@@ -16,6 +16,7 @@ import {
   SaveNetworkSettings,
   SavePlaybackSettings,
   SaveRSSPollSettings,
+  SaveTorrentSearchSettings,
   SaveUpdateChannel,
   TestNetworkConnection,
 } from '../../wailsjs/go/main/App'
@@ -61,6 +62,8 @@ const empty: SettingsForm = {
   rssAutoDownloadLibraryOnly: true,
   closeToTray: false,
   lastSeenVersion: '0',
+  torrentSearchTitleLanguage: 'romaji',
+  torrentSearchPrefix: '',
 }
 
 type Props = {
@@ -153,6 +156,9 @@ export function SettingsView({
           settings?.rssAutoDownloadLibraryOnly ?? true,
         closeToTray: settings?.closeToTray ?? false,
         lastSeenVersion: settings?.lastSeenVersion ?? '0',
+        torrentSearchTitleLanguage:
+          settings?.torrentSearchTitleLanguage || 'romaji',
+        torrentSearchPrefix: settings?.torrentSearchPrefix ?? '',
       })
       setStatus(anilist ?? {connected: false, username: ''})
     } catch (err) {
@@ -424,6 +430,10 @@ export function SettingsView({
                         form.rssAutoDownloadLibraryOnly,
                       )
                       await SaveRSSPollSettings(form.rssPollIntervalMinutes)
+                      await SaveTorrentSearchSettings(
+                        form.torrentSearchTitleLanguage,
+                        form.torrentSearchPrefix,
+                      )
                     },
                     'Downloads saved',
                   )

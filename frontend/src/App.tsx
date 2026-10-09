@@ -10,6 +10,12 @@ import {
   SaveLastSeenVersion,
 } from '../wailsjs/go/main/App'
 import {errorMessage} from './lib/format'
+import {
+  pickTorrentSearchTitle,
+  torrentSearchQuery,
+  withTorrentSearchPrefix,
+  type TorrentSearchTitles,
+} from './lib/libraryWatching'
 import {NowPlayingStrip} from './components/NowPlayingStrip'
 import {Sidebar} from './components/Sidebar'
 import {Splash} from './components/Splash'
@@ -242,7 +248,28 @@ export default function App() {
     }
   }, [])
 
-  function openSearchForTorrent(query: string) {
+  async function openSearchForTorrent(
+    titles: TorrentSearchTitles,
+    episodeNumber: number,
+  ) {
+    let titleLanguage = 'romaji'
+    let searchPrefix = ''
+    try {
+      const settings = await GetSettings()
+      titleLanguage = settings?.torrentSearchTitleLanguage || 'romaji'
+      searchPrefix = settings?.torrentSearchPrefix || ''
+    } catch {
+      // Use defaults when settings cannot be loaded.
+    }
+    const title = pickTorrentSearchTitle(titles, titleLanguage)
+    if (!title) {
+      showNotice('No title available for torrent search', true)
+      return
+    }
+    const query = withTorrentSearchPrefix(
+      torrentSearchQuery(title, episodeNumber),
+      searchPrefix,
+    )
     void useSearchStore.getState().prefillSearch(query, showNotice)
     setTab('search')
   }
@@ -299,7 +326,9 @@ export default function App() {
             {tab === 'library' && (
               <LibraryView
                 notice={showNotice}
-                onFindTorrent={openSearchForTorrent}
+                onFindTorrent={(titles, episodeNumber) =>
+                  void openSearchForTorrent(titles, episodeNumber)
+                }
                 onReady={() => setBootDone(true)}
               />
             )}

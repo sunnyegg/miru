@@ -4,8 +4,9 @@ import type {ShowGroup} from '../lib/groupEpisodes'
 import {
   buildWatchingShowItems,
   pickContinueHeroKey,
-  torrentSearchQuery,
+  torrentSearchTitlesFromWatchingItem,
   watchingPosterCaption,
+  type TorrentSearchTitles,
   type WatchingShowItem,
 } from '../lib/libraryWatching'
 import type {EpisodeView, WatchingEntryView} from '../lib/types'
@@ -20,7 +21,7 @@ type Props = {
   episodeShowKeys: ReadonlyMap<number, string>
   completedShowKeys: ReadonlySet<string>
   onOpenShow: (showKey: string) => void
-  onFindTorrent: (query: string) => void
+  onFindTorrent: (titles: TorrentSearchTitles, episodeNumber: number) => void
 }
 
 function heroProgressCaption(
@@ -137,7 +138,10 @@ export function LibraryContinueHero({
     }
     const episodeNumber =
       watchingItem.newEpisodeNumber ?? watchingItem.progress + 1
-    onFindTorrent(torrentSearchQuery(watchingItem.title, episodeNumber))
+    onFindTorrent(
+      torrentSearchTitlesFromWatchingItem(watchingItem),
+      episodeNumber,
+    )
   }
 
   const showFindTorrent =

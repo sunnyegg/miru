@@ -55,6 +55,12 @@ func TestBuildSettingsViewAppliesDefaults(t *testing.T) {
 	if view.MaxConcurrentDownloads != 1 {
 		t.Fatalf("MaxConcurrentDownloads = %d, want 1", view.MaxConcurrentDownloads)
 	}
+	if view.TorrentSearchTitleLanguage != "romaji" {
+		t.Fatalf("TorrentSearchTitleLanguage = %q, want romaji", view.TorrentSearchTitleLanguage)
+	}
+	if view.TorrentSearchPrefix != "" {
+		t.Fatalf("TorrentSearchPrefix = %q, want empty", view.TorrentSearchPrefix)
+	}
 }
 
 func TestBuildSettingsViewOverridesFromCache(t *testing.T) {
@@ -77,6 +83,8 @@ func TestBuildSettingsViewOverridesFromCache(t *testing.T) {
 		"seed_ratio":                     "1.5",
 		"download_rate_limit":            "1024",
 		"upload_rate_limit":              "512",
+		"torrent_search_title_language":  "english",
+		"torrent_search_prefix":          "[SubsPlease]",
 	}
 	view := buildSettingsView(cache, t.TempDir())
 	if view.MpvPath != "/usr/local/bin/mpv" {
@@ -102,6 +110,40 @@ func TestBuildSettingsViewOverridesFromCache(t *testing.T) {
 	}
 	if view.DownloadRateLimit != 1024 || view.UploadRateLimit != 512 {
 		t.Fatalf("rate limits: down=%d up=%d", view.DownloadRateLimit, view.UploadRateLimit)
+	}
+	if view.TorrentSearchTitleLanguage != "english" {
+		t.Fatalf("TorrentSearchTitleLanguage = %q", view.TorrentSearchTitleLanguage)
+	}
+	if view.TorrentSearchPrefix != "[SubsPlease]" {
+		t.Fatalf("TorrentSearchPrefix = %q", view.TorrentSearchPrefix)
+	}
+}
+
+func TestSaveTorrentSearchSettings(t *testing.T) {
+	a := newSettingsApp(t)
+	if err := a.SaveTorrentSearchSettings("NATIVE", "  [Erai-raws]  "); err != nil {
+		t.Fatal(err)
+	}
+	view, err := a.loadSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.TorrentSearchTitleLanguage != "native" {
+		t.Fatalf("TorrentSearchTitleLanguage = %q, want native", view.TorrentSearchTitleLanguage)
+	}
+	if view.TorrentSearchPrefix != "[Erai-raws]" {
+		t.Fatalf("TorrentSearchPrefix = %q", view.TorrentSearchPrefix)
+	}
+
+	if err := a.SaveTorrentSearchSettings("nope", ""); err != nil {
+		t.Fatal(err)
+	}
+	view, err = a.loadSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.TorrentSearchTitleLanguage != "romaji" {
+		t.Fatalf("invalid language = %q, want romaji", view.TorrentSearchTitleLanguage)
 	}
 }
 

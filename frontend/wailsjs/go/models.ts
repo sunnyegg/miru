@@ -407,6 +407,8 @@ export namespace main {
 	    rssAutoDownloadLibraryOnly: boolean;
 	    closeToTray: boolean;
 	    lastSeenVersion: string;
+	    torrentSearchTitleLanguage: string;
+	    torrentSearchPrefix: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsView(source);
@@ -434,6 +436,8 @@ export namespace main {
 	        this.rssAutoDownloadLibraryOnly = source["rssAutoDownloadLibraryOnly"];
 	        this.closeToTray = source["closeToTray"];
 	        this.lastSeenVersion = source["lastSeenVersion"];
+	        this.torrentSearchTitleLanguage = source["torrentSearchTitleLanguage"];
+	        this.torrentSearchPrefix = source["torrentSearchPrefix"];
 	    }
 	}
 	export class StreamingEpisodeThumbnailView {
@@ -484,6 +488,7 @@ export namespace main {
 	    completedAt: FuzzyDateView;
 	    titleRomaji: string;
 	    titleEnglish: string;
+	    titleNative: string;
 	    coverImage: string;
 	    bannerImage: string;
 	    totalEpisodes: number;
@@ -508,6 +513,7 @@ export namespace main {
 	        this.completedAt = this.convertValues(source["completedAt"], FuzzyDateView);
 	        this.titleRomaji = source["titleRomaji"];
 	        this.titleEnglish = source["titleEnglish"];
+	        this.titleNative = source["titleNative"];
 	        this.coverImage = source["coverImage"];
 	        this.bannerImage = source["bannerImage"];
 	        this.totalEpisodes = source["totalEpisodes"];

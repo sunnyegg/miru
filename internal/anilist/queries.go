@@ -194,7 +194,7 @@ func (c *Client) ListMediaList(status string) ([]CurrentEntry, error) {
 	      completedAt { year month day }
 	      media {
 	        id
-	        title { romaji english }
+	        title { romaji english native }
 	        coverImage { extraLarge large }
 	        bannerImage
 	        episodes
@@ -712,6 +712,7 @@ type gqlCurrentEntry struct {
 		Title struct {
 			Romaji  string `json:"romaji"`
 			English string `json:"english"`
+			Native  string `json:"native"`
 		} `json:"title"`
 		CoverImage struct {
 			ExtraLarge string `json:"extraLarge"`
@@ -746,6 +747,7 @@ func (e gqlCurrentEntry) toCurrentEntry() CurrentEntry {
 		CompletedAt:       FuzzyDate{Year: e.CompletedAt.Year, Month: e.CompletedAt.Month, Day: e.CompletedAt.Day},
 		TitleRomaji:       e.Media.Title.Romaji,
 		TitleEnglish:      e.Media.Title.English,
+		TitleNative:       e.Media.Title.Native,
 		CoverImage:        bestCoverImage(e.Media.CoverImage.ExtraLarge, e.Media.CoverImage.Large),
 		BannerImage:       e.Media.BannerImage,
 		TotalEpisodes:     e.Media.Episodes,

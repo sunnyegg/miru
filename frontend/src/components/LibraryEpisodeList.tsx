@@ -1,6 +1,5 @@
 import {memo, useRef, type RefObject} from 'react'
 import {episodeSlots, type ShowGroup} from '../lib/groupEpisodes'
-import {torrentSearchQuery} from '../lib/libraryWatching'
 import type {EpisodeView} from '../lib/types'
 import {usePlaybackStore} from '../stores/playbackStore'
 import {Button} from '@/components/ui/button'
@@ -14,7 +13,7 @@ type Props = {
   episodeThumbnails: Record<number, string>
   onPlay: (episodeId: number) => void
   onUnmatch?: (episodeId: number) => void
-  onFindTorrent?: (query: string) => void
+  onFindTorrent?: (episodeNumber: number) => void
 }
 
 type RowProps = {
@@ -280,7 +279,7 @@ export function LibraryEpisodeList({
     if (!onFindTorrent || episodeNumber <= 0) {
       return
     }
-    onFindTorrent(torrentSearchQuery(show.title, episodeNumber))
+    onFindTorrent(episodeNumber)
   }
 
   return (
