@@ -58,6 +58,10 @@ export function DownloadStatus() {
   return window['go']['main']['App']['DownloadStatus']();
 }
 
+export function FetchShareImage(arg1) {
+  return window['go']['main']['App']['FetchShareImage'](arg1);
+}
+
 export function FinishDownload(arg1) {
   return window['go']['main']['App']['FinishDownload'](arg1);
 }
@@ -216,6 +220,10 @@ export function SavePlaybackSettings(arg1, arg2, arg3) {
 
 export function SaveRSSPollSettings(arg1) {
   return window['go']['main']['App']['SaveRSSPollSettings'](arg1);
+}
+
+export function SaveShareBanner(arg1, arg2) {
+  return window['go']['main']['App']['SaveShareBanner'](arg1, arg2);
 }
 
 export function SaveUpdateChannel(arg1) {

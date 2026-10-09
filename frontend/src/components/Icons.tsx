@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   CircleHelp,
   Download,
   Folder,
@@ -11,6 +12,7 @@ import {
   Play,
   Search,
   Settings,
+  Share2,
   User,
   X,
   type LucideProps,
@@ -35,6 +37,10 @@ export function IconProfile({className}: IconProps) {
   return <User className={className} {...stroke} />
 }
 
+export function IconShare({className}: IconProps) {
+  return <Share2 className={className} {...stroke} />
+}
+
 export function IconClose({className}: IconProps) {
   return <X className={className} {...stroke} />
 }
@@ -53,6 +59,10 @@ export function IconCheck({className}: IconProps) {
 
 export function IconChevronDown({className}: IconProps) {
   return <ChevronDown className={className} {...stroke} />
+}
+
+export function IconChevronUp({className}: IconProps) {
+  return <ChevronUp className={className} {...stroke} />
 }
 
 export function IconSettings({className}: IconProps) {
