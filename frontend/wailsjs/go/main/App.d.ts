@@ -31,6 +31,8 @@ export function DownloadHistory():Promise<Array<torrentx.JobView>>;
 
 export function DownloadStatus():Promise<torrentx.JobView>;
 
+export function FetchShareImage(arg1:string):Promise<string>;
+
 export function FinishDownload(arg1:number):Promise<void>;
 
 export function GetAnilistProfile():Promise<main.AnilistProfileView>;
@@ -110,6 +112,8 @@ export function SaveNetworkSettings(arg1:string,arg2:string,arg3:string):Promise
 export function SavePlaybackSettings(arg1:string,arg2:boolean,arg3:boolean):Promise<void>;
 
 export function SaveRSSPollSettings(arg1:number):Promise<void>;
+
+export function SaveShareBanner(arg1:string,arg2:string):Promise<string>;
 
 export function SaveUpdateChannel(arg1:string):Promise<void>;
 

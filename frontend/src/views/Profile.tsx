@@ -1,9 +1,16 @@
 import {useEffect, useState} from 'react'
 import {
   GetAnilistProfile,
+  ListAnimeList,
+  SaveShareBanner,
   UpdateAnilistProfile,
 } from '../../wailsjs/go/main/App'
+import {IconShare} from '../components/Icons'
 import {LibraryPosterCard} from '../components/LibraryPosterCard'
+import {
+  ShareBannerDialog,
+  type ShareBannerSession,
+} from '../components/ShareBannerDialog'
 import {WatchingEditSheet} from '../components/WatchingEditSheet'
 import {SettingsCheckboxRow} from '../components/settings/SettingsCheckboxRow'
 import {SettingsField} from '../components/settings/SettingsField'
@@ -133,6 +140,11 @@ export function ProfileView({notice}: Props) {
     (typeof entries)[number] | null
   >(null)
   const [savingEntry, setSavingEntry] = useState(false)
+  const [sharingFilter, setSharingFilter] = useState<ListFilter | null>(null)
+  const [shareSession, setShareSession] = useState<ShareBannerSession | null>(
+    null,
+  )
+  const [savingBanner, setSavingBanner] = useState(false)
 
   const notConnected = listNotConnected || profileNotConnected
 
@@ -188,6 +200,54 @@ export function ProfileView({notice}: Props) {
       // notice handled in store
     } finally {
       setSavingEntry(false)
+    }
+  }
+
+  async function shareCategory(filter: ListFilter) {
+    const categoryLabel = listStatusLabel(filter)
+    setSharingFilter(filter)
+    try {
+      let shareEntries: WatchingEntryView[]
+      if (listFilter === filter) {
+        shareEntries = entries
+      } else {
+        shareEntries = (await ListAnimeList(filter)) ?? []
+      }
+      if (shareEntries.length === 0) {
+        notice(`Nothing to share in ${categoryLabel}`, true)
+        return
+      }
+
+      setShareSession({
+        username,
+        categoryLabel,
+        categoryCount: counts[filter] ?? shareEntries.length,
+        defaultFilename: `miru-${categoryLabel.toLowerCase()}.png`,
+        posters: shareEntries.map((entry) => ({
+          mediaId: entry.mediaId,
+          title: entry.titleEnglish || entry.titleRomaji,
+          coverImage: entry.coverImage,
+        })),
+      })
+    } catch (err) {
+      notice(errorMessage(err), true)
+    } finally {
+      setSharingFilter(null)
+    }
+  }
+
+  async function saveShareBanner(pngBase64: string, defaultFilename: string) {
+    setSavingBanner(true)
+    try {
+      const savedPath = await SaveShareBanner(pngBase64, defaultFilename)
+      if (savedPath) {
+        notice('Banner saved')
+        setShareSession(null)
+      }
+    } catch (err) {
+      notice(errorMessage(err), true)
+    } finally {
+      setSavingBanner(false)
     }
   }
 
@@ -352,31 +412,51 @@ export function ProfileView({notice}: Props) {
             >
               {listFilters.map((filter) => {
                 const selected = listFilter === filter.value
+                const sharing = sharingFilter === filter.value
                 return (
-                  <Button
+                  <div
                     key={filter.value}
-                    type="button"
-                    variant="ghost"
-                    className={cn(
-                      'relative h-11 min-h-11 shrink-0 px-3 text-muted-foreground hover:text-foreground',
-                      selected && 'text-foreground',
-                    )}
-                    aria-pressed={selected}
-                    onClick={() => void selectFilter(filter.value)}
+                    className="relative flex shrink-0 items-center"
                   >
-                    {filter.label}
-                    {!countsLoading && !countsError && (
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        {counts[filter.value] ?? 0}
-                      </span>
-                    )}
-                    {selected && (
-                      <span
-                        className="absolute inset-x-3 bottom-0 h-0.5 bg-accent"
-                        aria-hidden="true"
-                      />
-                    )}
-                  </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className={cn(
+                        'relative h-11 min-h-11 px-3 text-muted-foreground hover:text-foreground',
+                        selected && 'text-foreground',
+                      )}
+                      aria-pressed={selected}
+                      onClick={() => void selectFilter(filter.value)}
+                    >
+                      {filter.label}
+                      {!countsLoading && !countsError && (
+                        <span className="text-xs tabular-nums text-muted-foreground">
+                          {counts[filter.value] ?? 0}
+                        </span>
+                      )}
+                      {selected && (
+                        <span
+                          className="absolute inset-x-3 bottom-0 h-0.5 bg-accent"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-11 w-11 text-muted-foreground hover:text-foreground"
+                      aria-label={
+                        sharing
+                          ? `Sharing ${filter.label}`
+                          : `Share ${filter.label}`
+                      }
+                      disabled={sharingFilter !== null}
+                      onClick={() => void shareCategory(filter.value)}
+                    >
+                      <IconShare className="size-4" />
+                    </Button>
+                  </div>
                 )
               })}
             </div>
@@ -460,6 +540,22 @@ export function ProfileView({notice}: Props) {
           onSave={(input) => void saveEntryWithState(input)}
         />
       )}
+
+      <ShareBannerDialog
+        key={
+          shareSession
+            ? `${shareSession.categoryLabel}-${shareSession.posters.map((poster) => poster.mediaId).join('-')}`
+            : 'share-banner-closed'
+        }
+        open={shareSession !== null}
+        session={shareSession}
+        saving={savingBanner}
+        onClose={() => setShareSession(null)}
+        onSave={(pngBase64, defaultFilename) =>
+          void saveShareBanner(pngBase64, defaultFilename)
+        }
+        onError={(message) => notice(message, true)}
+      />
     </section>
   )
 }
