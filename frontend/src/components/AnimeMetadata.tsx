@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'react'
 import {sanitizeAnilistSynopsis} from '../lib/anilistDescription'
 import {dayFormatter, timeFormatter} from '../lib/calendar'
+import {seasonLabel} from '../lib/season'
 import type {AnimeView} from '../lib/types'
 import {Badge} from '@/components/ui/badge'
 
@@ -22,13 +23,6 @@ const statusLabels: Record<string, string> = {
   HIATUS: 'On hiatus',
 }
 
-const seasonLabels: Record<string, string> = {
-  WINTER: 'Winter',
-  SPRING: 'Spring',
-  SUMMER: 'Summer',
-  FALL: 'Fall',
-}
-
 function humanizeEnum(value: string): string {
   return value
     .toLowerCase()
@@ -47,12 +41,10 @@ export function AnimeMetadata({anime}: {anime: AnimeView}) {
     return () => window.clearInterval(timer)
   }, [anime.nextAiringAt])
 
-  const seasonLabel = [
-    seasonLabels[anime.season] ?? humanizeEnum(anime.season),
-    anime.seasonYear > 0 ? String(anime.seasonYear) : '',
-  ]
-    .filter(Boolean)
-    .join(' ')
+  const seasonValue =
+    anime.season || anime.seasonYear > 0
+      ? seasonLabel(anime.season, anime.seasonYear)
+      : ''
 
   const rows = [
     {
@@ -71,7 +63,7 @@ export function AnimeMetadata({anime}: {anime: AnimeView}) {
       label: 'Duration',
       value: anime.duration > 0 ? `${anime.duration} min` : '',
     },
-    {label: 'Season', value: seasonLabel},
+    {label: 'Season', value: seasonValue},
     {
       label: 'Score',
       value: anime.averageScore > 0 ? `${anime.averageScore} / 100` : '',

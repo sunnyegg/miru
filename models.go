@@ -153,6 +153,13 @@ type WatchingEntryView struct {
 	MediaStatus       string        `json:"mediaStatus"`
 	NextAiringEpisode int           `json:"nextAiringEpisode"`
 	NextAiringAt      int64         `json:"nextAiringAt"`
+	Season            string        `json:"season"`
+	SeasonYear        int           `json:"seasonYear"`
+}
+
+type AnimeSeasonPageView struct {
+	Items       []AnimeView `json:"items"`
+	HasNextPage bool        `json:"hasNextPage"`
 }
 
 type StreamingEpisodeThumbnailView struct {

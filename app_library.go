@@ -142,6 +142,31 @@ func (a *App) searchAnime(query, token string) ([]AnimeView, error) {
 	})
 }
 
+func (a *App) BrowseAnimeSeason(season string, year int, page int) (AnimeSeasonPageView, error) {
+	if err := a.ready(); err != nil {
+		return AnimeSeasonPageView{}, err
+	}
+	token, _ := a.tokens.Get()
+	return a.browseAnimeSeason(season, year, page, token)
+}
+
+func (a *App) browseAnimeSeason(season string, year int, page int, token string) (AnimeSeasonPageView, error) {
+	return loadCachedJSON(a, animeSeasonCacheKey(season, year, page, token), animeSearchCacheTTL, func() (AnimeSeasonPageView, error) {
+		client, err := a.newAnilist(token)
+		if err != nil {
+			return AnimeSeasonPageView{}, err
+		}
+		result, err := client.BrowseSeason(season, year, page)
+		if err != nil {
+			return AnimeSeasonPageView{}, err
+		}
+		return AnimeSeasonPageView{
+			Items:       toAnimeViews(result.Items),
+			HasNextPage: result.HasNextPage,
+		}, nil
+	})
+}
+
 func (a *App) BindEpisode(episodeID int64, anilistID int) error {
 	if err := a.ready(); err != nil {
 		return err

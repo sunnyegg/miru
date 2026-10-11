@@ -5,10 +5,24 @@ import {
   onDiskFilters,
   type OnDiskFilter,
 } from '../lib/libraryOnDisk'
+import {groupBySeason} from '../lib/season'
 import type {WatchingEntryView} from '../lib/types'
 import {LibraryPosterGrid} from './LibraryPosterGrid'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
+
+function showSeason(
+  show: ShowGroup,
+  seasonByMediaId: Map<number, {season: string; seasonYear: number}>,
+): {season: string; seasonYear: number} {
+  const mediaId = show.episodes.find(
+    (episode) => episode.anilistId > 0,
+  )?.anilistId
+  if (!mediaId) {
+    return {season: '', seasonYear: 0}
+  }
+  return seasonByMediaId.get(mediaId) ?? {season: '', seasonYear: 0}
+}
 
 type Props = {
   loading: boolean
@@ -40,9 +54,25 @@ export function LibraryOnDiskSection({
     () => bucketOnDiskShows(shows, entries),
     [entries, shows],
   )
+  const seasonByMediaId = useMemo(() => {
+    const map = new Map<number, {season: string; seasonYear: number}>()
+    for (const entry of entries) {
+      map.set(entry.mediaId, {
+        season: entry.season || '',
+        seasonYear: entry.seasonYear || 0,
+      })
+    }
+    return map
+  }, [entries])
 
   const availableFilters = statusError ? [onDiskFilters[0]] : onDiskFilters
   const activeFilter = statusError ? 'ALL' : selectedFilter
+  const filteredShows = buckets[activeFilter]
+  const seasonGroups = useMemo(
+    () =>
+      groupBySeason(filteredShows, (show) => showSeason(show, seasonByMediaId)),
+    [filteredShows, seasonByMediaId],
+  )
 
   if (!loading && shows.length === 0 && suppressEmptyState && !statusError) {
     return null
@@ -108,20 +138,42 @@ export function LibraryOnDiskSection({
         </div>
       )}
 
-      <LibraryPosterGrid
-        loading={loading}
-        loadError={loadError}
-        shows={buckets[activeFilter]}
-        highlightedKey={highlightedKey}
-        onSelectShow={onSelectShow}
-        onRetry={onRetryLibrary}
-        suppressEmptyState={suppressEmptyState && activeFilter === 'ALL'}
-        emptyMessage={
-          activeFilter === 'ALL'
-            ? undefined
-            : `No on-disk shows with ${onDiskFilters.find((filter) => filter.value === activeFilter)?.label ?? 'this status'}.`
-        }
-      />
+      {loading || loadError || filteredShows.length === 0 ? (
+        <LibraryPosterGrid
+          loading={loading}
+          loadError={loadError}
+          shows={filteredShows}
+          highlightedKey={highlightedKey}
+          onSelectShow={onSelectShow}
+          onRetry={onRetryLibrary}
+          suppressEmptyState={suppressEmptyState && activeFilter === 'ALL'}
+          emptyMessage={
+            activeFilter === 'ALL'
+              ? undefined
+              : `No on-disk shows with ${onDiskFilters.find((filter) => filter.value === activeFilter)?.label ?? 'this status'}.`
+          }
+        />
+      ) : (
+        <div className="flex flex-col gap-6">
+          {seasonGroups.map((group) => (
+            <div key={group.key}>
+              <h4 className="mb-3 text-xs font-medium text-muted-foreground">
+                {group.label}
+                <span className="ml-2 tabular-nums">{group.items.length}</span>
+              </h4>
+              <LibraryPosterGrid
+                loading={false}
+                loadError=""
+                shows={group.items}
+                highlightedKey={highlightedKey}
+                onSelectShow={onSelectShow}
+                onRetry={onRetryLibrary}
+                suppressEmptyState
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   )
 }

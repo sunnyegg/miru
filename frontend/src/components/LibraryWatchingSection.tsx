@@ -4,6 +4,7 @@ import {
   type WatchingShowItem,
 } from '../lib/libraryWatching'
 import {compareByNextAiring} from '../lib/groupEpisodes'
+import {groupBySeason} from '../lib/season'
 import {LibraryPosterCard} from './LibraryPosterCard'
 import {LibraryPosterCarousel} from './LibraryPosterCarousel'
 import {Skeleton} from '@/components/ui/skeleton'
@@ -44,6 +45,11 @@ export function LibraryWatchingSection({
       : [...sourceItems]
   ).sort((left, right) => compareByNextAiring(left, right, Date.now()))
 
+  const seasonGroups = groupBySeason(items, (item) => ({
+    season: item.season,
+    seasonYear: item.seasonYear,
+  }))
+
   return (
     <section className="mb-8 shrink-0">
       <div className="mb-3 flex items-baseline gap-2">
@@ -63,27 +69,39 @@ export function LibraryWatchingSection({
           ))}
         </LibraryPosterCarousel>
       ) : items.length === 0 ? null : (
-        <LibraryPosterCarousel ariaLabel={`${title} shelf`}>
-          {items.map((item) => {
-            const caption = watchingPosterCaption(item)
-            const subcaption = watchingPosterSubcaption(item)
+        <div className="flex flex-col gap-6">
+          {seasonGroups.map((group) => (
+            <div key={group.key}>
+              <h4 className="mb-3 text-xs font-medium text-muted-foreground">
+                {group.label}
+                <span className="ml-2 tabular-nums">{group.items.length}</span>
+              </h4>
+              <LibraryPosterCarousel
+                ariaLabel={`${title} ${group.label} shelf`}
+              >
+                {group.items.map((item) => {
+                  const caption = watchingPosterCaption(item)
+                  const subcaption = watchingPosterSubcaption(item)
 
-            return (
-              <li key={item.key}>
-                <LibraryPosterCard
-                  title={item.title}
-                  coverImage={item.coverImage}
-                  caption={caption.text}
-                  subcaption={subcaption}
-                  accentCaption={caption.accent}
-                  active={item.key === highlightedKey}
-                  size="shelf"
-                  onClick={() => onOpenShow(item.key)}
-                />
-              </li>
-            )
-          })}
-        </LibraryPosterCarousel>
+                  return (
+                    <li key={item.key}>
+                      <LibraryPosterCard
+                        title={item.title}
+                        coverImage={item.coverImage}
+                        caption={caption.text}
+                        subcaption={subcaption}
+                        accentCaption={caption.accent}
+                        active={item.key === highlightedKey}
+                        size="shelf"
+                        onClick={() => onOpenShow(item.key)}
+                      />
+                    </li>
+                  )
+                })}
+              </LibraryPosterCarousel>
+            </div>
+          ))}
+        </div>
       )}
     </section>
   )

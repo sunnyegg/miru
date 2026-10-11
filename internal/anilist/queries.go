@@ -200,6 +200,8 @@ func (c *Client) ListMediaList(status string) ([]CurrentEntry, error) {
 	        episodes
 	        status
 	        nextAiringEpisode { episode airingAt }
+	        season
+	        seasonYear
 	      }
 	    }
 	  }
@@ -304,6 +306,74 @@ func (c *Client) Search(search string) ([]Anime, error) {
 		animes = append(animes, m.toAnime())
 	}
 	return animes, nil
+}
+
+type SeasonPage struct {
+	Items       []Anime
+	HasNextPage bool
+}
+
+func ValidMediaSeason(season string) bool {
+	switch strings.ToUpper(strings.TrimSpace(season)) {
+	case "WINTER", "SPRING", "SUMMER", "FALL":
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *Client) BrowseSeason(season string, year int, page int) (SeasonPage, error) {
+	season = strings.ToUpper(strings.TrimSpace(season))
+	if !ValidMediaSeason(season) {
+		return SeasonPage{}, fmt.Errorf("unsupported media season %q", season)
+	}
+	if year <= 0 {
+		return SeasonPage{}, fmt.Errorf("season year must be positive")
+	}
+	if page < 1 {
+		page = 1
+	}
+
+	const q = `
+	query ($page: Int, $season: MediaSeason, $seasonYear: Int) {
+	  Page(page: $page, perPage: 50) {
+	    pageInfo { hasNextPage }
+	    media(type: ANIME, season: $season, seasonYear: $seasonYear, sort: POPULARITY_DESC) {
+	      id
+	      title { romaji english native }
+	      coverImage { large }
+	      episodes
+	      status
+	      season
+	      seasonYear
+	      description(asHtml: false)
+	      mediaListEntry { status }
+	    }
+	  }
+	}`
+	var out struct {
+		Page struct {
+			PageInfo struct {
+				HasNextPage bool `json:"hasNextPage"`
+			} `json:"pageInfo"`
+			Media []gqlMedia `json:"media"`
+		} `json:"Page"`
+	}
+	if err := c.query(q, map[string]any{
+		"page":       page,
+		"season":     season,
+		"seasonYear": year,
+	}, &out); err != nil {
+		return SeasonPage{}, err
+	}
+	animes := make([]Anime, 0, len(out.Page.Media))
+	for _, media := range out.Page.Media {
+		animes = append(animes, media.toAnime())
+	}
+	return SeasonPage{
+		Items:       animes,
+		HasNextPage: out.Page.PageInfo.HasNextPage,
+	}, nil
 }
 
 func (c *Client) GetAnime(id int) (Anime, error) {
@@ -725,6 +795,8 @@ type gqlCurrentEntry struct {
 			Episode  int   `json:"episode"`
 			AiringAt int64 `json:"airingAt"`
 		} `json:"nextAiringEpisode"`
+		Season     string `json:"season"`
+		SeasonYear int    `json:"seasonYear"`
 	} `json:"media"`
 }
 
@@ -754,6 +826,8 @@ func (e gqlCurrentEntry) toCurrentEntry() CurrentEntry {
 		MediaStatus:       e.Media.Status,
 		NextAiringEpisode: nextAiringEpisode,
 		NextAiringAt:      nextAiringAt,
+		Season:            e.Media.Season,
+		SeasonYear:        e.Media.SeasonYear,
 	}
 }
 

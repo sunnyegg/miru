@@ -159,6 +159,13 @@ export type WatchingEntryView = {
   mediaStatus: string
   nextAiringEpisode: number
   nextAiringAt: number
+  season: string
+  seasonYear: number
+}
+
+export type AnimeSeasonPageView = {
+  items: AnimeView[]
+  hasNextPage: boolean
 }
 
 export type StreamingEpisodeThumbnailView = {

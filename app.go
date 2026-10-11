@@ -39,11 +39,13 @@ const (
 	watchingCacheKey               = "watching"
 	completedCacheKey              = "completed"
 	animeListCacheFamilyPrefix     = "anilist:list:"
-	animeListCachePrefix           = animeListCacheFamilyPrefix + "v3:"
+	animeListCachePrefix           = animeListCacheFamilyPrefix + "v4:"
 	animeListCountsFamilyPrefix    = "anilist:list-counts:"
 	animeListCountsCachePrefix     = animeListCountsFamilyPrefix + "v2:"
 	animeSearchCacheFamilyPrefix   = "anilist:search:"
 	animeSearchCachePrefix         = animeSearchCacheFamilyPrefix + "v1:"
+	animeSeasonCacheFamilyPrefix   = "anilist:season:"
+	animeSeasonCachePrefix         = animeSeasonCacheFamilyPrefix + "v1:"
 	animeProgressCacheFamilyPrefix = "anilist:progress:"
 	animeProgressCachePrefix       = animeProgressCacheFamilyPrefix + "v1:"
 )
@@ -66,6 +68,17 @@ func animeListCountsCacheKey(token string) string {
 func animeSearchCacheKey(query, token string) string {
 	queryHash := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(query))))
 	return fmt.Sprintf("%s%s:%x", animeSearchCachePrefix, anilistCacheScope(token), queryHash)
+}
+
+func animeSeasonCacheKey(season string, year int, page int, token string) string {
+	return fmt.Sprintf(
+		"%s%s:%s:%d:%d",
+		animeSeasonCachePrefix,
+		anilistCacheScope(token),
+		strings.ToUpper(strings.TrimSpace(season)),
+		year,
+		page,
+	)
 }
 
 func animeProgressCacheKey(ids []int, token string) string {

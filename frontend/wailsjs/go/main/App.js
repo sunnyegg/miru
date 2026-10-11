@@ -26,6 +26,10 @@ export function BindEpisode(arg1, arg2) {
   return window['go']['main']['App']['BindEpisode'](arg1, arg2);
 }
 
+export function BrowseAnimeSeason(arg1, arg2, arg3) {
+  return window['go']['main']['App']['BrowseAnimeSeason'](arg1, arg2, arg3);
+}
+
 export function CancelDownload(arg1) {
   return window['go']['main']['App']['CancelDownload'](arg1);
 }
