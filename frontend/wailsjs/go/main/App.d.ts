@@ -15,6 +15,8 @@ export function ApplyUpdate():Promise<void>;
 
 export function BindEpisode(arg1:number,arg2:number):Promise<void>;
 
+export function BrowseAnimeSeason(arg1:string,arg2:number,arg3:number):Promise<main.AnimeSeasonPageView>;
+
 export function CancelDownload(arg1:number):Promise<void>;
 
 export function CheckForUpdate():Promise<main.UpdateInfo>;

@@ -1,6 +1,7 @@
 import {create} from 'zustand'
 import {persist} from 'zustand/middleware'
 import {
+  BrowseAnimeSeason,
   GetSettings,
   SearchAnime,
   SearchNyaa,
@@ -8,21 +9,30 @@ import {
 } from '../../wailsjs/go/main/App'
 import {errorMessage} from '../lib/format'
 import {withTorrentSearchPrefix} from '../lib/libraryWatching'
+import {currentAniListSeason, type MediaSeason} from '../lib/season'
 import type {AnimeView, NyaaResultView} from '../lib/types'
 
 export type SearchSource = 'nyaa' | 'tokyotosho'
 export type SearchTab = 'anime' | 'torrent'
 export type TorrentMode = 'search' | 'feeds'
+export type AnimeSearchMode = 'title' | 'season'
 
 type NoticeFn = (message: string, isError?: boolean) => void
+
+const defaultSeason = currentAniListSeason()
 
 type SearchState = {
   tab: SearchTab
   torrentMode: TorrentMode
+  animeMode: AnimeSearchMode
   animeQuery: string
   animeResults: AnimeView[]
   animeLoading: boolean
   animeError: string
+  animeSeason: MediaSeason
+  animeSeasonYear: number
+  animeSeasonPage: number
+  animeSeasonHasNext: boolean
   query: string
   submittedQuery: string
   source: SearchSource
@@ -33,9 +43,14 @@ type SearchState = {
 
   setTab: (tab: SearchTab) => void
   setTorrentMode: (mode: TorrentMode) => void
+  setAnimeMode: (mode: AnimeSearchMode) => void
   setAnimeQuery: (query: string) => void
+  setAnimeSeason: (season: MediaSeason) => void
+  setAnimeSeasonYear: (year: number) => void
   clearAnimeSearch: () => void
   searchAnime: () => Promise<void>
+  browseAnimeSeason: () => Promise<void>
+  loadMoreAnimeSeason: () => Promise<void>
   updateAnimeListStatus: (mediaId: number, status: string) => void
   setQuery: (query: string) => void
   setPage: (page: number) => void
@@ -53,10 +68,15 @@ export const useSearchStore = create<SearchState>()(
     (set, get) => ({
       tab: 'anime',
       torrentMode: 'search',
+      animeMode: 'title',
       animeQuery: '',
       animeResults: [],
       animeLoading: false,
       animeError: '',
+      animeSeason: defaultSeason.season,
+      animeSeasonYear: defaultSeason.year,
+      animeSeasonPage: 0,
+      animeSeasonHasNext: false,
       query: '',
       submittedQuery: '',
       source: 'nyaa',
@@ -67,9 +87,18 @@ export const useSearchStore = create<SearchState>()(
 
       setTab: (tab) => set({tab}),
       setTorrentMode: (torrentMode) => set({torrentMode}),
+      setAnimeMode: (animeMode) => set({animeMode}),
       setAnimeQuery: (animeQuery) => set({animeQuery}),
+      setAnimeSeason: (animeSeason) => set({animeSeason}),
+      setAnimeSeasonYear: (animeSeasonYear) => set({animeSeasonYear}),
       clearAnimeSearch: () =>
-        set({animeQuery: '', animeResults: [], animeError: ''}),
+        set({
+          animeQuery: '',
+          animeResults: [],
+          animeError: '',
+          animeSeasonPage: 0,
+          animeSeasonHasNext: false,
+        }),
 
       searchAnime: async () => {
         const trimmed = get().animeQuery.trim()
@@ -77,12 +106,70 @@ export const useSearchStore = create<SearchState>()(
           set({animeError: 'Enter an anime title to search.'})
           return
         }
-        set({animeLoading: true, animeError: ''})
+        set({animeLoading: true, animeError: '', animeSeasonHasNext: false})
         try {
           const found = await SearchAnime(trimmed)
-          set({animeResults: found ?? []})
+          set({animeResults: found ?? [], animeSeasonPage: 0})
         } catch (err) {
           set({animeError: errorMessage(err), animeResults: []})
+        } finally {
+          set({animeLoading: false})
+        }
+      },
+
+      browseAnimeSeason: async () => {
+        const {animeSeason, animeSeasonYear} = get()
+        if (animeSeasonYear <= 0) {
+          set({animeError: 'Enter a valid season year.'})
+          return
+        }
+        set({animeLoading: true, animeError: ''})
+        try {
+          const page = await BrowseAnimeSeason(animeSeason, animeSeasonYear, 1)
+          set({
+            animeResults: page?.items ?? [],
+            animeSeasonPage: 1,
+            animeSeasonHasNext: Boolean(page?.hasNextPage),
+          })
+        } catch (err) {
+          set({
+            animeError: errorMessage(err),
+            animeResults: [],
+            animeSeasonPage: 0,
+            animeSeasonHasNext: false,
+          })
+        } finally {
+          set({animeLoading: false})
+        }
+      },
+
+      loadMoreAnimeSeason: async () => {
+        const {
+          animeLoading,
+          animeSeasonHasNext,
+          animeSeason,
+          animeSeasonYear,
+          animeSeasonPage,
+          animeResults,
+        } = get()
+        if (animeLoading || !animeSeasonHasNext || animeSeasonPage < 1) {
+          return
+        }
+        const nextPage = animeSeasonPage + 1
+        set({animeLoading: true, animeError: ''})
+        try {
+          const page = await BrowseAnimeSeason(
+            animeSeason,
+            animeSeasonYear,
+            nextPage,
+          )
+          set({
+            animeResults: [...animeResults, ...(page?.items ?? [])],
+            animeSeasonPage: nextPage,
+            animeSeasonHasNext: Boolean(page?.hasNextPage),
+          })
+        } catch (err) {
+          set({animeError: errorMessage(err)})
         } finally {
           set({animeLoading: false})
         }

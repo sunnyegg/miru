@@ -465,6 +465,8 @@ func toWatchingEntryViews(entries []anilist.CurrentEntry) []WatchingEntryView {
 			MediaStatus:       entry.MediaStatus,
 			NextAiringEpisode: entry.NextAiringEpisode,
 			NextAiringAt:      entry.NextAiringAt,
+			Season:            entry.Season,
+			SeasonYear:        entry.SeasonYear,
 		})
 	}
 	return out

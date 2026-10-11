@@ -16,6 +16,8 @@ export type WatchingShowItem = {
   mediaStatus: string
   nextAiringEpisode: number
   nextAiringAt: number
+  season: string
+  seasonYear: number
   hasLocalFiles: boolean
   maxLocalEpisode: number
   newEpisodeNumber: number | null
@@ -109,6 +111,8 @@ export function buildWatchingShowItems(
       mediaStatus: entry.mediaStatus,
       nextAiringEpisode: entry.nextAiringEpisode,
       nextAiringAt: entry.nextAiringAt,
+      season: entry.season || '',
+      seasonYear: entry.seasonYear || 0,
       hasLocalFiles: Boolean(localShow && localShow.episodes.length > 0),
       maxLocalEpisode,
       newEpisodeNumber,

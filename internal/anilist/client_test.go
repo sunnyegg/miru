@@ -76,6 +76,55 @@ func TestSearchAndSave(t *testing.T) {
 	}
 }
 
+func TestBrowseSeason(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Query     string `json:"query"`
+			Variables struct {
+				Page       int    `json:"page"`
+				Season     string `json:"season"`
+				SeasonYear int    `json:"seasonYear"`
+			} `json:"variables"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if body.Variables.Page != 1 || body.Variables.Season != "FALL" || body.Variables.SeasonYear != 2023 {
+			t.Fatalf("variables = %+v", body.Variables)
+		}
+		if !strings.Contains(body.Query, "season:") || !strings.Contains(body.Query, "POPULARITY_DESC") {
+			t.Fatalf("query missing season browse fields: %s", body.Query)
+		}
+		_, _ = w.Write([]byte(`{"data":{"Page":{"pageInfo":{"hasNextPage":true},"media":[{"id":21,"title":{"romaji":"Frieren","english":"Frieren"},"coverImage":{"large":"x"},"episodes":28,"status":"FINISHED","season":"FALL","seasonYear":2023,"description":"d","mediaListEntry":null}]}}}`))
+	}))
+	defer server.Close()
+
+	client := New("tok")
+	client.Endpoint = server.URL
+	client.HTTP = server.Client()
+	page, err := client.BrowseSeason("fall", 2023, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !page.HasNextPage || len(page.Items) != 1 {
+		t.Fatalf("page = %+v", page)
+	}
+	if page.Items[0].ID != 21 || page.Items[0].Season != "FALL" || page.Items[0].SeasonYear != 2023 {
+		t.Fatalf("item = %+v", page.Items[0])
+	}
+}
+
+func TestBrowseSeasonRejectsInvalidInput(t *testing.T) {
+	client := New("tok")
+	if _, err := client.BrowseSeason("AUTUMN", 2023, 1); err == nil {
+		t.Fatal("expected error for unsupported season")
+	}
+	if _, err := client.BrowseSeason("FALL", 0, 1); err == nil {
+		t.Fatal("expected error for non-positive year")
+	}
+}
+
 func TestViewerIDIsCachedForClient(t *testing.T) {
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -465,7 +514,7 @@ func TestListMediaListCompleted(t *testing.T) {
 		if body.Variables.Status != "COMPLETED" {
 			t.Fatalf("status = %q", body.Variables.Status)
 		}
-		_, _ = w.Write([]byte(`{"data":{"Page":{"pageInfo":{"hasNextPage":false},"mediaList":[{"progress":12,"media":{"id":21,"title":{"romaji":"Done Show","english":null},"coverImage":{"large":""},"episodes":12,"status":"FINISHED"}}]}}}`))
+		_, _ = w.Write([]byte(`{"data":{"Page":{"pageInfo":{"hasNextPage":false},"mediaList":[{"progress":12,"media":{"id":21,"title":{"romaji":"Done Show","english":null},"coverImage":{"large":""},"episodes":12,"status":"FINISHED","season":"FALL","seasonYear":2023}}]}}}`))
 	}))
 	defer server.Close()
 
@@ -478,6 +527,9 @@ func TestListMediaListCompleted(t *testing.T) {
 	}
 	if len(entries) != 1 || entries[0].MediaID != 21 || entries[0].Progress != 12 {
 		t.Fatalf("entries = %+v", entries)
+	}
+	if entries[0].Season != "FALL" || entries[0].SeasonYear != 2023 {
+		t.Fatalf("season = %q %d", entries[0].Season, entries[0].SeasonYear)
 	}
 }
 
