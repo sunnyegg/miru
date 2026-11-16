@@ -47,7 +47,7 @@ There is no separate config file. Settings live in the SQLite `settings` table.
 
 - Config/DB: `$XDG_CONFIG_HOME/miru/app_data.db` (usually `~/.config/miru/app_data.db`)
 - AniList token fallback (no Keyring): `~/.config/miru/anilist.token`
-- MPV config: `~/.config/miru/mpv-defaults.conf` (managed, rewritten on launch; currently `keepaspect-window=no`) and `~/.config/miru/mpv.conf` (created once, never overwritten), both passed with `--include=` in that order so the user file overrides the defaults and Miru's own flags override both
+- MPV config: `~/.config/miru/mpv-defaults.conf` (managed, rewritten on launch; currently `keepaspect-window=no` and `script-opts=osc-vidscale=no`) and `~/.config/miru/mpv.conf` (created once, never overwritten), both passed with `--include=` in that order so the user file overrides the defaults and Miru's own flags override both
 - Cache: `$XDG_CACHE_HOME/miru` (usually `~/.cache/miru`)
 - Log: `$XDG_DATA_HOME/miru/Miru.log` (rotates to `Miru.log.1` at 5MB on startup; usually `~/.local/share/miru/Miru.log`)
 - Default downloads: `~/Downloads/miru`

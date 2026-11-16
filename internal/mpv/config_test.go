@@ -21,8 +21,10 @@ func TestEnsureConfigCreatesFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(defaults), "keepaspect-window=no") {
-		t.Fatalf("defaults missing free-resize option: %q", defaults)
+	for _, want := range []string{"keepaspect-window=no", "script-opts=osc-vidscale=no"} {
+		if !strings.Contains(string(defaults), want) {
+			t.Fatalf("defaults missing %q: %q", want, defaults)
+		}
 	}
 
 	user, err := os.ReadFile(config.UserPath)

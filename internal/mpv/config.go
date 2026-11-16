@@ -17,7 +17,14 @@ type Config struct {
 
 const defaultsTemplate = `# MPV defaults managed by Miru. Miru rewrites this file on launch.
 # Override any option in mpv.conf, which is included after this file.
+
+# Resize the window freely instead of locking it to the video aspect ratio.
 keepaspect-window=no
+
+# Keep the OSC controls at a readable size instead of shrinking them with the
+# window. Tune with script-opts=osc-scalewindowed=<factor> in mpv.conf, and pin
+# OSD text too with osd-scale-by-window=no.
+script-opts=osc-vidscale=no
 `
 
 const userTemplate = `# MPV options used only by Miru playback.
@@ -27,11 +34,14 @@ const userTemplate = `# MPV options used only by Miru playback.
 # writes this file only when it is missing or empty.
 #
 # Window examples:
-# autofit=70%x70%      initial window size
-# geometry=50%:50%     initial window position
-# border=no            undecorated window (drag the video to move it)
-# ontop=yes            keep the player above other windows
+# autofit=70%x70%        initial window size
+# geometry=50%:50%       initial window position
+# border=no              undecorated window (drag the video to move it)
+# ontop=yes              keep the player above other windows
 # keepaspect-window=yes  lock the window to the video aspect ratio
+# osd-scale-by-window=yes  let OSD text shrink with the window
+# script-opts=osc-vidscale=auto  let the OSC scale with the window
+# osd-font-size=40       OSD text size in pixels (fixed while scaling is off)
 #
 # Image examples:
 # hwdec=auto-safe
