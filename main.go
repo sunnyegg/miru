@@ -4,6 +4,7 @@ import (
 	"embed"
 	"os"
 
+	"github.com/sunnyegg/miru/internal/appinfo"
 	"github.com/sunnyegg/miru/internal/datareset"
 	"github.com/sunnyegg/miru/internal/paths"
 	"github.com/wailsapp/wails/v2"
@@ -37,7 +38,7 @@ func main() {
 	}
 
 	err = wails.Run(&options.App{
-		Title:  "Miru",
+		Title:  appinfo.DisplayName,
 		Width:  1200,
 		Height: 800,
 		Logger: appLogger,
@@ -49,7 +50,7 @@ func main() {
 		OnShutdown:       app.shutdown,
 		OnBeforeClose:    app.beforeClose,
 		SingleInstanceLock: &options.SingleInstanceLock{
-			UniqueId: "com.sunnyegg.miru",
+			UniqueId: appinfo.BundleID,
 			OnSecondInstanceLaunch: func(_ options.SecondInstanceData) {
 				app.showWindow()
 			},
@@ -60,6 +61,7 @@ func main() {
 		Linux: &linux.Options{
 			Icon:                appIconPNG,
 			WindowIsTranslucent: false,
+			ProgramName:         appinfo.Name,
 		},
 	})
 

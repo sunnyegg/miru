@@ -14,12 +14,13 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/sunnyegg/miru/internal/appinfo"
 	"github.com/sunnyegg/miru/internal/paths"
 )
 
 const (
 	markerSchemaVersion = 1
-	markerFilename      = ".miru-reset.json"
+	markerFilename      = "." + appinfo.Name + "-reset.json"
 	maxMarkerBytes      = 64 * 1024
 
 	phasePending        = "pending"
@@ -378,8 +379,8 @@ func validateRootPath(path string) (string, error) {
 		return "", err
 	}
 	clean := filepath.Clean(abs)
-	if filepath.Base(clean) != "miru" {
-		return "", errors.New("path base is not miru")
+	if filepath.Base(clean) != appinfo.Name {
+		return "", errors.New("path base is not " + appinfo.Name)
 	}
 	parent := filepath.Dir(clean)
 	if parent == clean || parent == filepath.VolumeName(clean)+string(os.PathSeparator) {

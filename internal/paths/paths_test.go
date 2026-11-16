@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sunnyegg/miru/internal/appinfo"
 )
 
 func TestResolveCreatesDirs(t *testing.T) {
@@ -15,8 +17,8 @@ func TestResolveCreatesDirs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasSuffix(dirs.Config, "miru") {
-		t.Fatalf("config dir = %s, want suffix miru", dirs.Config)
+	if !strings.HasSuffix(dirs.Config, appinfo.Name) {
+		t.Fatalf("config dir = %s, want suffix %s", dirs.Config, appinfo.Name)
 	}
 	if _, err := os.Stat(dirs.Config); err != nil {
 		t.Fatal(err)

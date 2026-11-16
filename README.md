@@ -66,9 +66,25 @@ Package names differ by distro.
 ## Data location
 
 - Config/DB: `$XDG_CONFIG_HOME/miru/app_data.db` (usually `~/.config/miru/`)
+- MPV config: `$XDG_CONFIG_HOME/miru/mpv.conf` (included for Miru playback only)
 - Cache: `$XDG_CACHE_HOME/miru`
 - Logs: `$XDG_DATA_HOME/miru` (usually `~/.local/share/miru/`)
 - Default downloads: `~/Downloads/miru`
+
+Development builds (`make dev`, `go run`) use the same layout with a `-dev`
+suffix: `~/.config/miru-dev`, `~/.cache/miru-dev`, `~/.local/share/miru-dev`,
+`~/Downloads/miru-dev`, a `Miru Dev` window title, and their own single-instance
+id. A local build can run next to an installed release without sharing settings,
+database, login, logs, or downloads. `make clear-cache-dev` clears only the dev
+cache.
+
+## MPV window
+
+The player window is titled `<app name> — <anime> — Episode <n>`, so dev builds
+show `Miru Dev`. Miru passes its own `mpv.conf` with `--include=`, after your
+global mpv config, so window options there win: `border=no`, `ontop=yes`,
+`autofit=70%x70%`, and similar. Miru writes the file with commented examples on
+the first play and never overwrites your edits.
 
 **Settings → About → Delete all data** removes Miru settings, library and
 playback history, torrent history, RSS feeds, AniList login, cache, Anime4K

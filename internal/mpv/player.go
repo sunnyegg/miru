@@ -18,6 +18,16 @@ type Progress struct {
 	Percent  float64 `json:"percent"`
 }
 
+// Options describe one mpv playback session.
+type Options struct {
+	MPVPath      string
+	MediaPath    string
+	Title        string
+	StartSeconds float64
+	GLSLShaders  []string
+	ConfigDir    string
+}
+
 type Player struct {
 	mu       sync.Mutex
 	cmd      *exec.Cmd
@@ -88,11 +98,35 @@ func (p *Player) Stop() {
 	}
 }
 
-func (p *Player) Play(mpvPath, mediaPath string, startSeconds float64, glslShaders []string, onProgress func(Progress), onExit func(error)) error {
-	if mpvPath == "" {
+// args builds the mpv command line. The Miru config is included first so the
+// window options below always win over a user's own mpv.conf.
+func (o Options) args(ipc, configPath string) []string {
+	args := []string{"--input-ipc-server=" + ipc}
+	if configPath != "" {
+		args = append(args, "--include="+configPath)
+	}
+	args = append(args,
+		"--force-window=yes",
+		"--no-terminal",
+		"--keep-open=yes",
+	)
+	if o.Title != "" {
+		args = append(args, "--title="+o.Title)
+	}
+	if o.StartSeconds > 0 {
+		args = append(args, fmt.Sprintf("--start=%.3f", o.StartSeconds))
+	}
+	for _, shaderPath := range o.GLSLShaders {
+		args = append(args, "--glsl-shader="+shaderPath)
+	}
+	return append(args, o.MediaPath)
+}
+
+func (p *Player) Play(opts Options, onProgress func(Progress), onExit func(error)) error {
+	if opts.MPVPath == "" {
 		return fmt.Errorf("mpv path is empty")
 	}
-	if _, err := os.Stat(mediaPath); err != nil {
+	if _, err := os.Stat(opts.MediaPath); err != nil {
 		return fmt.Errorf("media file: %w", err)
 	}
 
@@ -101,24 +135,16 @@ func (p *Player) Play(mpvPath, mediaPath string, startSeconds float64, glslShade
 	ipc := ipcEndpoint()
 	removeEndpoint(ipc)
 
-	args := []string{
-		"--input-ipc-server=" + ipc,
-		"--force-window=yes",
-		"--no-terminal",
-		"--keep-open=yes",
+	configPath, err := EnsureConfig(opts.ConfigDir)
+	if err != nil {
+		log.Printf("mpv: %v", err)
+		configPath = ""
 	}
-	if startSeconds > 0 {
-		args = append(args, fmt.Sprintf("--start=%.3f", startSeconds))
+	if len(opts.GLSLShaders) > 0 {
+		log.Printf("mpv: launching with %d Anime4K shader(s)", len(opts.GLSLShaders))
 	}
-	for _, shaderPath := range glslShaders {
-		args = append(args, "--glsl-shader="+shaderPath)
-	}
-	if len(glslShaders) > 0 {
-		log.Printf("mpv: launching with %d Anime4K shader(s)", len(glslShaders))
-	}
-	args = append(args, mediaPath)
 
-	cmd := exec.Command(mpvPath, args...)
+	cmd := exec.Command(opts.MPVPath, opts.args(ipc, configPath)...)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start mpv: %w", err)
 	}

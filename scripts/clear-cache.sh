@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-# Clear Miru's cache before a dev run: the OS cache dir and the SQLite
-# api_cache table (AniList/detail/airing responses). Settings, the AniList
-# token, shaders, logs, and downloads are left untouched.
+# Clear a Miru cache: the OS cache dir and the SQLite api_cache table
+# (AniList/detail/airing responses). Settings, the AniList token, shaders,
+# logs, and downloads are left untouched.
+#
+# Usage: clear-cache.sh [app-name]   (default: miru; dev builds use miru-dev)
 set -euo pipefail
+
+app_name="${1:-miru}"
 
 case "$(uname -s)" in
 	Linux)
@@ -19,8 +23,8 @@ case "$(uname -s)" in
 		;;
 esac
 
-cache_dir="$cache_root/miru"
-db_file="$config_root/miru/app_data.db"
+cache_dir="$cache_root/$app_name"
+db_file="$config_root/$app_name/app_data.db"
 
 if [[ -d "$cache_dir" ]]; then
 	rm -rf "$cache_dir"

@@ -9,6 +9,8 @@ import (
 
 	"github.com/gogpu/systray"
 
+	"github.com/sunnyegg/miru/internal/appinfo"
+
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -93,7 +95,7 @@ func (a *App) ConfirmWindowClose(action string, remember bool) error {
 	}
 
 	if !a.hideToTray() {
-		return errors.New("system tray is not available; Miru stayed open")
+		return errors.New("system tray is not available; " + appinfo.DisplayName + " stayed open")
 	}
 	return nil
 }
@@ -138,7 +140,7 @@ func (a *App) startTray() {
 	})
 
 	tray.SetIcon(trayIconPNG).
-		SetTooltip("Miru").
+		SetTooltip(appinfo.DisplayName).
 		SetMenu(menu)
 	tray.OnClick(func() {
 		a.showWindow()

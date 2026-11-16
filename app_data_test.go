@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/sunnyegg/miru/internal/appinfo"
 	"github.com/sunnyegg/miru/internal/datareset"
 	"github.com/sunnyegg/miru/internal/paths"
 )
@@ -79,9 +80,9 @@ func newDataResetDirs(t *testing.T) paths.Dirs {
 	t.Helper()
 	base := t.TempDir()
 	dirs := paths.Dirs{
-		Config: filepath.Join(base, "config", "miru"),
-		Cache:  filepath.Join(base, "cache", "miru"),
-		Data:   filepath.Join(base, "data", "miru"),
+		Config: filepath.Join(base, "config", appinfo.Name),
+		Cache:  filepath.Join(base, "cache", appinfo.Name),
+		Data:   filepath.Join(base, "data", appinfo.Name),
 	}
 	for _, path := range []string{dirs.Config, dirs.Cache, dirs.Data} {
 		if err := os.MkdirAll(path, 0o700); err != nil {
