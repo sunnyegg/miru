@@ -89,10 +89,13 @@ title bar, resize handles and a close button; GNOME gives native Wayland
 clients none of those. Turn on **Settings → Playback → Use native Wayland for
 the player window** to keep MPV on native Wayland instead.
 
-Miru passes its own `mpv.conf` with `--include=`, after your global mpv config,
-so window options there win: `border=no`, `ontop=yes`, `autofit=70%x70%`, and
-similar. Miru writes the file with commented examples on the first play and
-never overwrites your edits.
+The MPV window resizes freely instead of locking to the video aspect ratio.
+Miru passes two config files with `--include=`: a managed `mpv-defaults.conf`,
+then your `mpv.conf`, then its own window flags. Options you add to `mpv.conf`
+(`border=no`, `ontop=yes`, `autofit=70%x70%`, `keepaspect-window=yes`, and
+similar) override the defaults. Miru writes `mpv.conf` with commented examples
+on the first play and never overwrites your edits; `mpv-defaults.conf` is
+rewritten on launch.
 
 **Settings → About → Delete all data** removes Miru settings, library and
 playback history, torrent history, RSS feeds, AniList login, cache, Anime4K

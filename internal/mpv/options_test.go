@@ -9,14 +9,18 @@ func TestOptionsArgsWindowFlags(t *testing.T) {
 		StartSeconds: 12.5,
 		GLSLShaders:  []string{"/shaders/restore.glsl"},
 	}
+	config := Config{
+		DefaultsPath: "/config/mpv-defaults.conf",
+		UserPath:     "/config/mpv.conf",
+	}
 
-	args := opts.args("/tmp/mpv.sock", "/config/mpv.conf", false)
+	args := opts.args("/tmp/mpv.sock", config, false)
 
 	if args[0] != "--input-ipc-server=/tmp/mpv.sock" {
 		t.Fatalf("args[0] = %q", args[0])
 	}
-	if args[1] != "--include=/config/mpv.conf" {
-		t.Fatalf("include must follow the ipc flag, got %q", args[1])
+	if args[1] != "--include=/config/mpv-defaults.conf" || args[2] != "--include=/config/mpv.conf" {
+		t.Fatalf("defaults must be included before the user config, got %v", args[:3])
 	}
 	for _, want := range []string{
 		"--force-window=yes",
@@ -37,7 +41,7 @@ func TestOptionsArgsWindowFlags(t *testing.T) {
 func TestOptionsArgsPinsXWayland(t *testing.T) {
 	opts := Options{MediaPath: "/media/episode.mkv"}
 
-	args := opts.args("/tmp/mpv.sock", "", true)
+	args := opts.args("/tmp/mpv.sock", Config{}, true)
 
 	if !containsArg(args, "--gpu-context=x11egl") {
 		t.Fatalf("missing x11 context in %v", args)
@@ -47,13 +51,23 @@ func TestOptionsArgsPinsXWayland(t *testing.T) {
 func TestOptionsArgsWithoutOptionalFlags(t *testing.T) {
 	opts := Options{MediaPath: "/media/episode.mkv"}
 
-	args := opts.args("/tmp/mpv.sock", "", false)
+	args := opts.args("/tmp/mpv.sock", Config{}, false)
 
 	if containsArg(args, "--include=") || containsArg(args, "--title=") {
 		t.Fatalf("unexpected optional flags in %v", args)
 	}
 	if len(args) != 5 {
 		t.Fatalf("args = %v, want ipc + 3 base flags + media", args)
+	}
+}
+
+func TestOptionsArgsOnlyDefaultConfig(t *testing.T) {
+	opts := Options{MediaPath: "/media/episode.mkv"}
+
+	args := opts.args("/tmp/mpv.sock", Config{DefaultsPath: "/config/mpv-defaults.conf"}, false)
+
+	if !containsArg(args, "--include=/config/mpv-defaults.conf") {
+		t.Fatalf("missing defaults include in %v", args)
 	}
 }
 

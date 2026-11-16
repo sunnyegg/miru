@@ -108,10 +108,12 @@ func (p *Player) Stop() {
 
 // args builds the mpv command line. The Miru config is included first so the
 // window options below always win over a user's own mpv.conf.
-func (o Options) args(ipc, configPath string, xwayland bool) []string {
+func (o Options) args(ipc string, config Config, xwayland bool) []string {
 	args := []string{"--input-ipc-server=" + ipc}
-	if configPath != "" {
-		args = append(args, "--include="+configPath)
+	for _, path := range []string{config.DefaultsPath, config.UserPath} {
+		if path != "" {
+			args = append(args, "--include="+path)
+		}
 	}
 	args = append(args,
 		"--force-window=yes",
@@ -149,16 +151,16 @@ func (p *Player) Play(opts Options, onProgress func(Progress), onExit func(error
 	removeEndpoint(ipc)
 
 	xwayland := useXWayland(os.Environ(), opts.NativeWayland)
-	configPath, err := EnsureConfig(opts.ConfigDir)
+	config, err := EnsureConfig(opts.ConfigDir)
 	if err != nil {
 		log.Printf("mpv: %v", err)
-		configPath = ""
+		config = Config{}
 	}
 	if len(opts.GLSLShaders) > 0 {
 		log.Printf("mpv: launching with %d Anime4K shader(s)", len(opts.GLSLShaders))
 	}
 
-	cmd := exec.Command(opts.MPVPath, opts.args(ipc, configPath, xwayland)...)
+	cmd := exec.Command(opts.MPVPath, opts.args(ipc, config, xwayland)...)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start mpv: %w", err)
 	}

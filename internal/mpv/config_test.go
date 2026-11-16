@@ -2,71 +2,92 @@ package mpv
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func TestEnsureConfigCreatesTemplate(t *testing.T) {
+func TestEnsureConfigCreatesFiles(t *testing.T) {
 	dir := t.TempDir()
 
-	path, err := EnsureConfig(dir)
+	config, err := EnsureConfig(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := filepath.Join(dir, "mpv.conf"); path != want {
-		t.Fatalf("path = %q, want %q", path, want)
+	if config.DefaultsPath != DefaultsPath(dir) || config.UserPath != ConfigPath(dir) {
+		t.Fatalf("config = %+v", config)
 	}
-	data, err := os.ReadFile(path)
+
+	defaults, err := os.ReadFile(config.DefaultsPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), "# MPV options used only by Miru playback.") {
-		t.Fatalf("unexpected template: %q", data)
+	if !strings.Contains(string(defaults), "keepaspect-window=no") {
+		t.Fatalf("defaults missing free-resize option: %q", defaults)
+	}
+
+	user, err := os.ReadFile(config.UserPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(user), "# MPV options used only by Miru playback.") {
+		t.Fatalf("unexpected user template: %q", user)
 	}
 }
 
 func TestEnsureConfigKeepsUserEdits(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	path := ConfigPath(dir)
-	if err := os.WriteFile(path, []byte("border=no\n"), 0o600); err != nil {
+	if err := os.WriteFile(ConfigPath(dir), []byte("border=no\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
 	if _, err := EnsureConfig(dir); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(ConfigPath(dir))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(data) != "border=no\n" {
-		t.Fatalf("config overwritten: %q", data)
+		t.Fatalf("user config overwritten: %q", data)
 	}
 }
 
-func TestEnsureConfigRewritesEmptyFile(t *testing.T) {
+func TestEnsureConfigRewritesEmptyUserFile(t *testing.T) {
 	dir := t.TempDir()
-	path := ConfigPath(dir)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, nil, 0o600); err != nil {
+	if err := os.WriteFile(ConfigPath(dir), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
 	if _, err := EnsureConfig(dir); err != nil {
 		t.Fatal(err)
 	}
-	info, err := os.Stat(path)
+	info, err := os.Stat(ConfigPath(dir))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if info.Size() == 0 {
-		t.Fatal("empty config was not rewritten")
+		t.Fatal("empty user config was not rewritten")
+	}
+}
+
+func TestEnsureConfigRestoresManagedDefaults(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(DefaultsPath(dir), []byte("keepaspect-window=yes\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := EnsureConfig(dir); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(DefaultsPath(dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "keepaspect-window=no") {
+		t.Fatalf("managed defaults not restored: %q", data)
 	}
 }
 
