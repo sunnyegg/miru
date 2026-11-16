@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	goruntime "runtime"
 	"strconv"
 	"strings"
 
@@ -327,6 +328,7 @@ func (a *App) invalidateSettingsCache() {
 
 func buildSettingsView(cache map[string]string, configDir string) SettingsView {
 	view := SettingsView{
+		Platform:              goruntime.GOOS,
 		SyncThreshold:         85,
 		SeedRatio:             torrentx.DefaultSeedRatio,
 		DownloadNotifications: true,

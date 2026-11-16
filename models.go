@@ -1,6 +1,7 @@
 package main
 
 type SettingsView struct {
+	Platform                   string  `json:"platform"`
 	MpvPath                    string  `json:"mpvPath"`
 	MpvNativeWayland           bool    `json:"mpvNativeWayland"`
 	Anime4KEnabled             bool    `json:"anime4kEnabled"`

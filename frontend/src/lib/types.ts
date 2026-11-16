@@ -7,6 +7,7 @@ export type TabId =
   | 'settings'
 
 export type SettingsView = {
+  platform: string
   mpvPath: string
   mpvNativeWayland: boolean
   anime4kEnabled: boolean

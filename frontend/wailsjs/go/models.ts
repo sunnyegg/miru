@@ -446,6 +446,7 @@ export namespace main {
 	    }
 	}
 	export class SettingsView {
+	    platform: string;
 	    mpvPath: string;
 	    mpvNativeWayland: boolean;
 	    anime4kEnabled: boolean;
@@ -476,6 +477,7 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.platform = source["platform"];
 	        this.mpvPath = source["mpvPath"];
 	        this.mpvNativeWayland = source["mpvNativeWayland"];
 	        this.anime4kEnabled = source["anime4kEnabled"];

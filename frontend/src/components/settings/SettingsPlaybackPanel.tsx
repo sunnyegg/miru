@@ -98,15 +98,17 @@ export function SettingsPlaybackPanel({
               Anime4K shaders are installed.
             </p>
           )}
-          <SettingsCheckboxRow
-            id="mpvNativeWayland"
-            label="Use native Wayland for the player window"
-            hint={nativeWaylandHint}
-            checked={form.mpvNativeWayland}
-            onChange={(value) =>
-              setForm((current) => ({...current, mpvNativeWayland: value}))
-            }
-          />
+          {form.platform === 'linux' && (
+            <SettingsCheckboxRow
+              id="mpvNativeWayland"
+              label="Use native Wayland for the player window"
+              hint={nativeWaylandHint}
+              checked={form.mpvNativeWayland}
+              onChange={(value) =>
+                setForm((current) => ({...current, mpvNativeWayland: value}))
+              }
+            />
+          )}
           <SettingsCheckboxRow
             id="discordRpcEnabled"
             label="Discord Rich Presence"

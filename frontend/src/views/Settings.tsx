@@ -42,6 +42,7 @@ import {Alert, AlertAction, AlertDescription} from '@/components/ui/alert'
 import {Button} from '@/components/ui/button'
 
 const empty: SettingsForm = {
+  platform: '',
   mpvPath: '',
   mpvNativeWayland: false,
   anime4kEnabled: false,
@@ -136,6 +137,7 @@ export function SettingsView({
         AnilistStatus(),
       ])
       setForm({
+        platform: settings?.platform ?? '',
         mpvPath: settings?.mpvPath ?? '',
         mpvNativeWayland: settings?.mpvNativeWayland ?? false,
         anime4kEnabled: settings?.anime4kEnabled ?? false,

@@ -87,7 +87,8 @@ area controls pause, seek, volume, full screen and stop for the MPV window.
 On Wayland, MPV runs through XWayland by default so the player window gets a
 title bar, resize handles and a close button; GNOME gives native Wayland
 clients none of those. Turn on **Settings → Playback → Use native Wayland for
-the player window** to keep MPV on native Wayland instead.
+the player window** (shown on Linux only) to keep MPV on native Wayland
+instead.
 
 The MPV window resizes freely instead of locking to the video aspect ratio, and
 the OSC controls keep a readable size instead of shrinking with the window
