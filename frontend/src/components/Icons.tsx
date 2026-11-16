@@ -9,11 +9,15 @@ import {
   Download,
   Folder,
   LayoutGrid,
+  Maximize,
+  Minimize,
+  Pause,
   Play,
   Search,
   Settings,
   Share2,
   User,
+  Volume2,
   X,
   type LucideProps,
 } from 'lucide-react'
@@ -86,6 +90,29 @@ export function IconPlay({className}: IconProps) {
       strokeWidth={0}
     />
   )
+}
+
+export function IconPause({className}: IconProps) {
+  return (
+    <Pause
+      className={className}
+      aria-hidden="true"
+      fill="currentColor"
+      strokeWidth={0}
+    />
+  )
+}
+
+export function IconVolume({className}: IconProps) {
+  return <Volume2 className={className} {...stroke} />
+}
+
+export function IconFullscreen({className}: IconProps) {
+  return <Maximize className={className} {...stroke} />
+}
+
+export function IconFullscreenExit({className}: IconProps) {
+  return <Minimize className={className} {...stroke} />
 }
 
 export function IconFolder({className}: IconProps) {

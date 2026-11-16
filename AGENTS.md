@@ -16,6 +16,8 @@ Wails binds `App` in `package main`. Keep methods on `App`; split by concern int
 
 Domain code lives in `internal/` (`storage`, `anilist`, `torrentx`, `mpv`, …). Split a file when it mixes responsibilities or passes ~700 lines. ~300–400 is comfortable; ~500 is fine for one type/flow.
 
+MPV control (pause, seek, volume, full screen) goes through `internal/mpv`'s `request`, which serializes IPC commands so two callers never read each other's reply. The now-playing strip (`components/NowPlayingStrip.tsx`) calls the `App` playback bindings and stores the returned event in `playbackStore`; the 1-second progress ticker emits the same event shape on `mpv:progress`. Seek commits when the slider is released or loses focus so a drag does not spam exact seeks; volume commits on every change. Keep the `App` method names and `PlaybackEvent` in step with `lib/types.ts` and the regenerated `wailsjs` bindings.
+
 Go: guard clauses over nested `if`. Invert the empty/error case and return. Extract a helper only if it is reused, or the nest is 3+ levels in the middle of a function. Do not flatten sequential checks (SQLite migrations, SOCKS5 client setup). Do not add a helper that is only called once. `make lint` is golangci-lint standard + nestif.
 
 ## Frontend

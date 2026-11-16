@@ -91,18 +91,16 @@ func (a *App) PlayEpisode(episodeID int64) error {
 
 	a.syncDiscordPresence(settings, session.animeTitle, session.episodeNum, 0)
 
-	title := appinfo.DisplayName + " — " + session.animeTitle
-	if session.episodeNum > 0 {
-		title = fmt.Sprintf("%s — %s — Episode %d", appinfo.DisplayName, session.animeTitle, session.episodeNum)
-	}
+	title := appinfo.DisplayName + " — " + playbackTitle(session)
 
 	err = a.player.Play(mpv.Options{
-		MPVPath:      mpvPath,
-		MediaPath:    ep.FilePath,
-		Title:        title,
-		StartSeconds: startPosition,
-		GLSLShaders:  glslShaders,
-		ConfigDir:    a.dirs.Config,
+		MPVPath:       mpvPath,
+		MediaPath:     ep.FilePath,
+		Title:         title,
+		StartSeconds:  startPosition,
+		GLSLShaders:   glslShaders,
+		ConfigDir:     a.dirs.Config,
+		NativeWayland: settings.MpvNativeWayland,
 	}, func(p mpv.Progress) {
 		a.playMu.Lock()
 		session.lastProgress = p
@@ -119,10 +117,7 @@ func (a *App) PlayEpisode(episodeID int64) error {
 		}
 		a.playMu.Unlock()
 
-		runtime.EventsEmit(a.ctx, "mpv:progress", PlaybackEvent{
-			EpisodeID: episodeID,
-			Percent:   p.Percent,
-		})
+		runtime.EventsEmit(a.ctx, "mpv:progress", a.playbackEvent(p))
 		a.updateDiscordFromProgress(session, p, settings)
 		if needsMap {
 			client, err := a.playbackAnilist()

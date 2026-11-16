@@ -43,6 +43,7 @@ import {Button} from '@/components/ui/button'
 
 const empty: SettingsForm = {
   mpvPath: '',
+  mpvNativeWayland: false,
   anime4kEnabled: false,
   anime4kShadersReady: false,
   downloadDir: '',
@@ -136,6 +137,7 @@ export function SettingsView({
       ])
       setForm({
         mpvPath: settings?.mpvPath ?? '',
+        mpvNativeWayland: settings?.mpvNativeWayland ?? false,
         anime4kEnabled: settings?.anime4kEnabled ?? false,
         anime4kShadersReady: settings?.anime4kShadersReady ?? false,
         downloadDir: settings?.downloadDir ?? '',
@@ -399,6 +401,7 @@ export function SettingsView({
                         form.mpvPath,
                         form.anime4kEnabled,
                         form.discordRpcEnabled,
+                        form.mpvNativeWayland,
                       )
                       await reload()
                     },

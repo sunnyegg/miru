@@ -19,6 +19,9 @@ const mpvPathHint = 'MPV path changes take effect after restart.'
 const anime4kHint =
   'Applies Anime4K Mode A shaders when MPV starts. Shaders are cached in your Miru config folder.'
 
+const nativeWaylandHint =
+  'On Wayland, MPV normally runs through XWayland so the player window gets a title bar, resize handles and a close button. Enable this to keep MPV on native Wayland, where GNOME draws no window controls.'
+
 const discordRpcHint =
   'Show the anime you are watching on your Discord profile while MPV is playing. Discord Rich Presence requires the Discord desktop app to be running.'
 
@@ -95,6 +98,15 @@ export function SettingsPlaybackPanel({
               Anime4K shaders are installed.
             </p>
           )}
+          <SettingsCheckboxRow
+            id="mpvNativeWayland"
+            label="Use native Wayland for the player window"
+            hint={nativeWaylandHint}
+            checked={form.mpvNativeWayland}
+            onChange={(value) =>
+              setForm((current) => ({...current, mpvNativeWayland: value}))
+            }
+          />
           <SettingsCheckboxRow
             id="discordRpcEnabled"
             label="Discord Rich Presence"

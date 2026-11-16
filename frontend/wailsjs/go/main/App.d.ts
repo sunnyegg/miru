@@ -111,7 +111,7 @@ export function SaveLastSeenVersion(arg1:string):Promise<void>;
 
 export function SaveNetworkSettings(arg1:string,arg2:string,arg3:string):Promise<void>;
 
-export function SavePlaybackSettings(arg1:string,arg2:boolean,arg3:boolean):Promise<void>;
+export function SavePlaybackSettings(arg1:string,arg2:boolean,arg3:boolean,arg4:boolean):Promise<void>;
 
 export function SaveRSSPollSettings(arg1:number):Promise<void>;
 
@@ -127,7 +127,11 @@ export function SearchNyaa(arg1:string):Promise<Array<main.NyaaResultView>>;
 
 export function SearchTokyoToshokan(arg1:string):Promise<Array<main.NyaaResultView>>;
 
+export function SeekPlayback(arg1:number):Promise<main.PlaybackEvent>;
+
 export function SetAnimeListStatus(arg1:number,arg2:string,arg3:number):Promise<void>;
+
+export function SetPlaybackVolume(arg1:number):Promise<main.PlaybackEvent>;
 
 export function SetRSSFeedEnabled(arg1:number,arg2:boolean):Promise<void>;
 
@@ -139,7 +143,13 @@ export function StartTorrentFile():Promise<void>;
 
 export function StartTorrentURL(arg1:string):Promise<void>;
 
+export function StopPlayback():Promise<void>;
+
 export function TestNetworkConnection(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function TogglePlaybackFullscreen():Promise<main.PlaybackEvent>;
+
+export function TogglePlaybackPause():Promise<main.PlaybackEvent>;
 
 export function UnbindEpisode(arg1:number):Promise<void>;
 

@@ -8,6 +8,7 @@ export type TabId =
 
 export type SettingsView = {
   mpvPath: string
+  mpvNativeWayland: boolean
   anime4kEnabled: boolean
   anime4kShadersReady: boolean
   downloadDir: string
@@ -244,7 +245,13 @@ export type DownloadView = {
 
 export type PlaybackEvent = {
   episodeId: number
+  title: string
+  position: number
+  duration: number
   percent: number
+  paused: boolean
+  volume: number
+  fullscreen: boolean
 }
 
 export type SyncEvent = {

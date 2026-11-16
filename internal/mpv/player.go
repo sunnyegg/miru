@@ -13,9 +13,12 @@ import (
 )
 
 type Progress struct {
-	Position float64 `json:"position"`
-	Duration float64 `json:"duration"`
-	Percent  float64 `json:"percent"`
+	Position   float64 `json:"position"`
+	Duration   float64 `json:"duration"`
+	Percent    float64 `json:"percent"`
+	Paused     bool    `json:"paused"`
+	Volume     int     `json:"volume"`
+	Fullscreen bool    `json:"fullscreen"`
 }
 
 // Options describe one mpv playback session.
@@ -26,10 +29,15 @@ type Options struct {
 	StartSeconds float64
 	GLSLShaders  []string
 	ConfigDir    string
+	// NativeWayland keeps mpv on Wayland instead of XWayland. XWayland is the
+	// default because GNOME gives native Wayland clients no title bar, resize
+	// handles or close button.
+	NativeWayland bool
 }
 
 type Player struct {
 	mu       sync.Mutex
+	cmdMu    sync.Mutex
 	cmd      *exec.Cmd
 	conn     net.Conn
 	ipc      string
@@ -100,7 +108,7 @@ func (p *Player) Stop() {
 
 // args builds the mpv command line. The Miru config is included first so the
 // window options below always win over a user's own mpv.conf.
-func (o Options) args(ipc, configPath string) []string {
+func (o Options) args(ipc, configPath string, xwayland bool) []string {
 	args := []string{"--input-ipc-server=" + ipc}
 	if configPath != "" {
 		args = append(args, "--include="+configPath)
@@ -110,6 +118,11 @@ func (o Options) args(ipc, configPath string) []string {
 		"--no-terminal",
 		"--keep-open=yes",
 	)
+	if xwayland {
+		// Unsetting WAYLAND_DISPLAY is not enough: mpv still falls back to the
+		// default wayland-0 socket. The context has to be pinned to X11.
+		args = append(args, "--gpu-context=x11egl")
+	}
 	if o.Title != "" {
 		args = append(args, "--title="+o.Title)
 	}
@@ -135,6 +148,7 @@ func (p *Player) Play(opts Options, onProgress func(Progress), onExit func(error
 	ipc := ipcEndpoint()
 	removeEndpoint(ipc)
 
+	xwayland := useXWayland(os.Environ(), opts.NativeWayland)
 	configPath, err := EnsureConfig(opts.ConfigDir)
 	if err != nil {
 		log.Printf("mpv: %v", err)
@@ -144,7 +158,7 @@ func (p *Player) Play(opts Options, onProgress func(Progress), onExit func(error
 		log.Printf("mpv: launching with %d Anime4K shader(s)", len(opts.GLSLShaders))
 	}
 
-	cmd := exec.Command(opts.MPVPath, opts.args(ipc, configPath)...)
+	cmd := exec.Command(opts.MPVPath, opts.args(ipc, configPath, xwayland)...)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start mpv: %w", err)
 	}
@@ -171,7 +185,7 @@ func (p *Player) watch(cmd *exec.Cmd, ipc string, onProgress func(Progress), onE
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -183,16 +197,12 @@ func (p *Player) watch(cmd *exec.Cmd, ipc string, onProgress func(Progress), onE
 			}
 			return
 		case <-ticker.C:
-			position, duration, err := p.properties()
+			state, err := p.State()
 			if err != nil {
 				continue
 			}
 			if onProgress != nil {
-				onProgress(Progress{
-					Position: position,
-					Duration: duration,
-					Percent:  Percent(position, duration),
-				})
+				onProgress(state)
 			}
 		}
 	}
@@ -224,7 +234,7 @@ func (p *Player) properties() (float64, float64, error) {
 		return 0, 0, fmt.Errorf("ipc closed")
 	}
 
-	position, err := p.getNumber(conn, "time-pos")
+	position, err := p.getNumber("time-pos")
 	if err != nil {
 		return 0, 0, err
 	}
@@ -232,7 +242,7 @@ func (p *Player) properties() (float64, float64, error) {
 		return position, cachedDuration, nil
 	}
 
-	duration, err := p.getNumber(conn, "duration")
+	duration, err := p.getNumber("duration")
 	if err != nil {
 		return 0, 0, err
 	}
@@ -248,35 +258,106 @@ func (p *Player) properties() (float64, float64, error) {
 	return position, duration, nil
 }
 
-func (p *Player) getNumber(conn net.Conn, name string) (float64, error) {
+// State is the current playback snapshot used by the progress ticker and the
+// in-app controls.
+func (p *Player) State() (Progress, error) {
+	position, duration, err := p.properties()
+	if err != nil {
+		return Progress{}, err
+	}
+	paused, err := p.getBool("pause")
+	if err != nil {
+		return Progress{}, err
+	}
+	volume, err := p.getNumber("volume")
+	if err != nil {
+		return Progress{}, err
+	}
+	fullscreen, err := p.getBool("fullscreen")
+	if err != nil {
+		return Progress{}, err
+	}
+	return Progress{
+		Position:   position,
+		Duration:   duration,
+		Percent:    Percent(position, duration),
+		Paused:     paused,
+		Volume:     int(volume),
+		Fullscreen: fullscreen,
+	}, nil
+}
+
+// Paused reports mpv's pause state, which also changes from mpv's own keys.
+func (p *Player) Paused() (bool, error) {
+	return p.getBool("pause")
+}
+
+func (p *Player) SetPaused(paused bool) error {
+	return p.setProperty("pause", paused)
+}
+
+func (p *Player) Seek(position float64) error {
+	if position < 0 {
+		position = 0
+	}
+	_, err := p.request("seek", position, "absolute+exact")
+	return err
+}
+
+func (p *Player) SetVolume(volume int) error {
+	return p.setProperty("volume", volume)
+}
+
+func (p *Player) Fullscreen() (bool, error) {
+	return p.getBool("fullscreen")
+}
+
+func (p *Player) SetFullscreen(on bool) error {
+	return p.setProperty("fullscreen", on)
+}
+
+func (p *Player) setProperty(name string, value any) error {
+	_, err := p.request("set_property", name, value)
+	return err
+}
+
+// request sends one IPC command and waits for its reply. Requests are
+// serialized so two callers never read each other's response.
+func (p *Player) request(command ...any) (json.RawMessage, error) {
+	p.cmdMu.Lock()
+	defer p.cmdMu.Unlock()
+
 	p.mu.Lock()
+	conn := p.conn
 	p.reqID++
 	requestID := p.reqID
 	p.mu.Unlock()
-
-	req := map[string]any{
-		"command":    []any{"get_property", name},
-		"request_id": requestID,
+	if conn == nil {
+		return nil, fmt.Errorf("ipc closed")
 	}
-	payload, err := json.Marshal(req)
+
+	payload, err := json.Marshal(map[string]any{
+		"command":    command,
+		"request_id": requestID,
+	})
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	_ = conn.SetDeadline(time.Now().Add(800 * time.Millisecond))
 	if _, err := conn.Write(append(payload, '\n')); err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	reader := bufio.NewReader(conn)
 	for {
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 		var resp struct {
-			RequestID int      `json:"request_id"`
-			Error     string   `json:"error"`
-			Data      *float64 `json:"data"`
+			RequestID int             `json:"request_id"`
+			Error     string          `json:"error"`
+			Data      json.RawMessage `json:"data"`
 		}
 		if err := json.Unmarshal(line, &resp); err != nil {
 			continue
@@ -285,13 +366,34 @@ func (p *Player) getNumber(conn net.Conn, name string) (float64, error) {
 			continue
 		}
 		if resp.Error != "" && resp.Error != "success" {
-			return 0, fmt.Errorf("mpv: %s", resp.Error)
+			return nil, fmt.Errorf("mpv: %s", resp.Error)
 		}
-		if resp.Data == nil {
-			return 0, fmt.Errorf("mpv: empty %s", name)
-		}
-		return *resp.Data, nil
+		return resp.Data, nil
 	}
+}
+
+func (p *Player) getNumber(name string) (float64, error) {
+	data, err := p.request("get_property", name)
+	if err != nil {
+		return 0, err
+	}
+	var value float64
+	if err := json.Unmarshal(data, &value); err != nil {
+		return 0, fmt.Errorf("mpv: %s: %w", name, err)
+	}
+	return value, nil
+}
+
+func (p *Player) getBool(name string) (bool, error) {
+	data, err := p.request("get_property", name)
+	if err != nil {
+		return false, err
+	}
+	var value bool
+	if err := json.Unmarshal(data, &value); err != nil {
+		return false, fmt.Errorf("mpv: %s: %w", name, err)
+	}
+	return value, nil
 }
 
 func waitSocket(addr string, timeout time.Duration) (net.Conn, error) {

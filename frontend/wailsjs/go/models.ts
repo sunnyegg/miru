@@ -339,6 +339,32 @@ export namespace main {
 	        this.remake = source["remake"];
 	    }
 	}
+	export class PlaybackEvent {
+	    episodeId: number;
+	    title: string;
+	    position: number;
+	    duration: number;
+	    percent: number;
+	    paused: boolean;
+	    volume: number;
+	    fullscreen: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new PlaybackEvent(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.episodeId = source["episodeId"];
+	        this.title = source["title"];
+	        this.position = source["position"];
+	        this.duration = source["duration"];
+	        this.percent = source["percent"];
+	        this.paused = source["paused"];
+	        this.volume = source["volume"];
+	        this.fullscreen = source["fullscreen"];
+	    }
+	}
 	export class RSSFeedItemView {
 	    id: number;
 	    feedId: number;
@@ -421,6 +447,7 @@ export namespace main {
 	}
 	export class SettingsView {
 	    mpvPath: string;
+	    mpvNativeWayland: boolean;
 	    anime4kEnabled: boolean;
 	    anime4kShadersReady: boolean;
 	    downloadDir: string;
@@ -450,6 +477,7 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.mpvPath = source["mpvPath"];
+	        this.mpvNativeWayland = source["mpvNativeWayland"];
 	        this.anime4kEnabled = source["anime4kEnabled"];
 	        this.anime4kShadersReady = source["anime4kShadersReady"];
 	        this.downloadDir = source["downloadDir"];

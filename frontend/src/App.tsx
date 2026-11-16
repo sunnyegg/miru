@@ -317,7 +317,7 @@ export default function App() {
               )}
             </Alert>
           )}
-          <NowPlayingStrip />
+          <NowPlayingStrip notice={showNotice} />
           <main
             ref={mainRef}
             tabIndex={-1}
