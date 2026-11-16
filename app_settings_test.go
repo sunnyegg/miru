@@ -2,6 +2,7 @@ package main
 
 import (
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/sunnyegg/miru/internal/paths"
@@ -31,6 +32,9 @@ func newSettingsStore(tb testing.TB, configDir string) *App {
 
 func TestBuildSettingsViewAppliesDefaults(t *testing.T) {
 	view := buildSettingsView(map[string]string{}, t.TempDir())
+	if view.Platform != runtime.GOOS {
+		t.Fatalf("Platform = %q, want %q", view.Platform, runtime.GOOS)
+	}
 	if view.SyncThreshold != 85 {
 		t.Fatalf("SyncThreshold = %v, want 85", view.SyncThreshold)
 	}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	goruntime "runtime"
 	"strconv"
 	"strings"
 
@@ -32,7 +33,7 @@ func (a *App) SaveDesktopSettings(closeToTray bool) error {
 	})
 }
 
-func (a *App) SavePlaybackSettings(mpvPath string, anime4KEnabled, discordRpcEnabled bool) error {
+func (a *App) SavePlaybackSettings(mpvPath string, anime4KEnabled, discordRpcEnabled, mpvNativeWayland bool) error {
 	if err := a.ready(); err != nil {
 		return err
 	}
@@ -49,6 +50,7 @@ func (a *App) SavePlaybackSettings(mpvPath string, anime4KEnabled, discordRpcEna
 		"mpv_path":            strings.TrimSpace(mpvPath),
 		"anime4k_enabled":     strconv.FormatBool(anime4KEnabled),
 		"discord_rpc_enabled": strconv.FormatBool(discordRpcEnabled),
+		"mpv_native_wayland":  strconv.FormatBool(mpvNativeWayland),
 	}); err != nil {
 		return err
 	}
@@ -326,11 +328,13 @@ func (a *App) invalidateSettingsCache() {
 
 func buildSettingsView(cache map[string]string, configDir string) SettingsView {
 	view := SettingsView{
+		Platform:              goruntime.GOOS,
 		SyncThreshold:         85,
 		SeedRatio:             torrentx.DefaultSeedRatio,
 		DownloadNotifications: true,
 	}
 	view.MpvPath = cache["mpv_path"]
+	view.MpvNativeWayland = parseSettingBool(cache["mpv_native_wayland"], false)
 	view.Anime4KEnabled = parseSettingBool(cache["anime4k_enabled"], false)
 	view.Anime4KShadersReady = mpv.Anime4KInstalled(configDir)
 	view.DownloadDir = cache["download_dir"]

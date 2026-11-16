@@ -4,9 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-)
 
-const appName = "miru"
+	"github.com/sunnyegg/miru/internal/appinfo"
+)
 
 type Dirs struct {
 	Config string
@@ -29,9 +29,9 @@ func Resolve() (Dirs, error) {
 	}
 
 	dirs := Dirs{
-		Config: filepath.Join(configRoot, appName),
-		Data:   filepath.Join(dataRoot, appName),
-		Cache:  filepath.Join(cacheRoot, appName),
+		Config: filepath.Join(configRoot, appinfo.Name),
+		Data:   filepath.Join(dataRoot, appinfo.Name),
+		Cache:  filepath.Join(cacheRoot, appinfo.Name),
 	}
 	if err := os.MkdirAll(dirs.Config, 0o700); err != nil {
 		return Dirs{}, err
@@ -58,7 +58,7 @@ func (d Dirs) ShadersDir() string {
 }
 
 func (d Dirs) LogFile() string {
-	return filepath.Join(d.Data, "Miru.log")
+	return filepath.Join(d.Data, appinfo.LogName)
 }
 
 func DefaultDownloadDir() (string, error) {
@@ -66,7 +66,7 @@ func DefaultDownloadDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dir := filepath.Join(home, "Downloads", appName)
+	dir := filepath.Join(home, "Downloads", appinfo.Name)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}

@@ -218,8 +218,8 @@ export function SaveNetworkSettings(arg1, arg2, arg3) {
   return window['go']['main']['App']['SaveNetworkSettings'](arg1, arg2, arg3);
 }
 
-export function SavePlaybackSettings(arg1, arg2, arg3) {
-  return window['go']['main']['App']['SavePlaybackSettings'](arg1, arg2, arg3);
+export function SavePlaybackSettings(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SavePlaybackSettings'](arg1, arg2, arg3, arg4);
 }
 
 export function SaveRSSPollSettings(arg1) {
@@ -250,8 +250,16 @@ export function SearchTokyoToshokan(arg1) {
   return window['go']['main']['App']['SearchTokyoToshokan'](arg1);
 }
 
+export function SeekPlayback(arg1) {
+  return window['go']['main']['App']['SeekPlayback'](arg1);
+}
+
 export function SetAnimeListStatus(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetAnimeListStatus'](arg1, arg2, arg3);
+}
+
+export function SetPlaybackVolume(arg1) {
+  return window['go']['main']['App']['SetPlaybackVolume'](arg1);
 }
 
 export function SetRSSFeedEnabled(arg1, arg2) {
@@ -274,8 +282,20 @@ export function StartTorrentURL(arg1) {
   return window['go']['main']['App']['StartTorrentURL'](arg1);
 }
 
+export function StopPlayback() {
+  return window['go']['main']['App']['StopPlayback']();
+}
+
 export function TestNetworkConnection(arg1, arg2, arg3) {
   return window['go']['main']['App']['TestNetworkConnection'](arg1, arg2, arg3);
+}
+
+export function TogglePlaybackFullscreen() {
+  return window['go']['main']['App']['TogglePlaybackFullscreen']();
+}
+
+export function TogglePlaybackPause() {
+  return window['go']['main']['App']['TogglePlaybackPause']();
 }
 
 export function UnbindEpisode(arg1) {

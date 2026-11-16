@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sunnyegg/miru/internal/appinfo"
 	"github.com/sunnyegg/miru/internal/paths"
 )
 
@@ -14,7 +15,7 @@ func TestMeasureCountsActiveAndStagedDataWithoutFollowingSymlinks(t *testing.T) 
 	dirs := testDirs(t)
 	writeTestFile(t, filepath.Join(dirs.Config, "app_data.db"), "database")
 	writeTestFile(t, filepath.Join(dirs.Cache, "nested", "cache"), "cached")
-	writeTestFile(t, filepath.Join(dirs.Data, "Miru.log"), "log")
+	writeTestFile(t, filepath.Join(dirs.Data, appinfo.LogName), "log")
 
 	if runtime.GOOS != "windows" {
 		outside := filepath.Join(t.TempDir(), "outside")
@@ -40,7 +41,7 @@ func TestSchedulePrepareAndCommit(t *testing.T) {
 	dirs := testDirs(t)
 	writeTestFile(t, filepath.Join(dirs.Config, "app_data.db"), "old database")
 	writeTestFile(t, filepath.Join(dirs.Cache, "response"), "old cache")
-	writeTestFile(t, filepath.Join(dirs.Data, "Miru.log"), "old log")
+	writeTestFile(t, filepath.Join(dirs.Data, appinfo.LogName), "old log")
 
 	if err := Schedule(dirs); err != nil {
 		t.Fatal(err)
@@ -234,9 +235,9 @@ func testDirs(t *testing.T) paths.Dirs {
 	t.Helper()
 	base := t.TempDir()
 	dirs := paths.Dirs{
-		Config: filepath.Join(base, "config", "miru"),
-		Cache:  filepath.Join(base, "cache", "miru"),
-		Data:   filepath.Join(base, "data", "miru"),
+		Config: filepath.Join(base, "config", appinfo.Name),
+		Cache:  filepath.Join(base, "cache", appinfo.Name),
+		Data:   filepath.Join(base, "data", appinfo.Name),
 	}
 	for _, path := range []string{dirs.Config, dirs.Cache, dirs.Data} {
 		if err := os.MkdirAll(path, 0o700); err != nil {

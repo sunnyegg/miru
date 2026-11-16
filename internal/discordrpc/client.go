@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/hugolgst/rich-go/client"
+
+	"github.com/sunnyegg/miru/internal/appinfo"
 )
 
 type Client struct {
@@ -63,7 +65,7 @@ func (presence *Client) SetWatching(animeTitle string, episodeNumber int, percen
 
 	animeTitle = strings.TrimSpace(animeTitle)
 	if animeTitle == "" {
-		animeTitle = "Miru"
+		animeTitle = appinfo.DisplayName
 	}
 	if presence.startedAt.IsZero() {
 		presence.startedAt = time.Now()

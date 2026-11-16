@@ -1,7 +1,9 @@
 package main
 
 type SettingsView struct {
+	Platform                   string  `json:"platform"`
 	MpvPath                    string  `json:"mpvPath"`
+	MpvNativeWayland           bool    `json:"mpvNativeWayland"`
 	Anime4KEnabled             bool    `json:"anime4kEnabled"`
 	Anime4KShadersReady        bool    `json:"anime4kShadersReady"`
 	DownloadDir                string  `json:"downloadDir"`
@@ -181,8 +183,14 @@ type NyaaResultView struct {
 }
 
 type PlaybackEvent struct {
-	EpisodeID int64   `json:"episodeId"`
-	Percent   float64 `json:"percent"`
+	EpisodeID  int64   `json:"episodeId"`
+	Title      string  `json:"title"`
+	Position   float64 `json:"position"`
+	Duration   float64 `json:"duration"`
+	Percent    float64 `json:"percent"`
+	Paused     bool    `json:"paused"`
+	Volume     int     `json:"volume"`
+	Fullscreen bool    `json:"fullscreen"`
 }
 
 type SyncEvent struct {

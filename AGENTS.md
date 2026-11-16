@@ -6,7 +6,7 @@ Miru is a Wails v2 desktop app (Go + React). The UI is a WebKitGTK webview, not 
 
 After `make dev`, inspect the running app at **http://127.0.0.1:34115**.
 
-`make dev-fresh` clears the cache first: it removes `$XDG_CACHE_HOME/miru` and the SQLite `api_cache` table (AniList/detail/airing responses) via `scripts/clear-cache.sh`, without touching settings, the AniList token, shaders, logs, or downloads. Use `make clear-cache` for the standalone step.
+`make dev-fresh` clears the dev cache first: it removes `$XDG_CACHE_HOME/miru-dev` and the dev SQLite `api_cache` table (AniList/detail/airing responses) via `scripts/clear-cache.sh miru-dev`, without touching settings, the AniList token, shaders, logs, or downloads. Use `make clear-cache` / `make clear-cache-dev` for the standalone step.
 
 That port is the Wails dev server with Go bindings. Do not use Vite `5173` or preview `4173` — those pages have no `window.go` / `window.runtime`, so React will not mount.
 
@@ -15,6 +15,8 @@ That port is the Wails dev server with Go bindings. Do not use Vite `5173` or pr
 Wails binds `App` in `package main`. Keep methods on `App`; split by concern into `app_*.go` (settings, library, anilist, playback, torrents). Do not add `internal/app` — that only relocates Wails glue and changes frontend imports (`wailsjs/go/main/App`).
 
 Domain code lives in `internal/` (`storage`, `anilist`, `torrentx`, `mpv`, …). Split a file when it mixes responsibilities or passes ~700 lines. ~300–400 is comfortable; ~500 is fine for one type/flow.
+
+MPV control (pause, seek, volume, full screen) goes through `internal/mpv`'s `request`, which serializes IPC commands so two callers never read each other's reply. The now-playing strip (`components/NowPlayingStrip.tsx`) calls the `App` playback bindings and stores the returned event in `playbackStore`; the 1-second progress ticker emits the same event shape on `mpv:progress`. Seek commits when the slider is released or loses focus so a drag does not spam exact seeks; volume commits on every change. Keep the `App` method names and `PlaybackEvent` in step with `lib/types.ts` and the regenerated `wailsjs` bindings.
 
 Go: guard clauses over nested `if`. Invert the empty/error case and return. Extract a helper only if it is reused, or the nest is 3+ levels in the middle of a function. Do not flatten sequential checks (SQLite migrations, SOCKS5 client setup). Do not add a helper that is only called once. `make lint` is golangci-lint standard + nestif.
 
@@ -37,16 +39,19 @@ Event handlers: keep a one-step `onClick`/`onChange` inline (`setState`, or `voi
 
 ## Data location
 
-Linux paths (from `internal/paths/paths.go`): `os.UserConfigDir()` + `miru`.
+Linux paths (from `internal/paths/paths.go`): `os.UserConfigDir()` + `appinfo.Name`.
+
+`internal/appinfo` is the single source of the app identity. A build with the `production` tag (added by `wails build`, including CI) is `miru` / `Miru` / `Miru.log` / `com.sunnyegg.miru`. Every other build (`wails dev`, `go run`, plain `go build`, tests) is the `-dev` variant: `miru-dev`, `Miru Dev`, `Miru-dev.log`, `com.sunnyegg.miru-dev`. A dev run therefore never shares config, cache, data, logs, the reset marker, the single-instance id, the window title, or the mpv window title with a release. Name-based checks and tests must use `appinfo` constants, not literals. Paths below show the release names; substitute `miru-dev` in a dev build.
 
 There is no separate config file. Settings live in the SQLite `settings` table.
 
 - Config/DB: `$XDG_CONFIG_HOME/miru/app_data.db` (usually `~/.config/miru/app_data.db`)
 - AniList token fallback (no Keyring): `~/.config/miru/anilist.token`
+- MPV config: `~/.config/miru/mpv-defaults.conf` (managed, rewritten on launch; currently `keepaspect-window=no` and `script-opts=osc-vidscale=no`) and `~/.config/miru/mpv.conf` (created once, never overwritten), both passed with `--include=` in that order so the user file overrides the defaults and Miru's own flags override both
 - Cache: `$XDG_CACHE_HOME/miru` (usually `~/.cache/miru`)
 - Log: `$XDG_DATA_HOME/miru/Miru.log` (rotates to `Miru.log.1` at 5MB on startup; usually `~/.local/share/miru/Miru.log`)
 - Default downloads: `~/Downloads/miru`
-- Pending full reset marker: a `.miru-reset.json` sibling of the config `miru` directory (usually `~/.config/.miru-reset.json`)
+- Pending full reset marker: a `.miru-reset.json` sibling of the config `miru` directory (usually `~/.config/.miru-reset.json`); dev builds use `.miru-dev-reset.json`
 - Staged reset backups: temporary `<miru-root>.reset-<id>` siblings of the config, cache, and data roots; config/data are deduplicated when they resolve to the same path
 
 `.env` in the repo root is build/dev only (AniList client ID/secret). It is not copied into `~/.config/miru/`.

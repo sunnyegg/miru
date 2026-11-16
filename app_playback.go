@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sunnyegg/miru/internal/anilist"
+	"github.com/sunnyegg/miru/internal/appinfo"
 	"github.com/sunnyegg/miru/internal/mpv"
 	"github.com/sunnyegg/miru/internal/storage"
 	syncprogress "github.com/sunnyegg/miru/internal/syncprogress"
@@ -90,7 +91,17 @@ func (a *App) PlayEpisode(episodeID int64) error {
 
 	a.syncDiscordPresence(settings, session.animeTitle, session.episodeNum, 0)
 
-	err = a.player.Play(mpvPath, ep.FilePath, startPosition, glslShaders, func(p mpv.Progress) {
+	title := appinfo.DisplayName + " — " + playbackTitle(session)
+
+	err = a.player.Play(mpv.Options{
+		MPVPath:       mpvPath,
+		MediaPath:     ep.FilePath,
+		Title:         title,
+		StartSeconds:  startPosition,
+		GLSLShaders:   glslShaders,
+		ConfigDir:     a.dirs.Config,
+		NativeWayland: settings.MpvNativeWayland,
+	}, func(p mpv.Progress) {
 		a.playMu.Lock()
 		session.lastProgress = p
 		needsMap := !session.episodeMapped && !session.mapFailed
@@ -106,10 +117,7 @@ func (a *App) PlayEpisode(episodeID int64) error {
 		}
 		a.playMu.Unlock()
 
-		runtime.EventsEmit(a.ctx, "mpv:progress", PlaybackEvent{
-			EpisodeID: episodeID,
-			Percent:   p.Percent,
-		})
+		runtime.EventsEmit(a.ctx, "mpv:progress", a.playbackEvent(p))
 		a.updateDiscordFromProgress(session, p, settings)
 		if needsMap {
 			client, err := a.playbackAnilist()
