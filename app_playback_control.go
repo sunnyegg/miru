@@ -8,10 +8,14 @@ import (
 )
 
 func playbackTitle(session *playSession) string {
-	if session.episodeNum > 0 {
-		return fmt.Sprintf("%s — Episode %d", session.animeTitle, session.episodeNum)
+	return playbackTitleFor(session.animeTitle, session.episodeNum)
+}
+
+func playbackTitleFor(animeTitle string, episodeNum int) string {
+	if episodeNum > 0 {
+		return fmt.Sprintf("%s — Episode %d", animeTitle, episodeNum)
 	}
-	return session.animeTitle
+	return animeTitle
 }
 
 // playbackEvent builds the event sent to the UI from an mpv state snapshot.

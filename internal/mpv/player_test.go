@@ -24,15 +24,15 @@ func TestPropertiesFetchesDurationOnce(t *testing.T) {
 	})
 
 	player := &Player{conn: client}
-	if _, duration, err := player.properties(); err != nil {
+	if state, err := player.media(); err != nil {
 		t.Fatal(err)
-	} else if duration != 1440 {
-		t.Fatalf("duration = %v, want 1440", duration)
+	} else if state.Duration != 1440 {
+		t.Fatalf("duration = %v, want 1440", state.Duration)
 	}
-	if _, duration, err := player.properties(); err != nil {
+	if state, err := player.media(); err != nil {
 		t.Fatal(err)
-	} else if duration != 1440 {
-		t.Fatalf("cached duration = %v, want 1440", duration)
+	} else if state.Duration != 1440 {
+		t.Fatalf("cached duration = %v, want 1440", state.Duration)
 	}
 
 	if got := counts.get("time-pos"); got != 2 {
@@ -61,17 +61,56 @@ func TestPropertiesRetriesZeroDuration(t *testing.T) {
 	})
 
 	player := &Player{conn: client}
-	if _, duration, err := player.properties(); err != nil {
+	if state, err := player.media(); err != nil {
 		t.Fatal(err)
-	} else if duration != 0 {
-		t.Fatalf("first duration = %v, want 0", duration)
+	} else if state.Duration != 0 {
+		t.Fatalf("first duration = %v, want 0", state.Duration)
 	}
-	if _, duration, err := player.properties(); err != nil {
+	if state, err := player.media(); err != nil {
 		t.Fatal(err)
-	} else if duration != 1440 {
-		t.Fatalf("second duration = %v, want 1440", duration)
+	} else if state.Duration != 1440 {
+		t.Fatalf("second duration = %v, want 1440", state.Duration)
 	}
 
+	if got := counts.get("duration"); got != 2 {
+		t.Fatalf("duration fetches = %d, want 2", got)
+	}
+}
+
+func TestMediaRefetchesDurationAfterPlaylistAdvance(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+
+	counts := &propertyCounts{}
+	go servePropertyReplies(server, func(property string) float64 {
+		n := counts.add(property)
+		switch property {
+		case "playlist-pos":
+			if n == 1 {
+				return 0
+			}
+			return 1
+		case "duration":
+			if n == 1 {
+				return 1440
+			}
+			return 480
+		}
+		return 12
+	})
+
+	player := &Player{conn: client}
+	if state, err := player.media(); err != nil {
+		t.Fatal(err)
+	} else if state.Duration != 1440 || state.PlaylistPos != 0 {
+		t.Fatalf("first entry = %+v", state)
+	}
+	if state, err := player.media(); err != nil {
+		t.Fatal(err)
+	} else if state.Duration != 480 || state.PlaylistPos != 1 {
+		t.Fatalf("next entry must refetch its duration, got %+v", state)
+	}
 	if got := counts.get("duration"); got != 2 {
 		t.Fatalf("duration fetches = %d, want 2", got)
 	}
@@ -95,7 +134,7 @@ func TestStopUnblocksStalledProperties(t *testing.T) {
 	player := &Player{conn: client}
 	errCh := make(chan error, 1)
 	go func() {
-		_, _, err := player.properties()
+		_, err := player.media()
 		errCh <- err
 	}()
 

@@ -1,19 +1,24 @@
 package mpv
 
 import (
+	_ "embed"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 )
 
-// Config is the pair of mpv config files Miru passes to the player. The
-// defaults file is Miru-managed and included first, so the user file can
-// override any option in it.
+// Config is the set of mpv files Miru passes to the player. The defaults file
+// and the next-episode script are Miru-managed; the defaults file is included
+// first so the user file can override any option in it.
 type Config struct {
 	DefaultsPath string
 	UserPath     string
+	NextPath     string
 }
+
+//go:embed lua/next.lua
+var nextScript string
 
 const defaultsTemplate = `# MPV defaults managed by Miru. Miru rewrites this file on launch.
 # Override any option in mpv.conf, which is included after this file.
@@ -59,9 +64,14 @@ func ConfigPath(configDir string) string {
 	return filepath.Join(configDir, "mpv.conf")
 }
 
-// EnsureConfig prepares both mpv config files and returns their paths. The
-// defaults file follows Miru's template, the user file only gets the template
-// when it is missing or empty, so user edits survive.
+// NextPath is the next-episode button script Miru loads into mpv.
+func NextPath(configDir string) string {
+	return filepath.Join(configDir, "next.lua")
+}
+
+// EnsureConfig prepares the mpv config files and the next-episode script. The
+// defaults file and the script follow Miru's templates, the user file only
+// gets the template when it is missing or empty, so user edits survive.
 func EnsureConfig(configDir string) (Config, error) {
 	if configDir == "" {
 		return Config{}, errors.New("mpv config dir is empty")
@@ -72,11 +82,15 @@ func EnsureConfig(configDir string) (Config, error) {
 	config := Config{
 		DefaultsPath: DefaultsPath(configDir),
 		UserPath:     ConfigPath(configDir),
+		NextPath:     NextPath(configDir),
 	}
 	if err := writeConfig(config.DefaultsPath, defaultsTemplate, true); err != nil {
 		return Config{}, err
 	}
 	if err := writeConfig(config.UserPath, userTemplate, false); err != nil {
+		return Config{}, err
+	}
+	if err := writeConfig(config.NextPath, nextScript, true); err != nil {
 		return Config{}, err
 	}
 	return config, nil

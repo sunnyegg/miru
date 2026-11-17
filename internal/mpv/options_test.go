@@ -4,7 +4,7 @@ import "testing"
 
 func TestOptionsArgsWindowFlags(t *testing.T) {
 	opts := Options{
-		MediaPath:    "/media/episode.mkv",
+		MediaPaths:   []string{"/media/episode.mkv"},
 		Title:        "Miru — Frieren — Episode 3",
 		StartSeconds: 12.5,
 		GLSLShaders:  []string{"/shaders/restore.glsl"},
@@ -33,13 +33,42 @@ func TestOptionsArgsWindowFlags(t *testing.T) {
 			t.Fatalf("missing %q in %v", want, args)
 		}
 	}
-	if last := args[len(args)-1]; last != opts.MediaPath {
+	if last := args[len(args)-1]; last != opts.MediaPaths[0] {
 		t.Fatalf("media path must be last, got %q", last)
 	}
 }
 
+func TestOptionsArgsPlaylistOmitsStart(t *testing.T) {
+	opts := Options{
+		MediaPaths:   []string{"/media/episode-1.mkv", "/media/episode-2.mkv"},
+		StartSeconds: 300,
+	}
+
+	args := opts.args("/tmp/mpv.sock", Config{}, false)
+
+	if containsArg(args, "--start=300.000") {
+		t.Fatalf("playlist must not use a global start, got %v", args)
+	}
+	if len(args) < 2 {
+		t.Fatalf("args = %v", args)
+	}
+	if first, second := args[len(args)-2], args[len(args)-1]; first != opts.MediaPaths[0] || second != opts.MediaPaths[1] {
+		t.Fatalf("playlist order must be kept, got %q %q", first, second)
+	}
+}
+
+func TestOptionsArgsLoadsNextScript(t *testing.T) {
+	opts := Options{MediaPaths: []string{"/media/episode.mkv"}}
+
+	args := opts.args("/tmp/mpv.sock", Config{NextPath: "/config/next.lua"}, false)
+
+	if !containsArg(args, "--script=/config/next.lua") {
+		t.Fatalf("missing next script in %v", args)
+	}
+}
+
 func TestOptionsArgsPinsXWayland(t *testing.T) {
-	opts := Options{MediaPath: "/media/episode.mkv"}
+	opts := Options{MediaPaths: []string{"/media/episode.mkv"}}
 
 	args := opts.args("/tmp/mpv.sock", Config{}, true)
 
@@ -49,7 +78,7 @@ func TestOptionsArgsPinsXWayland(t *testing.T) {
 }
 
 func TestOptionsArgsWithoutOptionalFlags(t *testing.T) {
-	opts := Options{MediaPath: "/media/episode.mkv"}
+	opts := Options{MediaPaths: []string{"/media/episode.mkv"}}
 
 	args := opts.args("/tmp/mpv.sock", Config{}, false)
 
@@ -62,7 +91,7 @@ func TestOptionsArgsWithoutOptionalFlags(t *testing.T) {
 }
 
 func TestOptionsArgsOnlyDefaultConfig(t *testing.T) {
-	opts := Options{MediaPath: "/media/episode.mkv"}
+	opts := Options{MediaPaths: []string{"/media/episode.mkv"}}
 
 	args := opts.args("/tmp/mpv.sock", Config{DefaultsPath: "/config/mpv-defaults.conf"}, false)
 

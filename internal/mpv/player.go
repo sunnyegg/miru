@@ -13,18 +13,22 @@ import (
 )
 
 type Progress struct {
-	Position   float64 `json:"position"`
-	Duration   float64 `json:"duration"`
-	Percent    float64 `json:"percent"`
-	Paused     bool    `json:"paused"`
-	Volume     int     `json:"volume"`
-	Fullscreen bool    `json:"fullscreen"`
+	Position    float64 `json:"position"`
+	Duration    float64 `json:"duration"`
+	Percent     float64 `json:"percent"`
+	Paused      bool    `json:"paused"`
+	Volume      int     `json:"volume"`
+	Fullscreen  bool    `json:"fullscreen"`
+	PlaylistPos int     `json:"playlistPos"`
+	Path        string  `json:"path"`
 }
 
 // Options describe one mpv playback session.
 type Options struct {
-	MPVPath      string
-	MediaPath    string
+	MPVPath string
+	// MediaPaths is the playlist. mpv advances from one entry to the next by
+	// itself; StartSeconds only applies to the first entry.
+	MediaPaths   []string
 	Title        string
 	StartSeconds float64
 	GLSLShaders  []string
@@ -36,13 +40,15 @@ type Options struct {
 }
 
 type Player struct {
-	mu       sync.Mutex
-	cmdMu    sync.Mutex
-	cmd      *exec.Cmd
-	conn     net.Conn
-	ipc      string
-	reqID    int
-	duration float64
+	mu          sync.Mutex
+	cmdMu       sync.Mutex
+	cmd         *exec.Cmd
+	conn        net.Conn
+	ipc         string
+	reqID       int
+	duration    float64
+	durationPos int
+	durationSet bool
 }
 
 func Percent(position, duration float64) float64 {
@@ -92,6 +98,8 @@ func (p *Player) Stop() {
 	p.conn = nil
 	p.ipc = ""
 	p.duration = 0
+	p.durationPos = 0
+	p.durationSet = false
 	p.mu.Unlock()
 
 	if conn != nil {
@@ -115,6 +123,9 @@ func (o Options) args(ipc string, config Config, xwayland bool) []string {
 			args = append(args, "--include="+path)
 		}
 	}
+	if config.NextPath != "" {
+		args = append(args, "--script="+config.NextPath)
+	}
 	args = append(args,
 		"--force-window=yes",
 		"--no-terminal",
@@ -128,21 +139,29 @@ func (o Options) args(ipc string, config Config, xwayland bool) []string {
 	if o.Title != "" {
 		args = append(args, "--title="+o.Title)
 	}
-	if o.StartSeconds > 0 {
+	// mpv applies --start to every playlist entry, not just the first one, so a
+	// playlist seeks to its resume position after the file has loaded instead
+	// (see Play).
+	if o.StartSeconds > 0 && len(o.MediaPaths) == 1 {
 		args = append(args, fmt.Sprintf("--start=%.3f", o.StartSeconds))
 	}
 	for _, shaderPath := range o.GLSLShaders {
 		args = append(args, "--glsl-shader="+shaderPath)
 	}
-	return append(args, o.MediaPath)
+	return append(args, o.MediaPaths...)
 }
 
 func (p *Player) Play(opts Options, onProgress func(Progress), onExit func(error)) error {
 	if opts.MPVPath == "" {
 		return fmt.Errorf("mpv path is empty")
 	}
-	if _, err := os.Stat(opts.MediaPath); err != nil {
-		return fmt.Errorf("media file: %w", err)
+	if len(opts.MediaPaths) == 0 {
+		return fmt.Errorf("no media files")
+	}
+	for _, path := range opts.MediaPaths {
+		if _, err := os.Stat(path); err != nil {
+			return fmt.Errorf("media file: %w", err)
+		}
 	}
 
 	p.Stop()
@@ -179,8 +198,28 @@ func (p *Player) Play(opts Options, onProgress func(Progress), onExit func(error
 	p.ipc = ipc
 	p.mu.Unlock()
 
+	if opts.StartSeconds > 0 && len(opts.MediaPaths) > 1 {
+		go p.seekWhenLoaded(opts.StartSeconds)
+	}
+
 	go p.watch(cmd, ipc, onProgress, onExit)
 	return nil
+}
+
+// seekWhenLoaded retries a seek until mpv has opened the file, which is not
+// guaranteed when the IPC socket first accepts a connection.
+func (p *Player) seekWhenLoaded(position float64) {
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if err := p.Seek(position); err == nil {
+			return
+		}
+		if time.Now().After(deadline) {
+			log.Printf("mpv: resume seek to %.3fs failed", position)
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func (p *Player) watch(cmd *exec.Cmd, ipc string, onProgress func(Progress), onExit func(error)) {
@@ -224,46 +263,74 @@ func (p *Player) cleanup(cmd *exec.Cmd, ipc string) {
 	p.cmd = nil
 	p.ipc = ""
 	p.duration = 0
+	p.durationPos = 0
+	p.durationSet = false
 	removeEndpoint(ipc)
 }
 
-func (p *Player) properties() (float64, float64, error) {
+type mediaState struct {
+	Position    float64
+	Duration    float64
+	PlaylistPos int
+	Path        string
+}
+
+// media reads the current playlist entry. The duration cache is keyed by
+// playlist position because mpv moves to the next file on its own and each
+// entry has its own length.
+func (p *Player) media() (mediaState, error) {
 	p.mu.Lock()
 	conn := p.conn
 	cachedDuration := p.duration
+	cachedPos := p.durationPos
+	cachedSet := p.durationSet
 	p.mu.Unlock()
 	if conn == nil {
-		return 0, 0, fmt.Errorf("ipc closed")
+		return mediaState{}, fmt.Errorf("ipc closed")
+	}
+
+	playlistPos, err := p.getInt("playlist-pos")
+	if err != nil {
+		playlistPos = -1
+	}
+	path, err := p.getString("path")
+	if err != nil {
+		path = ""
 	}
 
 	position, err := p.getNumber("time-pos")
 	if err != nil {
-		return 0, 0, err
+		return mediaState{}, err
 	}
-	if cachedDuration > 0 {
-		return position, cachedDuration, nil
+	state := mediaState{Position: position, PlaylistPos: playlistPos, Path: path}
+	if cachedSet && cachedPos == playlistPos && cachedDuration > 0 {
+		state.Duration = cachedDuration
+		return state, nil
 	}
 
 	duration, err := p.getNumber("duration")
 	if err != nil {
-		return 0, 0, err
+		return mediaState{}, err
 	}
+	state.Duration = duration
 	if duration <= 0 {
-		return position, duration, nil
+		return state, nil
 	}
 
 	p.mu.Lock()
 	if p.conn == conn {
 		p.duration = duration
+		p.durationPos = playlistPos
+		p.durationSet = true
 	}
 	p.mu.Unlock()
-	return position, duration, nil
+	return state, nil
 }
 
 // State is the current playback snapshot used by the progress ticker and the
 // in-app controls.
 func (p *Player) State() (Progress, error) {
-	position, duration, err := p.properties()
+	media, err := p.media()
 	if err != nil {
 		return Progress{}, err
 	}
@@ -280,12 +347,14 @@ func (p *Player) State() (Progress, error) {
 		return Progress{}, err
 	}
 	return Progress{
-		Position:   position,
-		Duration:   duration,
-		Percent:    Percent(position, duration),
-		Paused:     paused,
-		Volume:     int(volume),
-		Fullscreen: fullscreen,
+		Position:    media.Position,
+		Duration:    media.Duration,
+		Percent:     Percent(media.Position, media.Duration),
+		Paused:      paused,
+		Volume:      int(volume),
+		Fullscreen:  fullscreen,
+		PlaylistPos: media.PlaylistPos,
+		Path:        media.Path,
 	}, nil
 }
 
@@ -321,6 +390,12 @@ func (p *Player) SetFullscreen(on bool) error {
 func (p *Player) setProperty(name string, value any) error {
 	_, err := p.request("set_property", name, value)
 	return err
+}
+
+// SetTitle follows the playlist entry in the player window title, which mpv
+// itself keeps at the value it was launched with.
+func (p *Player) SetTitle(title string) error {
+	return p.setProperty("title", title)
 }
 
 // request sends one IPC command and waits for its reply. Requests are
@@ -394,6 +469,30 @@ func (p *Player) getBool(name string) (bool, error) {
 	var value bool
 	if err := json.Unmarshal(data, &value); err != nil {
 		return false, fmt.Errorf("mpv: %s: %w", name, err)
+	}
+	return value, nil
+}
+
+func (p *Player) getInt(name string) (int, error) {
+	data, err := p.request("get_property", name)
+	if err != nil {
+		return 0, err
+	}
+	var value int
+	if err := json.Unmarshal(data, &value); err != nil {
+		return 0, fmt.Errorf("mpv: %s: %w", name, err)
+	}
+	return value, nil
+}
+
+func (p *Player) getString(name string) (string, error) {
+	data, err := p.request("get_property", name)
+	if err != nil {
+		return "", err
+	}
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return "", fmt.Errorf("mpv: %s: %w", name, err)
 	}
 	return value, nil
 }

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/sunnyegg/miru/internal/anilist"
+	"github.com/sunnyegg/miru/internal/appinfo"
 	"github.com/sunnyegg/miru/internal/datareset"
 	"github.com/sunnyegg/miru/internal/discordrpc"
 	"github.com/sunnyegg/miru/internal/mpv"
@@ -143,6 +144,8 @@ type playSession struct {
 	anilistID             int
 	episodeNum            int
 	animeTitle            string
+	queue                 []playlistEntry
+	queueIndex            int
 	synced                bool
 	realtimeSyncAttempted bool
 	episodeMapped         bool
@@ -235,7 +238,7 @@ func (a *App) init() error {
 		return fmt.Errorf("open database: %w", err)
 	}
 	a.store = store
-	a.tokens = secrets.New(dirs.TokenFile())
+	a.tokens = secrets.New(appinfo.Name, dirs.TokenFile())
 	a.torrents = torrentx.NewManager(store)
 	a.torrents.SetCallbacks(a.emitTorrent, a.ingestTorrentFiles, a.logDebugErr)
 
