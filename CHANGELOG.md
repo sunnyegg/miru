@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.4.3-alpha
+
+- Autoplay: playing an episode queues the next downloaded episodes of the same show, so a binge continues in one MPV window, with each episode's own resume position, player title, Discord presence and AniList sync.
+- A translucent **Next** button appears in the bottom-right corner of the video during an episode's last minute when a following episode is queued; clicking it jumps ahead, and every other click keeps MPV's own meaning.
+- The now-playing strip above the content area is a timeline only; pause, volume and full screen stay with MPV's own controls.
+- A dev build keeps its own AniList login, so signing in while developing no longer reads or overwrites a release install's account.
+
 ## v0.4.2-alpha
 
 - Control playback from the app: play/pause, seek, volume, full screen and stop in a now-playing strip.
