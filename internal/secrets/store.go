@@ -9,10 +9,7 @@ import (
 	"github.com/zalando/go-keyring"
 )
 
-const (
-	service     = "miru"
-	anilistUser = "anilist_token"
-)
+const anilistUser = "anilist_token"
 
 var ErrNotFound = errors.New("secret not found")
 
@@ -22,16 +19,20 @@ type Store interface {
 	Delete() error
 }
 
+// KeyringStore keeps the AniList token in the platform secret service. The
+// service name follows the build identity, so a dev build never reads or
+// overwrites the token of an installed release.
 type KeyringStore struct {
+	service  string
 	filePath string
 }
 
-func New(fileFallback string) *KeyringStore {
-	return &KeyringStore{filePath: fileFallback}
+func New(service, fileFallback string) *KeyringStore {
+	return &KeyringStore{service: service, filePath: fileFallback}
 }
 
 func (s *KeyringStore) Get() (string, error) {
-	value, err := keyring.Get(service, anilistUser)
+	value, err := keyring.Get(s.service, anilistUser)
 	if err == nil && strings.TrimSpace(value) != "" {
 		return strings.TrimSpace(value), nil
 	}
@@ -43,7 +44,7 @@ func (s *KeyringStore) Set(value string) error {
 	if value == "" {
 		return errors.New("empty token")
 	}
-	if err := keyring.Set(service, anilistUser, value); err == nil {
+	if err := keyring.Set(s.service, anilistUser, value); err == nil {
 		return nil
 	}
 	// ponytail: file 0600 if secret service is missing
@@ -51,7 +52,7 @@ func (s *KeyringStore) Set(value string) error {
 }
 
 func (s *KeyringStore) Delete() error {
-	_ = keyring.Delete(service, anilistUser)
+	_ = keyring.Delete(s.service, anilistUser)
 	if s.filePath == "" {
 		return nil
 	}

@@ -9,7 +9,7 @@ the [issue tracker](https://github.com/sunnyegg/miru/issues).
 ## What's included
 
 - **Library** — local files with AniList posters, Upcoming / Available sections for Watching and an On disk section filterable by AniList list status, each shelf grouped by airing season (Winter/Spring/Summer/Fall + year), a catch-up flow, and full AniList metadata (status, format, season, score, genres, studios, synopsis) with the next-episode air date and countdown on each show page
-- **Playback** — MPV playback with per-episode resume and watch-position indicators that survive download cleanup, a now-playing timeline bar that seeks the player, plus watch progress synced to AniList at a configurable threshold (default 85%)
+- **Playback** — MPV playback with per-episode resume and watch-position indicators that survive download cleanup, autoplay of the next downloaded episodes in a season, a now-playing timeline bar that seeks the player, plus watch progress synced to AniList at a configurable threshold (default 85%)
 - **AniList** — browser OAuth, list statuses, and an episode catalog on each show page
 - **Profile** — AniList about text, title language, adult-content preference, and scoring format, plus your anime lists (Watching, Completed, Planning, and the rest); preview and save a banner PNG per list status for social media
 - **Search** — AniList anime search by title or seasonal browse (season + year, popularity order, load more), plus Nyaa and Tokyo Toshokan torrent RSS with pagination
@@ -37,7 +37,7 @@ xattr -d com.apple.quarantine /Applications/miru.app
 
 - GTK3 and WebKitGTK
 - MPV (`mpv` in `PATH`, or pick the binary in Settings)
-- Optional: a Secret Service / GNOME Keyring. If missing, the AniList token is stored in `~/.config/miru/anilist.token` with mode `0600`.
+- Optional: a Secret Service / GNOME Keyring. If missing, the AniList token is stored in `~/.config/miru/anilist.token` with mode `0600`. A dev build keeps its own keyring entry (`miru-dev`), so signing in there never touches a release login.
 
 On NVIDIA systems running Wayland, Miru automatically disables NVIDIA explicit
 sync before starting WebKitGTK. This works around a known WebKitGTK protocol
@@ -86,6 +86,19 @@ area is a timeline only: it shows the title and position and seeks the MPV
 window. Pause, volume and full screen use the MPV window's own controls, and
 closing that window stops playback.
 
+Playing an episode also queues the next episodes of the same show that are
+already on disk, in order and without skipping a gap, so a binge continues
+inside one player window; mpv moves on by itself and Miru follows with the
+title, resume position, progress bar, Discord presence and AniList sync per
+episode. The queue stops at the first missing file.
+
+In the last minute of an episode that has a following entry, mpv shows a
+translucent **Next** button in the bottom-right corner of the video; clicking it
+jumps to that episode. The button only takes the mouse click while the pointer
+is over it, so clicking anywhere else keeps its usual meaning. It is drawn by
+Miru's managed `next.lua` script (`~/.config/miru/next.lua`, rewritten on
+launch) and never appears on the last episode of the queue.
+
 On Wayland, MPV runs through XWayland by default so the player window gets a
 title bar, resize handles and a close button; GNOME gives native Wayland
 clients none of those. Turn on **Settings → Playback → Use native Wayland for
@@ -100,8 +113,8 @@ Miru passes two config files with `--include=`: a managed `mpv-defaults.conf`,
 then your `mpv.conf`, then its own window flags. Options you add to `mpv.conf`
 (`border=no`, `ontop=yes`, `autofit=70%x70%`, `keepaspect-window=yes`, and
 similar) override the defaults. Miru writes `mpv.conf` with commented examples
-on the first play and never overwrites your edits; `mpv-defaults.conf` is
-rewritten on launch.
+on the first play and never overwrites your edits; `mpv-defaults.conf` and
+`next.lua` are rewritten on launch.
 
 **Settings → About → Delete all data** removes Miru settings, library and
 playback history, torrent history, RSS feeds, AniList login, cache, Anime4K

@@ -18,6 +18,8 @@ Domain code lives in `internal/` (`storage`, `anilist`, `torrentx`, `mpv`, …).
 
 MPV control (pause, seek, volume, full screen) goes through `internal/mpv`'s `request`, which serializes IPC commands so two callers never read each other's reply. Pause, volume, full screen and stop stay in MPV's own OSC inside the player window; the now-playing strip (`components/NowPlayingStrip.tsx`) is a timeline only, calling `SeekPlayback` and storing the returned event in `playbackStore`, while the 1-second progress ticker emits the same event shape on `mpv:progress`. Seek commits when the slider is released or loses focus so a drag does not spam exact seeks. Keep the `App` method names and `PlaybackEvent` in step with `lib/types.ts` and the regenerated `wailsjs` bindings.
 
+`PlayEpisode` hands mpv a playlist: the target episode plus the next downloaded episodes of the same show (`app_playback_queue.go`, contiguous, capped, stops at a gap). mpv advances by itself, so `followPlaylist` rotates the `playSession` when `mpv.Progress.Path` leaves the current entry: it saves and syncs the episode that ended, then swaps the episode fields, playback writer, window title and Discord presence, and seeks to the next episode's own resume position. `--start` is only passed for a single-file playlist because mpv applies it to every entry; a longer playlist seeks to the resume position after the file loads. `Player.media` keys its duration cache on `playlist-pos`, since each entry has its own length.
+
 Go: guard clauses over nested `if`. Invert the empty/error case and return. Extract a helper only if it is reused, or the nest is 3+ levels in the middle of a function. Do not flatten sequential checks (SQLite migrations, SOCKS5 client setup). Do not add a helper that is only called once. `make lint` is golangci-lint standard + nestif.
 
 ## Frontend
@@ -46,8 +48,8 @@ Linux paths (from `internal/paths/paths.go`): `os.UserConfigDir()` + `appinfo.Na
 There is no separate config file. Settings live in the SQLite `settings` table.
 
 - Config/DB: `$XDG_CONFIG_HOME/miru/app_data.db` (usually `~/.config/miru/app_data.db`)
-- AniList token fallback (no Keyring): `~/.config/miru/anilist.token`
-- MPV config: `~/.config/miru/mpv-defaults.conf` (managed, rewritten on launch; currently `keepaspect-window=no` and `script-opts=osc-vidscale=no`) and `~/.config/miru/mpv.conf` (created once, never overwritten), both passed with `--include=` in that order so the user file overrides the defaults and Miru's own flags override both
+- AniList token: the platform keyring under the build's own service name (`appinfo.Name`: `miru` for a release, `miru-dev` for a dev build), so a dev build neither reads nor overwrites a release login; fallback file (no Keyring): `~/.config/miru/anilist.token`
+- MPV config: `~/.config/miru/mpv-defaults.conf` (managed, rewritten on launch; currently `keepaspect-window=no` and `script-opts=osc-vidscale=no`) and `~/.config/miru/mpv.conf` (created once, never overwritten), both passed with `--include=` in that order so the user file overrides the defaults and Miru's own flags override both. `~/.config/miru/next.lua` (`internal/mpv/lua/next.lua`, embedded, rewritten on launch) is loaded with `--script=`; it draws the bottom-right **Next** button during an episode's last minute when the playlist has a following entry and advances with `playlist-next`. Its state is also exposed as `user-data/miru-next-visible`, `-hovered` and `-ass` for tests, and it only grabs `MBTN_LEFT` while the pointer is inside the button so mpv's own click behaviour stays intact
 - Cache: `$XDG_CACHE_HOME/miru` (usually `~/.cache/miru`)
 - Log: `$XDG_DATA_HOME/miru/Miru.log` (rotates to `Miru.log.1` at 5MB on startup; usually `~/.local/share/miru/Miru.log`)
 - Default downloads: `~/Downloads/miru`

@@ -53,6 +53,7 @@ func (a *App) PlayEpisode(episodeID int64) error {
 	session := &playSession{
 		episodeID:      episodeID,
 		animeTitle:     episodeAnimeTitle(ep),
+		queue:          a.playlistFor(ep),
 		playbackWriter: newPlaybackStateWriter(a.store),
 		done:           make(chan struct{}),
 	}
@@ -93,15 +94,29 @@ func (a *App) PlayEpisode(episodeID int64) error {
 
 	title := appinfo.DisplayName + " — " + playbackTitle(session)
 
+	mediaPaths := make([]string, len(session.queue))
+	for i, entry := range session.queue {
+		mediaPaths[i] = entry.filePath
+	}
+
 	err = a.player.Play(mpv.Options{
 		MPVPath:       mpvPath,
-		MediaPath:     ep.FilePath,
+		MediaPaths:    mediaPaths,
 		Title:         title,
 		StartSeconds:  startPosition,
 		GLSLShaders:   glslShaders,
 		ConfigDir:     a.dirs.Config,
 		NativeWayland: settings.MpvNativeWayland,
 	}, func(p mpv.Progress) {
+		a.playMu.Lock()
+		current := session.queue[session.queueIndex].filePath
+		finished := session.lastProgress
+		a.playMu.Unlock()
+		if !sameMediaPath(p.Path, current) {
+			a.followPlaylist(session, finished, p.Path, settings)
+			return
+		}
+
 		a.playMu.Lock()
 		session.lastProgress = p
 		needsMap := !session.episodeMapped && !session.mapFailed

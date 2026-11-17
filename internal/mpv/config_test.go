@@ -13,8 +13,16 @@ func TestEnsureConfigCreatesFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if config.DefaultsPath != DefaultsPath(dir) || config.UserPath != ConfigPath(dir) {
+	if config.DefaultsPath != DefaultsPath(dir) || config.UserPath != ConfigPath(dir) || config.NextPath != NextPath(dir) {
 		t.Fatalf("config = %+v", config)
+	}
+
+	script, err := os.ReadFile(config.NextPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(script), "miru-next-activate") {
+		t.Fatalf("next script missing its activation hook: %q", script)
 	}
 
 	defaults, err := os.ReadFile(config.DefaultsPath)
