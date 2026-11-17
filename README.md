@@ -9,7 +9,7 @@ the [issue tracker](https://github.com/sunnyegg/miru/issues).
 ## What's included
 
 - **Library** — local files with AniList posters, Upcoming / Available sections for Watching and an On disk section filterable by AniList list status, each shelf grouped by airing season (Winter/Spring/Summer/Fall + year), a catch-up flow, and full AniList metadata (status, format, season, score, genres, studios, synopsis) with the next-episode air date and countdown on each show page
-- **Playback** — MPV playback with per-episode resume and watch-position indicators that survive download cleanup, a now-playing bar with pause, seek, volume, full screen and stop controls, plus watch progress synced to AniList at a configurable threshold (default 85%)
+- **Playback** — MPV playback with per-episode resume and watch-position indicators that survive download cleanup, a now-playing timeline bar that seeks the player, plus watch progress synced to AniList at a configurable threshold (default 85%)
 - **AniList** — browser OAuth, list statuses, and an episode catalog on each show page
 - **Profile** — AniList about text, title language, adult-content preference, and scoring format, plus your anime lists (Watching, Completed, Planning, and the rest); preview and save a banner PNG per list status for social media
 - **Search** — AniList anime search by title or seasonal browse (season + year, popularity order, load more), plus Nyaa and Tokyo Toshokan torrent RSS with pagination
@@ -82,7 +82,9 @@ cache.
 
 The player window is titled `<app name> — <anime> — Episode <n>`, so dev builds
 show `Miru Dev`. While an episode plays, the now-playing bar above the content
-area controls pause, seek, volume, full screen and stop for the MPV window.
+area is a timeline only: it shows the title and position and seeks the MPV
+window. Pause, volume and full screen use the MPV window's own controls, and
+closing that window stops playback.
 
 On Wayland, MPV runs through XWayland by default so the player window gets a
 title bar, resize handles and a close button; GNOME gives native Wayland
