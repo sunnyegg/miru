@@ -17,6 +17,7 @@ import {
   type TorrentSearchTitles,
 } from './lib/libraryWatching'
 import {NowPlayingStrip} from './components/NowPlayingStrip'
+import {StaleCacheBanner} from './components/StaleCacheBanner'
 import {Sidebar} from './components/Sidebar'
 import {Splash} from './components/Splash'
 import {ChangelogDialog} from './components/ChangelogDialog'
@@ -33,6 +34,7 @@ import {Button} from '@/components/ui/button'
 import {TooltipProvider} from '@/components/ui/tooltip'
 import {toast} from '@/components/ui/toast'
 import type {
+  AnilistCacheStale,
   DownloadView,
   PlaybackEvent,
   SyncEvent,
@@ -45,6 +47,7 @@ import {useLibraryStore} from './stores/libraryStore'
 import {useNavigationStore} from './stores/navigationStore'
 import {usePlaybackStore} from './stores/playbackStore'
 import {useSearchStore} from './stores/searchStore'
+import {useCalendarStore} from './stores/calendarStore'
 import {useSettingsStore} from './stores/settingsStore'
 import {useWatchingStore} from './stores/watchingStore'
 
@@ -64,6 +67,8 @@ export default function App() {
     null,
   )
   const [closePromptOpen, setClosePromptOpen] = useState(false)
+  const [staleCache, setStaleCache] = useState<AnilistCacheStale[]>([])
+  const [retryingStaleData, setRetryingStaleData] = useState(false)
   const [changelogOpen, setChangelogOpen] = useState(false)
   const mainRef = useRef<HTMLElement>(null)
   const hasFocusedTab = useRef(false)
@@ -82,6 +87,34 @@ export default function App() {
       type: error ? 'error' : undefined,
       timeout: 4000,
     })
+  }
+
+  async function retryStaleData() {
+    setRetryingStaleData(true)
+    try {
+      const sources = new Set(staleCache.map((entry) => entry.source))
+      const tasks: Promise<unknown>[] = []
+      if (sources.has('search results')) {
+        tasks.push(useSearchStore.getState().retryAnimeSearch())
+      }
+      if (sources.has('your lists') || sources.has('episode progress')) {
+        tasks.push(useLibraryStore.getState().reload(showNotice))
+      }
+      if (sources.has('your lists')) {
+        tasks.push(useWatchingStore.getState().loadList())
+      }
+      if (sources.has('airing schedule')) {
+        tasks.push(useCalendarStore.getState().loadSchedules())
+      }
+      if (tasks.length === 0) {
+        // Only detail or thumbnail data is stale; refresh the lists so the next
+        // open of a show fetches it again.
+        tasks.push(useLibraryStore.getState().reload(showNotice))
+      }
+      await Promise.all(tasks)
+    } finally {
+      setRetryingStaleData(false)
+    }
   }
 
   async function loadInitError() {
@@ -227,6 +260,9 @@ export default function App() {
       const label = count === 1 ? '1 RSS item' : `${count} RSS items`
       showNotice(`Auto-added ${label} for download`)
     })
+    EventsOn('anilist:cache-stale', (payload: AnilistCacheStale[]) => {
+      setStaleCache(payload ?? [])
+    })
     EventsOn('window:close-prompt', () => {
       setClosePromptOpen(true)
     })
@@ -243,6 +279,7 @@ export default function App() {
       EventsOff('anilist:connected')
       EventsOff('feeds:updated')
       EventsOff('rss:auto_queued')
+      EventsOff('anilist:cache-stale')
       EventsOff('window:close-prompt')
       EventsOff('update:progress')
     }
@@ -318,6 +355,11 @@ export default function App() {
             </Alert>
           )}
           <NowPlayingStrip notice={showNotice} />
+          <StaleCacheBanner
+            entries={staleCache}
+            retrying={retryingStaleData}
+            onRetry={() => void retryStaleData()}
+          />
           <main
             ref={mainRef}
             tabIndex={-1}

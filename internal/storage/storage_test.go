@@ -752,12 +752,50 @@ func TestAPICacheTTL(t *testing.T) {
 		t.Fatalf("stale = %q", stale)
 	}
 
+	_, fetchedAt, err := store.GetAPICacheAt("watching", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if age := time.Since(fetchedAt); age < 30*time.Minute {
+		t.Fatalf("fetched at age = %s, want the backdated hour", age)
+	}
+
 	if err := store.DeleteAPICache("watching"); err != nil {
 		t.Fatal(err)
 	}
 	_, err = store.GetAPICache("watching", 0)
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("deleted err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestDeleteAPICacheOlderThan(t *testing.T) {
+	store := openTestStore(t)
+	for _, key := range []string{"old", "fresh"} {
+		if err := store.SetAPICache(key, `[]`); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := store.db.Exec(
+		`UPDATE api_cache SET fetched_at = ? WHERE cache_key = ?`,
+		time.Now().Add(-8*24*time.Hour).Unix(),
+		"old",
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	removed, err := store.DeleteAPICacheOlderThan(time.Now().Add(-7 * 24 * time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if removed != 1 {
+		t.Fatalf("removed = %d, want 1", removed)
+	}
+	if _, err := store.GetAPICache("old", 0); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("old err = %v, want ErrNotFound", err)
+	}
+	if _, err := store.GetAPICache("fresh", 0); err != nil {
+		t.Fatalf("fresh err = %v", err)
 	}
 }
 

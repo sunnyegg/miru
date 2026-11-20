@@ -348,6 +348,13 @@ func (s *Store) AllSettings() (map[string]string, error) {
 }
 
 func (s *Store) GetAPICache(key string, maxAge time.Duration) (string, error) {
+	payload, _, err := s.GetAPICacheAt(key, maxAge)
+	return payload, err
+}
+
+// GetAPICacheAt returns a cached payload with the time it was stored, so a
+// caller can tell how old a fallback response is.
+func (s *Store) GetAPICacheAt(key string, maxAge time.Duration) (string, time.Time, error) {
 	var payload string
 	var fetchedAt int64
 	err := s.db.QueryRow(
@@ -355,15 +362,16 @@ func (s *Store) GetAPICache(key string, maxAge time.Duration) (string, error) {
 		key,
 	).Scan(&payload, &fetchedAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", ErrNotFound
+		return "", time.Time{}, ErrNotFound
 	}
 	if err != nil {
-		return "", err
+		return "", time.Time{}, err
 	}
-	if maxAge > 0 && time.Since(time.Unix(fetchedAt, 0)) > maxAge {
-		return "", ErrNotFound
+	fetched := time.Unix(fetchedAt, 0)
+	if maxAge > 0 && time.Since(fetched) > maxAge {
+		return "", time.Time{}, ErrNotFound
 	}
-	return payload, nil
+	return payload, fetched, nil
 }
 
 func (s *Store) SetAPICache(key, payload string) error {
@@ -388,4 +396,14 @@ func (s *Store) DeleteAPICachePrefix(prefix string) error {
 	}
 	_, err := s.db.Exec(`DELETE FROM api_cache WHERE substr(cache_key, 1, ?) = ?`, len(prefix), prefix)
 	return err
+}
+
+// DeleteAPICacheOlderThan removes cache rows fetched before cutoff and returns
+// how many rows it deleted.
+func (s *Store) DeleteAPICacheOlderThan(cutoff time.Time) (int64, error) {
+	result, err := s.db.Exec(`DELETE FROM api_cache WHERE fetched_at < ?`, cutoff.Unix())
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

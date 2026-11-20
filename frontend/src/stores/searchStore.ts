@@ -1,16 +1,27 @@
 import {create} from 'zustand'
 import {persist} from 'zustand/middleware'
 import {
+  AnimeFilterOptions,
   BrowseAnimeSeason,
   GetSettings,
   SearchAnime,
+  SearchAnimeAdvanced,
   SearchNyaa,
   SearchTokyoToshokan,
 } from '../../wailsjs/go/main/App'
+import {
+  advancedFiltersValid,
+  defaultAdvancedFilters,
+  type AnimeAdvancedFilters,
+} from '../lib/animeFilters'
 import {errorMessage} from '../lib/format'
 import {withTorrentSearchPrefix} from '../lib/libraryWatching'
 import {currentAniListSeason, type MediaSeason} from '../lib/season'
-import type {AnimeView, NyaaResultView} from '../lib/types'
+import type {
+  AnimeFilterOptionsView,
+  AnimeView,
+  NyaaResultView,
+} from '../lib/types'
 
 export type SearchSource = 'nyaa' | 'tokyotosho'
 export type SearchTab = 'anime' | 'torrent'
@@ -33,6 +44,11 @@ type SearchState = {
   animeSeasonYear: number
   animeSeasonPage: number
   animeSeasonHasNext: boolean
+  filterOptions: AnimeFilterOptionsView | null
+  advancedFilters: AnimeAdvancedFilters
+  advancedActive: boolean
+  advancedPage: number
+  advancedHasNext: boolean
   query: string
   submittedQuery: string
   source: SearchSource
@@ -51,6 +67,11 @@ type SearchState = {
   searchAnime: () => Promise<void>
   browseAnimeSeason: () => Promise<void>
   loadMoreAnimeSeason: () => Promise<void>
+  loadFilterOptions: () => Promise<void>
+  setAdvancedFilters: (filters: AnimeAdvancedFilters) => void
+  searchAnimeAdvanced: () => Promise<void>
+  loadMoreAnimeAdvanced: () => Promise<void>
+  retryAnimeSearch: () => Promise<void>
   updateAnimeListStatus: (mediaId: number, status: string) => void
   setQuery: (query: string) => void
   setPage: (page: number) => void
@@ -77,6 +98,11 @@ export const useSearchStore = create<SearchState>()(
       animeSeasonYear: defaultSeason.year,
       animeSeasonPage: 0,
       animeSeasonHasNext: false,
+      filterOptions: null,
+      advancedFilters: defaultAdvancedFilters,
+      advancedActive: false,
+      advancedPage: 0,
+      advancedHasNext: false,
       query: '',
       submittedQuery: '',
       source: 'nyaa',
@@ -87,7 +113,7 @@ export const useSearchStore = create<SearchState>()(
 
       setTab: (tab) => set({tab}),
       setTorrentMode: (torrentMode) => set({torrentMode}),
-      setAnimeMode: (animeMode) => set({animeMode}),
+      setAnimeMode: (animeMode) => set({animeMode, advancedActive: false}),
       setAnimeQuery: (animeQuery) => set({animeQuery}),
       setAnimeSeason: (animeSeason) => set({animeSeason}),
       setAnimeSeasonYear: (animeSeasonYear) => set({animeSeasonYear}),
@@ -98,6 +124,9 @@ export const useSearchStore = create<SearchState>()(
           animeError: '',
           animeSeasonPage: 0,
           animeSeasonHasNext: false,
+          advancedActive: false,
+          advancedPage: 0,
+          advancedHasNext: false,
         }),
 
       searchAnime: async () => {
@@ -109,7 +138,13 @@ export const useSearchStore = create<SearchState>()(
         set({animeLoading: true, animeError: '', animeSeasonHasNext: false})
         try {
           const found = await SearchAnime(trimmed)
-          set({animeResults: found ?? [], animeSeasonPage: 0})
+          set({
+            animeResults: found ?? [],
+            animeSeasonPage: 0,
+            advancedActive: false,
+            advancedPage: 0,
+            advancedHasNext: false,
+          })
         } catch (err) {
           set({animeError: errorMessage(err), animeResults: []})
         } finally {
@@ -130,6 +165,9 @@ export const useSearchStore = create<SearchState>()(
             animeResults: page?.items ?? [],
             animeSeasonPage: 1,
             animeSeasonHasNext: Boolean(page?.hasNextPage),
+            advancedActive: false,
+            advancedPage: 0,
+            advancedHasNext: false,
           })
         } catch (err) {
           set({
@@ -170,6 +208,100 @@ export const useSearchStore = create<SearchState>()(
           })
         } catch (err) {
           set({animeError: errorMessage(err)})
+        } finally {
+          set({animeLoading: false})
+        }
+      },
+
+      retryAnimeSearch: async () => {
+        const {advancedActive, animeMode} = get()
+        if (advancedActive) {
+          await get().searchAnimeAdvanced()
+          return
+        }
+        if (animeMode === 'season') {
+          await get().browseAnimeSeason()
+          return
+        }
+        await get().searchAnime()
+      },
+
+      loadMoreAnimeAdvanced: async () => {
+        const {
+          animeLoading,
+          advancedHasNext,
+          advancedPage,
+          advancedFilters,
+          animeResults,
+        } = get()
+        if (animeLoading || !advancedHasNext || advancedPage < 1) {
+          return
+        }
+        const nextPage = advancedPage + 1
+        set({animeLoading: true, animeError: ''})
+        try {
+          const page = await SearchAnimeAdvanced({
+            ...advancedFilters,
+            search: advancedFilters.search.trim(),
+            page: nextPage,
+          })
+          set({
+            animeResults: [...animeResults, ...(page?.items ?? [])],
+            advancedPage: nextPage,
+            advancedHasNext: Boolean(page?.hasNextPage),
+          })
+        } catch (err) {
+          set({animeError: errorMessage(err)})
+        } finally {
+          set({animeLoading: false})
+        }
+      },
+
+      loadFilterOptions: async () => {
+        if (get().filterOptions) {
+          return
+        }
+        try {
+          const options = await AnimeFilterOptions()
+          set({filterOptions: options ?? null})
+        } catch (err) {
+          set({animeError: errorMessage(err)})
+        }
+      },
+
+      setAdvancedFilters: (advancedFilters) => set({advancedFilters}),
+
+      searchAnimeAdvanced: async () => {
+        const filters = get().advancedFilters
+        if (!advancedFiltersValid(filters)) {
+          set({
+            animeError:
+              'Set at least one filter, and pick a year with a season.',
+          })
+          return
+        }
+        set({animeLoading: true, animeError: '', advancedActive: true})
+        try {
+          const page = await SearchAnimeAdvanced({
+            ...filters,
+            search: filters.search.trim(),
+            page: 1,
+          })
+          set({
+            animeResults: page?.items ?? [],
+            advancedPage: 1,
+            advancedHasNext: Boolean(page?.hasNextPage),
+            animeSeasonPage: 0,
+            animeSeasonHasNext: false,
+          })
+        } catch (err) {
+          const message = errorMessage(err)
+          set({
+            animeError: message,
+            animeResults: [],
+            advancedPage: 0,
+            advancedHasNext: false,
+          })
         } finally {
           set({animeLoading: false})
         }
@@ -251,6 +383,7 @@ export const useSearchStore = create<SearchState>()(
         source: state.source,
         results: state.results,
         page: state.page,
+        advancedFilters: state.advancedFilters,
       }),
     },
   ),

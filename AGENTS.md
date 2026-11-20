@@ -22,6 +22,10 @@ MPV control (pause, seek, volume, full screen) goes through `internal/mpv`'s `re
 
 Go: guard clauses over nested `if`. Invert the empty/error case and return. Extract a helper only if it is reused, or the nest is 3+ levels in the middle of a function. Do not flatten sequential checks (SQLite migrations, SOCKS5 client setup). Do not add a helper that is only called once. `make lint` is golangci-lint standard + nestif.
 
+Cached AniList responses are served silently only while fresh. When the fetch fails, `loadCachedJSON` returns the stale row (memory first, then SQLite) and calls `markCacheStale` with a source label and the row's age; `markCacheFresh` clears it after a successful fetch. The App emits `anilist:cache-stale` with the whole `[]AnilistCacheStale` snapshot on every change, and `App.tsx` renders `StaleCacheBanner` above the active tab. Sources are `search results`, `anime details`, `your lists`, `airing schedule`, `episode progress`, `episode thumbnails`; an empty source is a probe that is never reported (airing availability). Keep the source strings in step with `StaleCacheBanner`'s labels.
+
+AniList advanced search sends `AnimeAdvancedSearchInput` to `SearchAnimeAdvanced`. `internal/anilist/advanced.go` holds the only list of accepted genres, formats, statuses and sorts; `AnimeFilterOptions` exposes it to the sheet, so the UI never offers a value the API rejects. Validation (at least one filter, a season needs a year, year and score ranges) lives in `NormalizeAdvancedSearch`, results reuse `AnimeSeasonPageView` so the result list and Load more are shared with seasonal browse, and the cache key is a hash of the normalized filters.
+
 ## Frontend
 
 - App lives in `frontend/`. UI primitives are shadcn in `frontend/src/components/ui/`.
@@ -51,6 +55,7 @@ There is no separate config file. Settings live in the SQLite `settings` table.
 - AniList token: the platform keyring under the build's own service name (`appinfo.Name`: `miru` for a release, `miru-dev` for a dev build), so a dev build neither reads nor overwrites a release login; fallback file (no Keyring): `~/.config/miru/anilist.token`
 - MPV config: `~/.config/miru/mpv-defaults.conf` (managed, rewritten on launch; currently `keepaspect-window=no` and `script-opts=osc-vidscale=no`) and `~/.config/miru/mpv.conf` (created once, never overwritten), both passed with `--include=` in that order so the user file overrides the defaults and Miru's own flags override both. `~/.config/miru/next.lua` (`internal/mpv/lua/next.lua`, embedded, rewritten on launch) is loaded with `--script=`; it draws the bottom-right **Next** button during an episode's last minute when the playlist has a following entry and advances with `playlist-next`. Its state is also exposed as `user-data/miru-next-visible`, `-hovered` and `-ass` for tests, and it only grabs `MBTN_LEFT` while the pointer is inside the button so mpv's own click behaviour stays intact
 - Cache: `$XDG_CACHE_HOME/miru` (usually `~/.cache/miru`)
+- AniList response cache: the SQLite `api_cache` table. `init` calls `purgeExpiredAPICache` on startup, which deletes rows older than `apiCacheRetention` (kept equal to the longest cache TTL, 7 days); the stale fallback on fetch errors therefore recovers at most a week of responses
 - Log: `$XDG_DATA_HOME/miru/Miru.log` (rotates to `Miru.log.1` at 5MB on startup; usually `~/.local/share/miru/Miru.log`)
 - Default downloads: `~/Downloads/miru`
 - Pending full reset marker: a `.miru-reset.json` sibling of the config `miru` directory (usually `~/.config/.miru-reset.json`); dev builds use `.miru-dev-reset.json`

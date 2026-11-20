@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -30,7 +31,11 @@ import (
 )
 
 const (
-	apiCacheTTL                    = 7 * 24 * time.Hour
+	apiCacheTTL = 7 * 24 * time.Hour
+	// apiCacheRetention decides when a startup purge deletes a cache row. It
+	// must not be shorter than the longest TTL above, so a purge never drops a
+	// row that a reader still treats as fresh.
+	apiCacheRetention              = apiCacheTTL
 	currentListCacheTTL            = time.Hour
 	animeDetailCacheTTL            = time.Hour
 	animeSearchCacheTTL            = 15 * time.Minute
@@ -47,6 +52,8 @@ const (
 	animeSearchCachePrefix         = animeSearchCacheFamilyPrefix + "v1:"
 	animeSeasonCacheFamilyPrefix   = "anilist:season:"
 	animeSeasonCachePrefix         = animeSeasonCacheFamilyPrefix + "v1:"
+	animeAdvancedCacheFamilyPrefix = "anilist:advanced:"
+	animeAdvancedCachePrefix       = animeAdvancedCacheFamilyPrefix + "v1:"
 	animeProgressCacheFamilyPrefix = "anilist:progress:"
 	animeProgressCachePrefix       = animeProgressCacheFamilyPrefix + "v1:"
 )
@@ -80,6 +87,11 @@ func animeSeasonCacheKey(season string, year int, page int, token string) string
 		year,
 		page,
 	)
+}
+
+func animeAdvancedCacheKey(filters anilist.AdvancedSearch, token string) string {
+	raw, _ := json.Marshal(filters)
+	return fmt.Sprintf("%s%s:%x", animeAdvancedCachePrefix, anilistCacheScope(token), sha256.Sum256(raw))
 }
 
 func animeProgressCacheKey(ids []int, token string) string {
@@ -119,6 +131,9 @@ type App struct {
 
 	apiMemoryMu sync.Mutex
 	apiMemory   map[string]apiMemoryEntry
+
+	staleCacheMu sync.Mutex
+	staleCache   map[string]AnilistCacheStale
 
 	loginMu     sync.Mutex
 	loginSrv    *http.Server
@@ -238,6 +253,7 @@ func (a *App) init() error {
 		return fmt.Errorf("open database: %w", err)
 	}
 	a.store = store
+	a.purgeExpiredAPICache()
 	a.tokens = secrets.New(appinfo.Name, dirs.TokenFile())
 	a.torrents = torrentx.NewManager(store)
 	a.torrents.SetCallbacks(a.emitTorrent, a.ingestTorrentFiles, a.logDebugErr)
@@ -258,6 +274,20 @@ func (a *App) init() error {
 		a.startFeedPoller()
 	}
 	return nil
+}
+
+// purgeExpiredAPICache drops rows that no cache reader still treats as fresh.
+// The stale fallback on fetch errors can then recover at most
+// apiCacheRetention of responses instead of everything ever cached.
+func (a *App) purgeExpiredAPICache() {
+	removed, err := a.store.DeleteAPICacheOlderThan(time.Now().Add(-apiCacheRetention))
+	if err != nil {
+		a.logDebugErr("purge api cache", err)
+		return
+	}
+	if removed > 0 {
+		a.logDebugf("purged %d api cache rows older than %s", removed, apiCacheRetention)
+	}
 }
 
 func (a *App) configureTorrents() error {

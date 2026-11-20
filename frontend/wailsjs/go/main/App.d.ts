@@ -9,6 +9,8 @@ export function AiringAvailable():Promise<boolean>;
 
 export function AnilistStatus():Promise<main.AnilistStatus>;
 
+export function AnimeFilterOptions():Promise<main.AnimeFilterOptionsView>;
+
 export function AppVersion():Promise<string>;
 
 export function ApplyUpdate():Promise<void>;
@@ -122,6 +124,8 @@ export function SaveTorrentSearchSettings(arg1:string,arg2:string):Promise<void>
 export function SaveUpdateChannel(arg1:string):Promise<void>;
 
 export function SearchAnime(arg1:string):Promise<Array<main.AnimeView>>;
+
+export function SearchAnimeAdvanced(arg1:main.AnimeAdvancedSearchInput):Promise<main.AnimeSeasonPageView>;
 
 export function SearchNyaa(arg1:string):Promise<Array<main.NyaaResultView>>;
 

@@ -14,6 +14,10 @@ export function AnilistStatus() {
   return window['go']['main']['App']['AnilistStatus']();
 }
 
+export function AnimeFilterOptions() {
+  return window['go']['main']['App']['AnimeFilterOptions']();
+}
+
 export function AppVersion() {
   return window['go']['main']['App']['AppVersion']();
 }
@@ -240,6 +244,10 @@ export function SaveUpdateChannel(arg1) {
 
 export function SearchAnime(arg1) {
   return window['go']['main']['App']['SearchAnime'](arg1);
+}
+
+export function SearchAnimeAdvanced(arg1) {
+  return window['go']['main']['App']['SearchAnimeAdvanced'](arg1);
 }
 
 export function SearchNyaa(arg1) {
