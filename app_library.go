@@ -36,7 +36,7 @@ func (a *App) ListStreamingEpisodeThumbnails(mediaID int) ([]StreamingEpisodeThu
 	if mediaID <= 0 {
 		return nil, errors.New("invalid anime id")
 	}
-	return loadCachedJSON(a, fmt.Sprintf("streaming:%d", mediaID), apiCacheTTL, func() ([]StreamingEpisodeThumbnailView, error) {
+	return loadCachedJSON(a, "episode thumbnails", fmt.Sprintf("streaming:%d", mediaID), apiCacheTTL, func() ([]StreamingEpisodeThumbnailView, error) {
 		token, _ := a.tokens.Get()
 		client, err := a.newAnilist(token)
 		if err != nil {
@@ -72,7 +72,7 @@ func (a *App) applyAnilistProgress(episodes []EpisodeView) {
 		ids = append(ids, mediaID)
 	}
 	token, _ := a.tokens.Get()
-	progressByMedia, err := loadCachedJSON(a, animeProgressCacheKey(ids, token), animeProgressCacheTTL, func() (map[int]anilist.MediaProgress, error) {
+	progressByMedia, err := loadCachedJSON(a, "episode progress", animeProgressCacheKey(ids, token), animeProgressCacheTTL, func() (map[int]anilist.MediaProgress, error) {
 		client, err := a.newAnilist(token)
 		if err != nil {
 			return nil, err
@@ -129,7 +129,7 @@ func (a *App) SearchAnime(query string) ([]AnimeView, error) {
 }
 
 func (a *App) searchAnime(query, token string) ([]AnimeView, error) {
-	return loadCachedJSON(a, animeSearchCacheKey(query, token), animeSearchCacheTTL, func() ([]AnimeView, error) {
+	return loadCachedJSON(a, "search results", animeSearchCacheKey(query, token), animeSearchCacheTTL, func() ([]AnimeView, error) {
 		client, err := a.newAnilist(token)
 		if err != nil {
 			return nil, err
@@ -151,7 +151,7 @@ func (a *App) BrowseAnimeSeason(season string, year int, page int) (AnimeSeasonP
 }
 
 func (a *App) browseAnimeSeason(season string, year int, page int, token string) (AnimeSeasonPageView, error) {
-	return loadCachedJSON(a, animeSeasonCacheKey(season, year, page, token), animeSearchCacheTTL, func() (AnimeSeasonPageView, error) {
+	return loadCachedJSON(a, "search results", animeSeasonCacheKey(season, year, page, token), animeSearchCacheTTL, func() (AnimeSeasonPageView, error) {
 		client, err := a.newAnilist(token)
 		if err != nil {
 			return AnimeSeasonPageView{}, err
@@ -165,6 +165,52 @@ func (a *App) browseAnimeSeason(season string, year int, page int, token string)
 			HasNextPage: result.HasNextPage,
 		}, nil
 	})
+}
+
+func (a *App) SearchAnimeAdvanced(input AnimeAdvancedSearchInput) (AnimeSeasonPageView, error) {
+	if err := a.ready(); err != nil {
+		return AnimeSeasonPageView{}, err
+	}
+	filters, err := anilist.NormalizeAdvancedSearch(anilist.AdvancedSearch{
+		Search:        input.Search,
+		Genres:        input.Genres,
+		ExcludeGenres: input.ExcludeGenres,
+		Year:          input.Year,
+		Season:        input.Season,
+		Formats:       input.Formats,
+		Statuses:      input.Statuses,
+		MinScore:      input.MinScore,
+		Sort:          input.Sort,
+		Page:          input.Page,
+	})
+	if err != nil {
+		return AnimeSeasonPageView{}, err
+	}
+	token, _ := a.tokens.Get()
+	return loadCachedJSON(a, "search results", animeAdvancedCacheKey(filters, token), animeSearchCacheTTL, func() (AnimeSeasonPageView, error) {
+		client, err := a.newAnilist(token)
+		if err != nil {
+			return AnimeSeasonPageView{}, err
+		}
+		result, err := client.SearchAdvanced(filters)
+		if err != nil {
+			return AnimeSeasonPageView{}, err
+		}
+		return AnimeSeasonPageView{
+			Items:       toAnimeViews(result.Items),
+			HasNextPage: result.HasNextPage,
+		}, nil
+	})
+}
+
+// AnimeFilterOptions lists the values the advanced anime search accepts.
+func (a *App) AnimeFilterOptions() AnimeFilterOptionsView {
+	return AnimeFilterOptionsView{
+		Genres:   append([]string(nil), anilist.MediaGenres...),
+		Formats:  append([]string(nil), anilist.MediaFormats...),
+		Statuses: append([]string(nil), anilist.MediaStatuses...),
+		Sorts:    append([]string(nil), anilist.MediaSorts...),
+	}
 }
 
 func (a *App) BindEpisode(episodeID int64, anilistID int) error {

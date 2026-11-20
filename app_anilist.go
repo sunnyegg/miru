@@ -221,7 +221,7 @@ func (a *App) AiringAvailable() (bool, error) {
 	if err := a.ready(); err != nil {
 		return false, err
 	}
-	return loadCachedJSON(a, airingAvailabilityCacheKey, airingAvailabilityCacheTTL, func() (bool, error) {
+	return loadCachedJSON(a, "", airingAvailabilityCacheKey, airingAvailabilityCacheTTL, func() (bool, error) {
 		client, err := a.newAnilist("")
 		if err != nil {
 			a.logDebugErr("airing availability client", err)
@@ -248,7 +248,7 @@ func (a *App) ListAiringSchedule(start, end int64) ([]AiringScheduleView, error)
 	if start < 0 || end <= start || end-start > 8*24*60*60 {
 		return nil, errors.New("invalid airing schedule range")
 	}
-	return loadCachedJSON(a, fmt.Sprintf("airing:%d:%d", start, end), apiCacheTTL, func() ([]AiringScheduleView, error) {
+	return loadCachedJSON(a, "airing schedule", fmt.Sprintf("airing:%d:%d", start, end), apiCacheTTL, func() ([]AiringScheduleView, error) {
 		client, err := a.newAnilist("")
 		if err != nil {
 			return nil, err
@@ -281,7 +281,7 @@ func (a *App) GetAnime(mediaID int) (AnimeView, error) {
 		return AnimeView{}, errors.New("invalid anime id")
 	}
 	token, _ := a.tokens.Get()
-	return loadCachedJSON(a, animeCacheKey(mediaID, token), animeDetailCacheTTL, func() (AnimeView, error) {
+	return loadCachedJSON(a, "anime details", animeCacheKey(mediaID, token), animeDetailCacheTTL, func() (AnimeView, error) {
 		client, err := a.newAnilist(token)
 		if err != nil {
 			return AnimeView{}, err
@@ -316,7 +316,7 @@ func (a *App) ListAnimeList(status string) ([]WatchingEntryView, error) {
 	if status == "CURRENT" {
 		cacheTTL = currentListCacheTTL
 	}
-	return loadCachedJSON(a, cacheKey, cacheTTL, func() ([]WatchingEntryView, error) {
+	return loadCachedJSON(a, "your lists", cacheKey, cacheTTL, func() ([]WatchingEntryView, error) {
 		client, err := a.newAnilist(token)
 		if err != nil {
 			return nil, err
@@ -337,7 +337,7 @@ func (a *App) ListAnimeListCounts() (map[string]int, error) {
 	if err != nil {
 		return nil, errors.New("AniList not connected")
 	}
-	return loadCachedJSON(a, animeListCountsCacheKey(token), currentListCacheTTL, func() (map[string]int, error) {
+	return loadCachedJSON(a, "your lists", animeListCountsCacheKey(token), currentListCacheTTL, func() (map[string]int, error) {
 		client, err := a.newAnilist(token)
 		if err != nil {
 			return nil, err
@@ -433,6 +433,8 @@ func (a *App) invalidateAnilistUserCaches() {
 		animeListCacheFamilyPrefix,
 		animeListCountsFamilyPrefix,
 		animeSearchCacheFamilyPrefix,
+		animeSeasonCacheFamilyPrefix,
+		animeAdvancedCacheFamilyPrefix,
 		animeProgressCacheFamilyPrefix,
 	} {
 		a.deleteAPICachePrefix(prefix)
@@ -472,22 +474,27 @@ func toWatchingEntryViews(entries []anilist.CurrentEntry) []WatchingEntryView {
 	return out
 }
 
-func loadCachedJSON[T any](a *App, key string, ttl time.Duration, fetch func() (T, error)) (T, error) {
-	if cached, ok := memoryCachedJSON[T](a, key, ttl); ok {
+// loadCachedJSON serves cached data when the fetch fails. source names the kind
+// of data for the stale banner; an empty source is never reported, which suits
+// probes whose result is not shown directly.
+func loadCachedJSON[T any](a *App, source, key string, ttl time.Duration, fetch func() (T, error)) (T, error) {
+	if cached, _, ok := memoryCachedJSON[T](a, key, ttl); ok {
 		return cached, nil
 	}
-	if cached, ok := cachedJSON[T](a.store, key, ttl); ok {
+	if cached, _, ok := cachedJSON[T](a.store, key, ttl); ok {
 		putAPIMemory(a, key, cached)
 		return cached, nil
 	}
 
 	result, err := fetch()
 	if err != nil {
-		if stale, ok := memoryCachedJSON[T](a, key, 0); ok {
+		if stale, fetchedAt, ok := memoryCachedJSON[T](a, key, 0); ok {
+			a.markCacheStale(source, time.Since(fetchedAt))
 			a.logDebugErr("api cache stale fallback", err)
 			return stale, nil
 		}
-		if stale, ok := cachedJSON[T](a.store, key, 0); ok {
+		if stale, fetchedAt, ok := cachedJSON[T](a.store, key, 0); ok {
+			a.markCacheStale(source, time.Since(fetchedAt))
 			a.logDebugErr("api cache stale fallback", err)
 			return stale, nil
 		}
@@ -495,6 +502,7 @@ func loadCachedJSON[T any](a *App, key string, ttl time.Duration, fetch func() (
 		return zero, err
 	}
 
+	a.markCacheFresh(source)
 	putAPIMemory(a, key, result)
 	encoded, encodeErr := json.Marshal(result)
 	if encodeErr != nil {
@@ -507,23 +515,74 @@ func loadCachedJSON[T any](a *App, key string, ttl time.Duration, fetch func() (
 	return result, nil
 }
 
-func memoryCachedJSON[T any](a *App, key string, ttl time.Duration) (T, bool) {
+// markCacheStale records that source is being shown from stale cache and pushes
+// the whole state to the UI, which keeps a banner visible while any is stale.
+func (a *App) markCacheStale(source string, age time.Duration) {
+	if a == nil || source == "" {
+		return
+	}
+	if age < 0 {
+		age = 0
+	}
+	a.staleCacheMu.Lock()
+	if a.staleCache == nil {
+		a.staleCache = make(map[string]AnilistCacheStale)
+	}
+	a.staleCache[source] = AnilistCacheStale{Source: source, AgeSeconds: int64(age.Seconds())}
+	payload := a.staleCacheSnapshot()
+	a.staleCacheMu.Unlock()
+	a.emitStaleCache(payload)
+}
+
+// markCacheFresh drops a stale marker once a request for that data succeeds.
+func (a *App) markCacheFresh(source string) {
+	if a == nil || source == "" {
+		return
+	}
+	a.staleCacheMu.Lock()
+	if _, ok := a.staleCache[source]; !ok {
+		a.staleCacheMu.Unlock()
+		return
+	}
+	delete(a.staleCache, source)
+	payload := a.staleCacheSnapshot()
+	a.staleCacheMu.Unlock()
+	a.emitStaleCache(payload)
+}
+
+// staleCacheSnapshot copies the stale markers; the caller holds staleCacheMu.
+func (a *App) staleCacheSnapshot() []AnilistCacheStale {
+	out := make([]AnilistCacheStale, 0, len(a.staleCache))
+	for _, entry := range a.staleCache {
+		out = append(out, entry)
+	}
+	return out
+}
+
+func (a *App) emitStaleCache(payload []AnilistCacheStale) {
+	if a.ctx == nil {
+		return
+	}
+	runtime.EventsEmit(a.ctx, "anilist:cache-stale", payload)
+}
+
+func memoryCachedJSON[T any](a *App, key string, ttl time.Duration) (T, time.Time, bool) {
 	var zero T
 	a.apiMemoryMu.Lock()
 	defer a.apiMemoryMu.Unlock()
 	entry, ok := a.apiMemory[key]
 	if !ok {
-		return zero, false
+		return zero, time.Time{}, false
 	}
 	if ttl > 0 && time.Since(entry.fetchedAt) > ttl {
-		return zero, false
+		return zero, time.Time{}, false
 	}
 	typed, ok := entry.value.(T)
 	if !ok {
 		delete(a.apiMemory, key)
-		return zero, false
+		return zero, time.Time{}, false
 	}
-	return typed, true
+	return typed, entry.fetchedAt, true
 }
 
 func putAPIMemory(a *App, key string, value any) {
@@ -554,14 +613,14 @@ func (a *App) deleteAPICachePrefix(prefix string) {
 	}
 }
 
-func cachedJSON[T any](store *storage.Store, key string, ttl time.Duration) (T, bool) {
+func cachedJSON[T any](store *storage.Store, key string, ttl time.Duration) (T, time.Time, bool) {
 	var cached T
-	payload, err := store.GetAPICache(key, ttl)
+	payload, fetchedAt, err := store.GetAPICacheAt(key, ttl)
 	if err != nil {
-		return cached, false
+		return cached, time.Time{}, false
 	}
 	if json.Unmarshal([]byte(payload), &cached) != nil {
-		return cached, false
+		return cached, time.Time{}, false
 	}
-	return cached, true
+	return cached, fetchedAt, true
 }

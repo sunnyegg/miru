@@ -95,6 +95,11 @@ export type AnilistStatus = {
   username: string
 }
 
+export type AnilistCacheStale = {
+  source: string
+  ageSeconds: number
+}
+
 export type AnilistProfileView = {
   username: string
   about: string
@@ -168,6 +173,28 @@ export type WatchingEntryView = {
 export type AnimeSeasonPageView = {
   items: AnimeView[]
   hasNextPage: boolean
+}
+
+// AnimeAdvancedSearchInput mirrors the AniList advanced search request. Every
+// field is optional, but the request needs at least one filter.
+export type AnimeAdvancedSearchInput = {
+  search: string
+  genres: string[]
+  excludeGenres: string[]
+  year: number
+  season: string
+  formats: string[]
+  statuses: string[]
+  minScore: number
+  sort: string
+  page: number
+}
+
+export type AnimeFilterOptionsView = {
+  genres: string[]
+  formats: string[]
+  statuses: string[]
+  sorts: string[]
 }
 
 export type StreamingEpisodeThumbnailView = {

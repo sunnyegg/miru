@@ -164,6 +164,36 @@ type AnimeSeasonPageView struct {
 	HasNextPage bool        `json:"hasNextPage"`
 }
 
+// AnimeAdvancedSearchInput carries the AniList advanced search filters. Every
+// field is optional, but the request needs at least one filter.
+type AnimeAdvancedSearchInput struct {
+	Search        string   `json:"search"`
+	Genres        []string `json:"genres"`
+	ExcludeGenres []string `json:"excludeGenres"`
+	Year          int      `json:"year"`
+	Season        string   `json:"season"`
+	Formats       []string `json:"formats"`
+	Statuses      []string `json:"statuses"`
+	MinScore      int      `json:"minScore"`
+	Sort          string   `json:"sort"`
+	Page          int      `json:"page"`
+}
+
+// AnimeFilterOptionsView lists the values the advanced search accepts.
+type AnimeFilterOptionsView struct {
+	Genres   []string `json:"genres"`
+	Formats  []string `json:"formats"`
+	Statuses []string `json:"statuses"`
+	Sorts    []string `json:"sorts"`
+}
+
+// AnilistCacheStale reports data that Miru served from its local cache because
+// the AniList request failed, so the UI can mark it as saved instead of live.
+type AnilistCacheStale struct {
+	Source     string `json:"source"`
+	AgeSeconds int64  `json:"ageSeconds"`
+}
+
 type StreamingEpisodeThumbnailView struct {
 	EpisodeNumber int    `json:"episodeNumber"`
 	Thumbnail     string `json:"thumbnail"`

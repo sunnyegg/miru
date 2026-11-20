@@ -76,6 +76,54 @@ export namespace main {
 	        this.username = source["username"];
 	    }
 	}
+	export class AnimeAdvancedSearchInput {
+	    search: string;
+	    genres: string[];
+	    excludeGenres: string[];
+	    year: number;
+	    season: string;
+	    formats: string[];
+	    statuses: string[];
+	    minScore: number;
+	    sort: string;
+	    page: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new AnimeAdvancedSearchInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.search = source["search"];
+	        this.genres = source["genres"];
+	        this.excludeGenres = source["excludeGenres"];
+	        this.year = source["year"];
+	        this.season = source["season"];
+	        this.formats = source["formats"];
+	        this.statuses = source["statuses"];
+	        this.minScore = source["minScore"];
+	        this.sort = source["sort"];
+	        this.page = source["page"];
+	    }
+	}
+	export class AnimeFilterOptionsView {
+	    genres: string[];
+	    formats: string[];
+	    statuses: string[];
+	    sorts: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new AnimeFilterOptionsView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.genres = source["genres"];
+	        this.formats = source["formats"];
+	        this.statuses = source["statuses"];
+	        this.sorts = source["sorts"];
+	    }
+	}
 	export class AnimeListEntryInput {
 	    mediaId: number;
 	    status: string;

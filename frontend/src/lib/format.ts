@@ -16,6 +16,24 @@ export function formatSpeed(bytesPerSecond: number): string {
   return `${formatBytes(bytesPerSecond)}/s`
 }
 
+// formatAge renders how old a cached AniList response is for the stale banner.
+export function formatAge(seconds: number): string {
+  const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0
+  if (safe < 60) {
+    return 'just now'
+  }
+  const minutes = Math.round(safe / 60)
+  if (minutes < 60) {
+    return `${minutes} minute${minutes === 1 ? '' : 's'} ago`
+  }
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) {
+    return `${hours} hour${hours === 1 ? '' : 's'} ago`
+  }
+  const days = Math.round(hours / 24)
+  return `${days} day${days === 1 ? '' : 's'} ago`
+}
+
 export function errorMessage(err: unknown): string {
   const message =
     err instanceof Error

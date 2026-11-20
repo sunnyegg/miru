@@ -1,7 +1,9 @@
 import {memo, useState} from 'react'
 import {AiringEpisodePoster} from './AiringEpisodePoster'
+import {AnimeAdvancedSearchSheet} from './AnimeAdvancedSearchSheet'
 import {AnimeDetailDialog} from './AnimeDetailDialog'
 import {IconClose} from './Icons'
+import {advancedFilterCount} from '../lib/animeFilters'
 import {mediaSeasons, seasonDisplayName, type MediaSeason} from '../lib/season'
 import type {AnimeView} from '../lib/types'
 import {useSearchStore} from '../stores/searchStore'
@@ -67,6 +69,11 @@ export function AnimeSearch({notice}: Props) {
   const animeSeason = useSearchStore((state) => state.animeSeason)
   const animeSeasonYear = useSearchStore((state) => state.animeSeasonYear)
   const animeSeasonHasNext = useSearchStore((state) => state.animeSeasonHasNext)
+  const advancedActive = useSearchStore((state) => state.advancedActive)
+  const advancedHasNext = useSearchStore((state) => state.advancedHasNext)
+  const advancedFilterTotal = useSearchStore((state) =>
+    advancedFilterCount(state.advancedFilters),
+  )
   const setAnimeMode = useSearchStore((state) => state.setAnimeMode)
   const setSearchQuery = useSearchStore((state) => state.setAnimeQuery)
   const setAnimeSeason = useSearchStore((state) => state.setAnimeSeason)
@@ -77,15 +84,31 @@ export function AnimeSearch({notice}: Props) {
   const loadMoreAnimeSeason = useSearchStore(
     (state) => state.loadMoreAnimeSeason,
   )
+  const loadMoreAnimeAdvanced = useSearchStore(
+    (state) => state.loadMoreAnimeAdvanced,
+  )
   const updateAnimeListStatus = useSearchStore(
     (state) => state.updateAnimeListStatus,
   )
   const [selectedAnime, setSelectedAnime] = useState<
     (typeof searchResults)[number] | null
   >(null)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
 
   const canClearSearch =
     searchQuery.trim() !== '' || searchResults.length > 0 || searchError !== ''
+  const canLoadMore =
+    animeMode === 'season'
+      ? animeSeasonHasNext
+      : advancedActive && advancedHasNext
+
+  async function loadMore() {
+    if (animeMode === 'season') {
+      await loadMoreAnimeSeason()
+      return
+    }
+    await loadMoreAnimeAdvanced()
+  }
 
   const yearOptions: number[] = []
   const currentYear = new Date().getFullYear()
@@ -164,6 +187,15 @@ export function AnimeSearch({notice}: Props) {
             <Button type="submit" disabled={searching || !searchQuery.trim()}>
               {searching ? 'Searching…' : 'Search'}
             </Button>
+            <Button
+              type="button"
+              variant="muted"
+              onClick={() => setAdvancedOpen(true)}
+            >
+              {advancedFilterTotal > 0
+                ? `Advanced (${advancedFilterTotal})`
+                : 'Advanced'}
+            </Button>
           </form>
         ) : (
           <form
@@ -236,13 +268,13 @@ export function AnimeSearch({notice}: Props) {
                 />
               ))}
             </ul>
-            {animeMode === 'season' && animeSeasonHasNext && (
+            {canLoadMore && (
               <div className="mt-4">
                 <Button
                   type="button"
                   variant="secondary"
                   disabled={searching}
-                  onClick={() => void loadMoreAnimeSeason()}
+                  onClick={() => void loadMore()}
                 >
                   {searching ? 'Loading…' : 'Load more'}
                 </Button>
@@ -251,6 +283,10 @@ export function AnimeSearch({notice}: Props) {
           </section>
         )}
       </div>
+
+      {advancedOpen && (
+        <AnimeAdvancedSearchSheet open onClose={() => setAdvancedOpen(false)} />
+      )}
 
       {selectedAnime && (
         <AnimeDetailDialog

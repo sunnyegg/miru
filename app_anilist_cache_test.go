@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sunnyegg/miru/internal/anilist"
 	"github.com/sunnyegg/miru/internal/secrets"
 	"github.com/sunnyegg/miru/internal/storage"
 )
@@ -83,7 +85,7 @@ func TestLoadCachedJSONUsesInMemoryDecodedValue(t *testing.T) {
 
 	fetchCount := 0
 	load := func() ([]WatchingEntryView, error) {
-		return loadCachedJSON(a, key, time.Hour, func() ([]WatchingEntryView, error) {
+		return loadCachedJSON(a, "your lists", key, time.Hour, func() ([]WatchingEntryView, error) {
 			fetchCount++
 			return payload, nil
 		})
@@ -223,7 +225,7 @@ func TestGetAnimeSharesDetailCacheWithinAccount(t *testing.T) {
 		t.Fatalf("second account requests = %d", requests.Load())
 	}
 	a.invalidateAnimeCache(21)
-	if _, ok := memoryCachedJSON[AnimeView](a, key, 0); !ok {
+	if _, _, ok := memoryCachedJSON[AnimeView](a, key, 0); !ok {
 		t.Fatal("invalidating second account removed first account cache")
 	}
 	if err := a.tokens.Delete(); err != nil {
@@ -437,5 +439,129 @@ func TestListEpisodesCachesProgressUntilUserDataInvalidation(t *testing.T) {
 	}
 	if requests.Load() != 2 {
 		t.Fatalf("requests after invalidation = %d, want 2", requests.Load())
+	}
+}
+
+func TestUserDataInvalidationDropsAnimePageCaches(t *testing.T) {
+	a := newSettingsApp(t)
+	pageKeys := []string{
+		animeSearchCacheKey("test", "tok"),
+		animeSeasonCacheKey("FALL", 2023, 1, "tok"),
+		animeAdvancedCacheKey(anilist.AdvancedSearch{Genres: []string{"Action"}, Page: 1}, "tok"),
+	}
+	detailKey := animeCacheKey(21, "tok")
+	for _, key := range append(pageKeys, detailKey) {
+		if err := a.store.SetAPICache(key, `{}`); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	a.invalidateAnilistUserCaches()
+
+	for _, key := range pageKeys {
+		if _, err := a.store.GetAPICache(key, 0); !errors.Is(err, storage.ErrNotFound) {
+			t.Fatalf("%s still cached after user data invalidation: %v", key, err)
+		}
+	}
+	if _, err := a.store.GetAPICache(detailKey, 0); err != nil {
+		t.Fatalf("per-media detail cache must survive: %v", err)
+	}
+}
+
+func TestPurgeExpiredAPICacheKeepsFreshRows(t *testing.T) {
+	a := newSettingsApp(t)
+	oldKey := animeSearchCacheKey("old", "tok")
+	freshKey := animeAdvancedCacheKey(anilist.AdvancedSearch{Genres: []string{"Action"}, Page: 1}, "tok")
+	for _, key := range []string{oldKey, freshKey} {
+		if err := a.store.SetAPICache(key, `{"items":[]}`); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db, err := sql.Open("sqlite", filepath.Join(a.dirs.Config, "app_data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(
+		"UPDATE api_cache SET fetched_at = ? WHERE cache_key = ?",
+		time.Now().Add(-8*24*time.Hour).Unix(),
+		oldKey,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	a.purgeExpiredAPICache()
+
+	if _, err := a.store.GetAPICache(oldKey, 0); !errors.Is(err, storage.ErrNotFound) {
+		t.Fatalf("old row err = %v, want ErrNotFound", err)
+	}
+	if _, err := a.store.GetAPICache(freshKey, 0); err != nil {
+		t.Fatalf("fresh row err = %v", err)
+	}
+}
+
+func TestStaleFallbackIsReportedWithAge(t *testing.T) {
+	a := newSettingsApp(t)
+	key := animeSearchCacheKey("test", "tok")
+	if err := a.store.SetAPICache(key, `[{"id":1}]`); err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", filepath.Join(a.dirs.Config, "app_data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(
+		"UPDATE api_cache SET fetched_at = ? WHERE cache_key = ?",
+		time.Now().Add(-8*24*time.Hour).Unix(),
+		key,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := loadCachedJSON[[]AnimeView](a, "search results", key, time.Minute, func() ([]AnimeView, error) {
+		return nil, errors.New("offline")
+	})
+	if err != nil || len(got) != 1 || got[0].ID != 1 {
+		t.Fatalf("stale fallback = %+v, %v", got, err)
+	}
+	a.staleCacheMu.Lock()
+	entry, marked := a.staleCache["search results"]
+	a.staleCacheMu.Unlock()
+	if !marked {
+		t.Fatal("stale source was not recorded")
+	}
+	if entry.AgeSeconds < 7*24*60*60 {
+		t.Fatalf("age = %d seconds, want at least a week", entry.AgeSeconds)
+	}
+
+	if _, err := loadCachedJSON[[]AnimeView](a, "search results", key, time.Minute, func() ([]AnimeView, error) {
+		return []AnimeView{{ID: 2}}, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	a.staleCacheMu.Lock()
+	_, marked = a.staleCache["search results"]
+	a.staleCacheMu.Unlock()
+	if marked {
+		t.Fatal("stale source still recorded after a fresh fetch")
+	}
+}
+
+func TestStaleFallbackWithoutSourceIsNotReported(t *testing.T) {
+	a := newSettingsApp(t)
+	key := airingAvailabilityCacheKey
+	if err := a.store.SetAPICache(key, `true`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadCachedJSON[bool](a, "", key, time.Minute, func() (bool, error) {
+		return false, errors.New("offline")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	a.staleCacheMu.Lock()
+	defer a.staleCacheMu.Unlock()
+	if len(a.staleCache) != 0 {
+		t.Fatalf("stale cache = %v, want empty", a.staleCache)
 	}
 }

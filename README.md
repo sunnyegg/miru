@@ -12,7 +12,8 @@ the [issue tracker](https://github.com/sunnyegg/miru/issues).
 - **Playback** — MPV playback with per-episode resume and watch-position indicators that survive download cleanup, autoplay of the next downloaded episodes in a season, a now-playing timeline bar that seeks the player, plus watch progress synced to AniList at a configurable threshold (default 85%)
 - **AniList** — browser OAuth, list statuses, and an episode catalog on each show page
 - **Profile** — AniList about text, title language, adult-content preference, and scoring format, plus your anime lists (Watching, Completed, Planning, and the rest); preview and save a banner PNG per list status for social media
-- **Search** — AniList anime search by title or seasonal browse (season + year, popularity order, load more), plus Nyaa and Tokyo Toshokan torrent RSS with pagination
+- **Search** — AniList anime search by title, seasonal browse (season + year, popularity order, load more), and an advanced search sheet (genre include/exclude, year, season, format, status, minimum score, sort; filters are remembered), plus Nyaa and Tokyo Toshokan torrent RSS with pagination
+- **Saved AniList data** — when an AniList request fails, Miru shows the cached response and a banner naming that data and its age, for search results, lists, details, airing, progress, and thumbnails; the banner clears after the next successful request
 - **Anime details** — Library, Search, and Airing share the same complete metadata, including labeled genres and the next-episode countdown. Details share an account-scoped memory and SQLite cache for one hour, with cached data available when a refresh fails; search summaries and airing schedules remain separate.
 - **Downloads** — built-in BitTorrent for magnet and `.torrent` links, with file selection, a concurrent limit, queue, bandwidth caps, and seeding across restarts
 - **Airing** — weekly AniList schedule with controls for adding titles to Watching, Planning, or Completed; enabled after AniList responds successfully, with availability cached for six hours
@@ -67,7 +68,7 @@ Package names differ by distro.
 
 - Config/DB: `$XDG_CONFIG_HOME/miru/app_data.db` (usually `~/.config/miru/`)
 - MPV config: `$XDG_CONFIG_HOME/miru/mpv.conf` (included for Miru playback only)
-- Cache: `$XDG_CACHE_HOME/miru`
+- Cache: `$XDG_CACHE_HOME/miru`, plus cached AniList responses in the database; rows older than 7 days are deleted at startup
 - Logs: `$XDG_DATA_HOME/miru` (usually `~/.local/share/miru/`)
 - Default downloads: `~/Downloads/miru`
 
