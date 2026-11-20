@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.4.4-alpha
+
+- Advanced anime search on AniList: combine a title, genres and excluded genres, year, season, format, status, minimum score and sort in one sheet; the filters are remembered and results share Load more with seasonal browse.
+- When AniList cannot be reached, Miru labels the data it shows from cache with its age above every tab, and a **Retry** button re-runs the request that failed.
+- List changes now also clear cached season and advanced search pages, so saved results stop showing a title as not on your list for 15 minutes.
+- Cached AniList responses older than seven days are deleted at startup, which bounds the offline fallback.
+
 ## v0.4.3-alpha
 
 - Autoplay: playing an episode queues the next downloaded episodes of the same show, so a binge continues in one MPV window, with each episode's own resume position, player title, Discord presence and AniList sync.
