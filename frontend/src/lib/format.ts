@@ -16,6 +16,37 @@ export function formatSpeed(bytesPerSecond: number): string {
   return `${formatBytes(bytesPerSecond)}/s`
 }
 
+const sizeUnitPowers: Record<string, number> = {
+  B: 0,
+  KB: 1,
+  KIB: 1,
+  MB: 2,
+  MIB: 2,
+  GB: 3,
+  GIB: 3,
+  TB: 4,
+  TIB: 4,
+}
+
+// parseSize reads an indexer's free-form size text such as "1.4 GiB" or "800MB".
+// Every unit is 1024-based so a summed batch total never surprises; anything it
+// cannot read returns null.
+export function parseSize(input: string): number | null {
+  const match = /^(\d+(?:[.,]\d+)?)\s*([a-z]+)$/i.exec(input.trim())
+  if (!match) {
+    return null
+  }
+  const power = sizeUnitPowers[match[2].toUpperCase()]
+  if (power === undefined) {
+    return null
+  }
+  const amount = Number.parseFloat(match[1].replace(',', '.'))
+  if (!Number.isFinite(amount)) {
+    return null
+  }
+  return amount * 1024 ** power
+}
+
 // formatAge renders how old a cached AniList response is for the stale banner.
 export function formatAge(seconds: number): string {
   const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0
