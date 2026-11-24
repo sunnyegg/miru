@@ -1,37 +1,43 @@
 ---
 name: release
 description: >-
-  Cut a Miru GitHub Release: bump the alpha patch in CHANGELOG, merge the PR if
-  needed, push an annotated v*-alpha tag, wait for release CI, then rewrite the
-  GitHub release notes. Use when the user asks to release, ship, tag, bump
-  version, or publish a Miru build.
+  Cut a Miru GitHub Release: bump the alpha version in CHANGELOG, merge the PR
+  if needed, push an annotated v*-alpha tag, wait for release CI, rewrite the
+  release notes, and verify the published binaries carry that version. Use when
+  the user asks to release, ship, tag, bump version, or publish a Miru build.
 argument-hint: "[patch|minor|major]"
 ---
 
 # Release
 
-Ship a tagged Miru pre-release (`vX.Y.Z-alpha`) through GitHub Actions.
+Ship a tagged Miru pre-release (`vX.Y.Z-alpha`) through GitHub Actions, then
+prove the artifacts carry the tag.
 
 ## Versioning
 
-- Tags look like `v0.4.1-alpha`. The product version (asset names) is the tag
-  without the leading `v` (`0.4.1-alpha`).
-- Default bump is **patch** (`v0.4.0-alpha` → `v0.4.1-alpha`). Parse
-  `$ARGUMENTS` for `minor` or `major` when the user asks; otherwise patch.
-- Runtime version is stamped from the **git tag** in
+- Tags look like `v0.4.4-alpha`. The product version is the tag without the
+  leading `v` (`0.4.4-alpha`); asset names and `wails.json` use it.
+- Default bump is **patch** (`v0.4.3-alpha` -> `v0.4.4-alpha`). Use `minor` or
+  `major` only when the user asks.
+- The runtime version comes from the **git tag** in
   [`.github/workflows/release.yml`](../../../.github/workflows/release.yml)
-  (`-ldflags "-X main.version=…"`). `version.go` stays `"dev"` in the tree.
-- Human-facing bump in-repo: add a section at the top of [`CHANGELOG.md`](../../../CHANGELOG.md).
+  (`-ldflags "-X main.version=…"`). `version.go` stays `"dev"` in the tree;
+  never edit it for a release.
+- The human-facing bump in the repo is a new section at the top of
+  [`CHANGELOG.md`](../../../CHANGELOG.md).
 
-## Prerequisites
+## Preflight
 
-- Clean enough git state to commit the changelog (or a ready PR branch).
-- `gh` authenticated for `sunnyegg/miru`.
-- Do **not** start `make dev` for a release.
+- Work on `main`, clean tree, in sync with `origin/main`.
+- If the release needs a PR, wait for its CI and merge first. `ci.yml` runs only
+  on pull requests, so checks must be green before the merge; a changelog-only
+  push to `main` runs no lint or test job.
+- `gh` is authenticated for `sunnyegg/miru`.
+- Do not start `make dev` during a release.
 
 ## Workflow
 
-### 1. Decide the next tag
+### 1. Pick the next tag
 
 ```bash
 git fetch --tags origin
@@ -39,49 +45,44 @@ git tag --sort=-v:refname | head -5
 gh release list --limit 3
 ```
 
-Next tag = latest `v*-alpha` bumped per `$ARGUMENTS` (default patch).
-
-Collect unreleased commits for notes:
+Collect everything unreleased, not just the last PR:
 
 ```bash
 git log <latest-tag>..HEAD --oneline
 ```
 
-Include every merged feature/fix since the previous tag in CHANGELOG and the
-GitHub release body (not only the latest PR).
-
 ### 2. Bump CHANGELOG
 
-Prepend a section to `CHANGELOG.md`:
+Prepend one section. Bullets describe what a user gets, one line each, and
+cover every merged feature, fix, or behavior change since the previous tag.
 
 ```markdown
 ## vX.Y.Z-alpha
 
-- <user-facing bullets; match release notes tone>
+- <user-facing change>
+- <user-facing change>
 ```
 
-Commit on the feature branch (preferred) or on `main` if the work is already
-merged:
+Commit with the existing convention:
 
 ```bash
 git add CHANGELOG.md
-git commit -m "$(cat <<'EOF'
+git commit -F - <<'EOF'
 chore(release): bump changelog to vX.Y.Z-alpha
-
 EOF
-)"
-git push
+git push origin main
 ```
 
-If this is still on a PR: wait for CI, then merge (merge commit, match recent
-history):
+If the changelog commit lives on the PR branch, merge after CI:
 
 ```bash
 gh pr checks <N> --watch --fail-fast
-gh pr merge <N> --merge --delete-branch
+gh pr merge <N> --merge
 ```
 
-### 3. Tag main and push
+Use `--delete-branch` only when the user wants the branch cleaned up.
+
+### 3. Tag and push
 
 ```bash
 git checkout main
@@ -90,47 +91,75 @@ git tag -a vX.Y.Z-alpha -m "vX.Y.Z-alpha"
 git push origin vX.Y.Z-alpha
 ```
 
-Pushing the tag starts [`.github/workflows/release.yml`](../../../.github/workflows/release.yml).
-Do not force-push tags.
+The tag must point at the changelog commit. Pushing it starts the release
+workflow. Do not force-push tags and do not create the GitHub release by hand;
+`softprops/action-gh-release` makes it.
 
 ### 4. Wait for release CI
 
 ```bash
 gh run list --workflow=release.yml --limit 1
 gh run watch <run-id> --exit-status
+gh run view <run-id> --json jobs
 ```
 
-Expect Linux, Windows, and macOS artifacts on the GitHub Release. Softprops
-creates a stub body (Downloads only) — replace it next.
+Expect three jobs: `Build Linux + Windows`, `Build macOS (universal)`, and
+`Attach binaries to release`. A release takes roughly 5 to 10 minutes.
 
-### 5. Update the release description
+### 5. Rewrite the release notes
 
-Match the previous release shape (`gh release view <prev-tag> --json body`):
+The workflow leaves a Downloads-only stub. Replace it, matching the shape of
+the previous release (`gh release view <prev-tag> --json body`):
 
 ```bash
-gh release edit vX.Y.Z-alpha --notes "$(cat <<'EOF'
-## Miru vX.Y.Z-alpha
+cat > /tmp/miru-release-notes.md <<'EOF'
+## What's new in vX.Y.Z-alpha
 
-### What's new
+- **Feature**: one sentence on what the user can do now.
+- **Fix**: one sentence on what stopped going wrong.
 
-- <same bullets as CHANGELOG, polished for users>
+## Downloads
 
-### Downloads
+- `miru-X.Y.Z-alpha-linux-amd64`: Linux x86_64 standalone ELF.
+- `miru-X.Y.Z-alpha-windows-amd64.exe`: Windows x86_64 standalone with embedded WebView2.
+- `miru-X.Y.Z-alpha-mac-universal.zip`: macOS universal `.app` bundle (Apple Silicon + Intel). **Unsigned**, see README for the Gatekeeper workaround.
 
-- `miru-X.Y.Z-alpha-linux-amd64` — Linux x86_64 standalone ELF.
-- `miru-X.Y.Z-alpha-windows-amd64.exe` — Windows x86_64 standalone with embedded WebView2.
-- `miru-X.Y.Z-alpha-mac-universal.zip` — macOS universal `.app` bundle (Apple Silicon + Intel). **Unsigned** — see README for the Gatekeeper workaround.
+MPV must be on `PATH` or set in Settings → Playback.
 EOF
-)"
+gh release edit vX.Y.Z-alpha --notes-file /tmp/miru-release-notes.md
 ```
 
-Return the release URL: `https://github.com/sunnyegg/miru/releases/tag/vX.Y.Z-alpha`.
+Keep the release out of draft and **out of prerelease**, like the earlier alpha
+releases. Keep the macOS unsigned sentence; it is the only install warning.
 
-## Notes
+### 6. Verify the published artifacts
 
-- CI release body is auto-generated; always rewrite with **What's new**.
-- macOS build is unsigned; keep the Gatekeeper sentence in Downloads.
-- If release CI fails, fix on a branch, retag only after the user agrees (moving
-  tags needs an explicit ask).
-- Link any PR you merge for this thread with T3 `link_pull_request` when that
-  tool is available.
+A green workflow is not proof that the binary has the right version.
+
+```bash
+gh release view vX.Y.Z-alpha --json tagName,isPrerelease,isDraft,assets
+tmp=$(mktemp -d)
+gh release download vX.Y.Z-alpha --pattern '*-linux-amd64' --dir "$tmp"
+file "$tmp"/*
+strings "$tmp"/*-linux-amd64 | grep -F 'main.version=vX.Y.Z-alpha'
+rm -rf "$tmp"
+```
+
+Expect `isPrerelease: false`, three assets with sizes, an ELF 64-bit x86-64
+file, and the version string in the binary. When the release adds a Wails
+binding, grep one new method name as a second check that the build is current.
+
+Finish the release note edit for macOS too: `gh release view` should show the
+rewritten body, not the stub.
+
+## If CI fails
+
+Fix the cause on a branch, run the checks for the changed area, and ship a new
+tag. Moving or deleting a published tag needs the user's explicit approval.
+
+## Report
+
+Give the release URL, the tag and its commit, the version bump, the jobs that
+passed, each asset with its size, and the verification output you actually ran.
+Say plainly what you did not do: merge request review, labels, branch cleanup,
+or a visual check of the notes page.
