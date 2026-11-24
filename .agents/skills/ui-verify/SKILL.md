@@ -31,6 +31,39 @@ Load the core workflow before running any commands:
 agent-browser skills get core
 ```
 
+## Screenshots are evidence (mandatory)
+
+No finding is reported without a screenshot backing it. A snapshot tree proves
+what is in the DOM, never what it looks like, so every claim — pass or fail,
+including "blocked" — ships with the image that shows it.
+
+```bash
+mkdir -p /tmp/miru-ui-verify
+agent-browser screenshot /tmp/miru-ui-verify/<view>-<state>.png
+```
+
+The path is positional; `--path` and other flags are not part of the command.
+Use absolute paths, one file per state, with the view and the state in the name
+(`search-torrent-results.png`, `search-batch-bar-3-selected.png`,
+`downloads-empty.png`). Re-screenshot after each interaction that changes the
+screen, so a flow yields a before/after pair rather than a single final shot.
+
+Attach each file in the report with markdown image syntax and the absolute path
+(`![search batch bar](/tmp/miru-ui-verify/search-batch-bar-3-selected.png)`), not
+a bare path or a description of what it contains — a path nobody opens is not
+evidence. Keep the files until the report is delivered; never clean them up
+first.
+
+If the model cannot read images, say so in the report, still capture and attach
+the screenshots for the operator, and base pass/fail on DOM evidence
+(`agent-browser snapshot -i`, computed styles, measured heights) instead of
+claiming to have looked at the picture. Never omit the screenshot because the
+model cannot see it.
+
+When a check cannot run at all (indexer unreachable, empty data set, no dev
+server), the blocked finding also gets a screenshot of what the app actually
+showed, e.g. the inline error alert.
+
 ## Mode
 
 Parse `$ARGUMENTS` for the mode keyword. Default to `visual` if none is given.
@@ -71,7 +104,8 @@ Read .agents/skills/ui-verify/references/miru-design.md
 
 #### `visual`
 
-1. `agent-browser screenshot` the current page.
+1. `agent-browser screenshot /tmp/miru-ui-verify/<view>.png` for the current
+   page, and again after any state change you judge.
 2. `agent-browser snapshot -i` to get the element tree.
 3. Check against the design reference:
    - Border radius is zero on all elements.
@@ -84,8 +118,9 @@ Read .agents/skills/ui-verify/references/miru-design.md
    - Font is Source Sans 3 Variable. No other font families.
    - Headings use `text-balance`. Body uses `font-smoothing: antialiased`.
 4. Navigate to each major view (Library, Search, Downloads, Settings) and
-   repeat. Use `agent-browser snapshot -i` to find navigation elements.
-5. Report findings: pass or fail per check with the screenshot as evidence.
+   repeat. Use `agent-browser snapshot -i` to find navigation elements. Every
+   view visited gets its own screenshot.
+5. Report findings: pass or fail per check, each with its screenshot attached.
 
 #### `a11y`
 
@@ -103,7 +138,9 @@ Read .agents/skills/ui-verify/references/miru-design.md
      - `#f2f2f2` on `#181818` (foreground on card) — 15.3:1
      - `#a78bfa` on `#111111` (accent on background) — 7.0:1
    - Live regions exist for dynamic content updates (toasts, loading states).
-3. Report findings per check.
+3. Screenshot the focus ring and any element whose label or contrast you are
+   judging.
+4. Report findings per check, each with its screenshot attached.
 
 #### `interaction`
 
@@ -116,8 +153,10 @@ Read .agents/skills/ui-verify/references/miru-design.md
      persists after re-navigation.
    - **Downloads**: navigate to Downloads, verify tab switching works, verify
      torrent list renders.
-3. After each flow, `agent-browser snapshot -i` to confirm the expected state.
-4. Report pass/fail per flow with the final snapshot.
+3. After each flow, `agent-browser snapshot -i` to confirm the expected state,
+   and screenshot the end state (plus any intermediate state the flow is meant
+   to show, such as a dialog, a bulk bar or a toast).
+4. Report pass/fail per flow, each with its screenshot attached.
 
 #### `errors`
 
@@ -131,7 +170,9 @@ Read .agents/skills/ui-verify/references/miru-design.md
    - Load failures use inline Alert.
    - Action failures use `notice(..., true)`.
    - No swallowed errors (no empty catch blocks visible in snapshot).
-5. Report findings per check.
+5. Screenshot each error and empty state while it is on screen — notices and
+   alerts disappear, so capture before moving on.
+6. Report findings per check, each with its screenshot attached.
 
 #### `full`
 
@@ -140,7 +181,7 @@ findings into a single report at the end.
 
 ### 4. Report
 
-After all checks complete, produce a summary:
+After all checks complete, produce a summary that carries the screenshots:
 
 ```
 ## UI Verification Report
@@ -150,21 +191,37 @@ After all checks complete, produce a summary:
 
 ### Visual
 - [PASS/FAIL] Border radius: zero
+  ![library](/tmp/miru-ui-verify/library.png)
 - [PASS/FAIL] Control height: 44px
-- ...
+  ![search torrent](/tmp/miru-ui-verify/search-torrent-results.png)
+- [BLOCKED] <check that could not run, and why>
+  ![](/tmp/miru-ui-verify/search-torrent-blocked.png)
 
 ### Accessibility
 - [PASS/FAIL] Focus ring visible
-- ...
+  ![focus ring](/tmp/miru-ui-verify/settings-focus-ring.png)
 
 (only include sections relevant to the mode)
+
+### Screenshots
+| File | Shows |
+| --- | --- |
+| `/tmp/miru-ui-verify/library.png` | Library grid, zero radius, 44px controls |
 ```
 
-If any check fails, include the screenshot and the specific element or
-component that violated the rule.
+Rules for the report:
+
+- Every line item has at least one image directly under it. No image, no claim.
+- A failure also names the specific element or component that violated the rule,
+  next to its screenshot.
+- `BLOCKED` is its own verdict: it is not a pass, and it still carries a
+  screenshot of whatever the app showed.
 
 ### 5. Close
 
 ```bash
 agent-browser close
 ```
+
+Leave the screenshots on disk after closing the browser: the report references
+them by path, and the operator may want to look at them again.
