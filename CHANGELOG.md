@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.5-alpha
+
+- Pick several torrents from a search and add them all at once: **Select** turns on checkboxes, the footer shows how many torrents and their total size, and one **Download N** runs the batch.
+- A batch inspects up to four torrents in the background and opens the existing file sheet once per torrent, so a slow or broken result can be skipped or retried without losing its place.
+- The end of a batch reports how many downloads were added and how many failed, and stays on Search with the selection kept when nothing could be read.
+
 ## v0.4.4-alpha
 
 - Advanced anime search on AniList: combine a title, genres and excluded genres, year, season, format, status, minimum score and sort in one sheet; the filters are remembered and results share Load more with seasonal browse.
