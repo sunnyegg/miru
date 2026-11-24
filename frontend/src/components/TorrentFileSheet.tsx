@@ -12,8 +12,11 @@ type Props = {
   loading: boolean
   error: string
   confirming: boolean
+  batch?: {position: number; total: number}
   onClose: () => void
   onConfirm: (files: TorrentFileView[]) => void
+  onSkip?: () => void
+  onRetry?: () => void
 }
 
 export function TorrentFileSheet({
@@ -23,8 +26,11 @@ export function TorrentFileSheet({
   loading,
   error,
   confirming,
+  batch,
   onClose,
   onConfirm,
+  onSkip,
+  onRetry,
 }: Props) {
   const [selectedPaths, setSelectedPaths] = useState<string[]>([])
 
@@ -70,9 +76,16 @@ export function TorrentFileSheet({
                 <Dialog.Title id="torrent-files-title">
                   Choose files
                 </Dialog.Title>
-                <p className="mt-1 truncate text-sm text-muted-foreground">
-                  {name || 'Torrent'}
-                </p>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <p className="min-w-0 truncate text-sm text-muted-foreground">
+                    {name || 'Torrent'}
+                  </p>
+                  {batch && (
+                    <span className="shrink-0 tabular-nums text-xs text-muted-foreground">
+                      Torrent {batch.position} of {batch.total}
+                    </span>
+                  )}
+                </div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {loading
                     ? 'Reading torrent contents…'
@@ -160,7 +173,12 @@ export function TorrentFileSheet({
               </>
             )}
 
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+              {batch && (
+                <p className="mr-auto text-xs text-muted-foreground">
+                  Closing stops the rest of the batch.
+                </p>
+              )}
               <Button
                 type="button"
                 variant="ghost"
@@ -169,6 +187,26 @@ export function TorrentFileSheet({
               >
                 Cancel
               </Button>
+              {error && onSkip && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={onSkip}
+                  disabled={confirming}
+                >
+                  Skip
+                </Button>
+              )}
+              {error && onRetry && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={onRetry}
+                  disabled={confirming}
+                >
+                  Retry
+                </Button>
+              )}
               <Button
                 type="button"
                 onClick={() => onConfirm(selectedFiles)}

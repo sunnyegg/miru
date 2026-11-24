@@ -1,16 +1,11 @@
-import {useRef, useState} from 'react'
-import {InspectTorrent, StartTorrent} from '../../wailsjs/go/main/App'
-import {errorMessage} from '../lib/format'
-import type {
-  NyaaResultView,
-  TorrentContentsView,
-  TorrentFileView,
-} from '../lib/types'
+import {useRef} from 'react'
+import {batchSizeLabel, torrentKey} from '../lib/torrentBatch'
 import {AnimeSearch} from '../components/AnimeSearch'
 import {
   TorrentResultCard,
-  type TorrentDownloadHandlerRef,
+  type TorrentCardHandlers,
 } from '../components/TorrentResultCard'
+import {TorrentSelectionFooter} from '../components/TorrentSelectionFooter'
 import {TorrentFileSheet} from '../components/TorrentFileSheet'
 import {useNavigationStore} from '../stores/navigationStore'
 import {useSearchStore, type SearchSource} from '../stores/searchStore'
@@ -21,6 +16,7 @@ import {Input} from '@/components/ui/input'
 import {NativeSelect, NativeSelectOption} from '@/components/ui/native-select'
 import {Skeleton} from '@/components/ui/skeleton'
 import {cn} from '@/lib/utils'
+import {useTorrentBatch} from './useTorrentBatch'
 
 type Props = {
   notice: (msg: string, isError?: boolean) => void
@@ -46,17 +42,32 @@ export function SearchView({notice}: Props) {
   const changeSource = useSearchStore((state) => state.changeSource)
   const runSearch = useSearchStore((state) => state.runSearch)
 
-  const [starting, setStarting] = useState<number | null>(null)
-  const [picker, setPicker] = useState<{
-    source: string
-    contents: TorrentContentsView
-    loading: boolean
-    error: string
-  } | null>(null)
-  const [confirming, setConfirming] = useState(false)
+  const {
+    selectMode,
+    selected,
+    batch,
+    shownItem,
+    startingKey,
+    confirming,
+    toggleMode,
+    toggleSelected,
+    toggleAll,
+    downloadSelected,
+    downloadOne,
+    confirmBatch,
+    skipCurrent,
+    retryCurrent,
+    cancelBatch,
+  } = useTorrentBatch({
+    notice,
+    goToDownloads: () => goToDownloads('downloads'),
+    results,
+  })
+
   const resultsScrollRef = useRef<HTMLDivElement>(null)
-  const downloadHandlerRef = useRef<TorrentDownloadHandlerRef>({
-    current: () => {},
+  const cardHandlers = useRef<TorrentCardHandlers>({
+    download: () => {},
+    toggleSelected: () => {},
   })
 
   const sourceLabel = source === 'tokyotosho' ? 'Tokyo Toshokan' : 'Nyaa'
@@ -64,73 +75,21 @@ export function SearchView({notice}: Props) {
   const pageResults = results.slice(pageStart, pageStart + PAGE_SIZE)
   const lastPage = Math.max(1, Math.ceil(results.length / PAGE_SIZE))
   const showPager = results.length > PAGE_SIZE
+  const selectedResults = results.filter((result) =>
+    selected.includes(torrentKey(result)),
+  )
+  const selectedSizeLabel = batchSizeLabel(
+    selectedResults.map((result) => result.size),
+  )
+  const allSelected =
+    results.length > 0 && selectedResults.length === results.length
 
   async function search(searchQuery?: string, searchSource?: SearchSource) {
     await runSearch(notice, searchQuery, searchSource)
     resultsScrollRef.current?.scrollTo({top: 0})
   }
 
-  async function download(result: NyaaResultView, resultIndex: number) {
-    const torrentSource = result.link || result.magnet
-    if (!torrentSource) {
-      notice('This result has no torrent link', true)
-      return
-    }
-    setStarting(resultIndex)
-    setPicker({
-      source: torrentSource,
-      contents: {name: result.title, bytesTotal: 0, files: []},
-      loading: true,
-      error: '',
-    })
-    try {
-      const contents = await InspectTorrent(torrentSource)
-      setPicker((current) => {
-        if (!current || current.source !== torrentSource) {
-          return current
-        }
-        return {
-          source: torrentSource,
-          contents: contents ?? {name: result.title, bytesTotal: 0, files: []},
-          loading: false,
-          error: '',
-        }
-      })
-    } catch (err) {
-      setPicker((current) => {
-        if (!current || current.source !== torrentSource) {
-          return current
-        }
-        return {
-          source: torrentSource,
-          contents: {name: result.title, bytesTotal: 0, files: []},
-          loading: false,
-          error: errorMessage(err),
-        }
-      })
-    } finally {
-      setStarting(null)
-    }
-  }
-
-  downloadHandlerRef.current.current = download
-
-  async function confirmPicker(files: TorrentFileView[]) {
-    if (!picker) {
-      return
-    }
-    setConfirming(true)
-    try {
-      await StartTorrent(picker.source, files)
-      setPicker(null)
-      notice('Download added')
-      goToDownloads('downloads')
-    } catch (err) {
-      notice(errorMessage(err), true)
-    } finally {
-      setConfirming(false)
-    }
-  }
+  cardHandlers.current = {download: downloadOne, toggleSelected}
 
   function goToPage(nextPage: number) {
     setPage(nextPage)
@@ -272,6 +231,11 @@ export function SearchView({notice}: Props) {
                 <Button type="submit" disabled={loading}>
                   {loading ? 'Searching…' : 'Search'}
                 </Button>
+                {!selectMode && results.length > 0 && (
+                  <Button type="button" variant="outline" onClick={toggleMode}>
+                    Select
+                  </Button>
+                )}
               </form>
 
               <div
@@ -321,15 +285,14 @@ export function SearchView({notice}: Props) {
                     {pageResults.map((result, indexOnPage) => {
                       const resultIndex = pageStart + indexOnPage
                       return (
-                        <li
-                          key={`${result.magnet || result.link}-${resultIndex}`}
-                        >
+                        <li key={`${torrentKey(result)}-${resultIndex}`}>
                           <TorrentResultCard
                             result={result}
-                            resultIndex={resultIndex}
-                            starting={starting === resultIndex}
-                            busy={starting !== null}
-                            onDownload={downloadHandlerRef.current}
+                            starting={startingKey === torrentKey(result)}
+                            busy={batch !== null}
+                            selected={selected.includes(torrentKey(result))}
+                            selectMode={selectMode}
+                            handlers={cardHandlers}
                           />
                         </li>
                       )
@@ -363,16 +326,47 @@ export function SearchView({notice}: Props) {
                 </div>
               )}
 
-              {picker && (
+              {(selectMode || batch !== null) && (
+                <TorrentSelectionFooter
+                  selectMode={selectMode}
+                  selectedCount={selectedResults.length}
+                  allSelected={allSelected}
+                  someSelected={selectedResults.length > 0}
+                  sizeLabel={selectedSizeLabel}
+                  running={batch !== null}
+                  progress={
+                    batch
+                      ? {
+                          inspecting: !batch.sheetOpen,
+                          position: batch.index + 1,
+                          total: batch.items.length,
+                        }
+                      : null
+                  }
+                  onToggleAll={() => toggleAll(results)}
+                  onLeaveMode={toggleMode}
+                  onStartBatch={() => downloadSelected(results)}
+                  onCancelBatch={cancelBatch}
+                />
+              )}
+
+              {batch && shownItem && (
                 <TorrentFileSheet
-                  name={picker.contents.name}
-                  bytesTotal={picker.contents.bytesTotal}
-                  files={picker.contents.files ?? []}
-                  loading={picker.loading}
-                  error={picker.error}
+                  name={shownItem.contents?.name || shownItem.title}
+                  bytesTotal={shownItem.contents?.bytesTotal ?? 0}
+                  files={shownItem.contents?.files ?? []}
+                  loading={shownItem.status === 'pending'}
+                  error={shownItem.status === 'failed' ? shownItem.error : ''}
                   confirming={confirming}
-                  onClose={() => setPicker(null)}
-                  onConfirm={(files) => void confirmPicker(files)}
+                  batch={
+                    batch.bulk
+                      ? {position: batch.index + 1, total: batch.items.length}
+                      : undefined
+                  }
+                  onClose={cancelBatch}
+                  onConfirm={(files) => void confirmBatch(files)}
+                  onSkip={batch.bulk ? skipCurrent : undefined}
+                  onRetry={batch.bulk ? () => void retryCurrent() : undefined}
                 />
               )}
             </>
